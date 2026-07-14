@@ -205,6 +205,88 @@ test('a user can remove an item from an invoice', function () {
     expect($load2->refresh()->status)->toBe(LoadStatus::FACTURER);
 });
 
+test('load statuses are correctly updated when invoice is modified', function () {
+    $user = User::factory()->create();
+    $client = Client::factory()->create();
+
+    // 1. Initial loads
+    $loadToKeep = Load::factory()->create(['client_id' => $client->id, 'status' => LoadStatus::FACTURER]);
+    $loadToRemove = Load::factory()->create(['client_id' => $client->id, 'status' => LoadStatus::FACTURER]);
+    $loadToAdd = Load::factory()->create(['client_id' => $client->id, 'status' => LoadStatus::LIVRER]);
+
+    $invoice = Invoice::factory()->create(['client_id' => $client->id]);
+
+    $itemKeep = InvoiceItem::create([
+        'invoice_id' => $invoice->id,
+        'load_id' => $loadToKeep->id,
+        'quantity_delivered' => 1000,
+        'unit_price' => 500,
+        'total' => 500000,
+    ]);
+
+    $itemRemove = InvoiceItem::create([
+        'invoice_id' => $invoice->id,
+        'load_id' => $loadToRemove->id,
+        'quantity_delivered' => 1000,
+        'unit_price' => 500,
+        'total' => 500000,
+    ]);
+
+    // 2. Update invoice: keep one, remove one, add one
+    $response = $this->actingAs($user)->put(route('finances.facture-chargement.update', $invoice), [
+        'client_id' => $client->id,
+        'date' => now()->format('Y-m-d'),
+        'items' => [
+            [
+                'id' => $itemKeep->id,
+                'load_id' => $loadToKeep->id,
+                'quantity_delivered' => 1000,
+                'unit_price' => 500,
+                'total' => 500000,
+            ],
+            [
+                'load_id' => $loadToAdd->id,
+                'quantity_delivered' => 1000,
+                'unit_price' => 500,
+                'total' => 500000,
+            ],
+        ],
+        'total_amount' => 1000000,
+        'total_missing' => 0,
+    ]);
+
+    $response->assertRedirect();
+
+    // 3. Verify statuses
+    expect($loadToKeep->refresh()->status)->toBe(LoadStatus::FACTURER);
+    expect($loadToRemove->refresh()->status)->toBe(LoadStatus::LIVRER);
+    expect($loadToAdd->refresh()->status)->toBe(LoadStatus::FACTURER);
+
+    // 4. Test changing the load of an existing item
+    $loadSwitch = Load::factory()->create(['client_id' => $client->id, 'status' => LoadStatus::LIVRER]);
+
+    $response = $this->actingAs($user)->put(route('finances.facture-chargement.update', $invoice), [
+        'client_id' => $client->id,
+        'date' => now()->format('Y-m-d'),
+        'items' => [
+            [
+                'id' => $itemKeep->id,
+                'load_id' => $loadSwitch->id, // Switching load for this item
+                'quantity_delivered' => 1000,
+                'unit_price' => 500,
+                'total' => 500000,
+            ],
+        ],
+        'total_amount' => 500000,
+        'total_missing' => 0,
+    ]);
+
+    $response->assertRedirect();
+
+    expect($loadToKeep->refresh()->status)->toBe(LoadStatus::LIVRER);
+    expect($loadSwitch->refresh()->status)->toBe(LoadStatus::FACTURER);
+});
+
 test('a user can delete an invoice and reset load statuses', function () {
     $user = User::factory()->create();
     $client = Client::factory()->create();

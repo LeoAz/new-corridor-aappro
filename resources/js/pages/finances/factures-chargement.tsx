@@ -27,6 +27,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn, formatNumber } from '@/lib/utils';
 import * as finances from '@/routes/finances';
+import * as operations from '@/routes/operations';
 
 interface InvoiceItem {
     id: number;
@@ -76,11 +77,24 @@ export default function FacturesChargement({ invoices, clients }: Props) {
     });
 
     const [availableLoads, setAvailableLoads] = useState<any[]>([]);
-    const [isAddLoadOpen, setIsAddLoadOpen] = useState(false);
+
+    // Filter available loads: must belong to client and NOT be already in items
+    const filteredAvailableLoads = useMemo(() => {
+        const selectedLoadIds = new Set(data.items.map(item => item.load_id).filter(id => id));
+
+        return availableLoads.filter(load => !selectedLoadIds.has(load.id));
+    }, [availableLoads, data.items]);
 
     useEffect(() => {
         if (isEditOpen && data.client_id) {
-            fetch(finances.default.factureChargement.index().url.split('?')[0].replace('/finances/factures-chargement', '/operations/livraisons') + `?client_id=${data.client_id}&status=LIVRER`, {
+            const url = operations.default.livraisons.index({
+                query: {
+                    client_id: data.client_id,
+                    status: 'LIVRER'
+                }
+            }).url;
+
+            fetch(url, {
                 headers: {
                     'X-Requested-With': 'XMLHttpRequest',
                     'Accept': 'application/json',
@@ -90,6 +104,30 @@ export default function FacturesChargement({ invoices, clients }: Props) {
                 .then(setAvailableLoads);
         }
     }, [isEditOpen, data.client_id]);
+
+    // Clear items if client changes and items don't belong to the new client
+    useEffect(() => {
+        if (data.client_id && data.items.length > 0) {
+            // Since we don't have client_id in the items, we can't easily check
+            // But if the client_id changed from the original invoice's client_id,
+            // and the user manually changed it, we might want to warn or clear.
+            // For now, let's stick to the requirement: "si le client selectionné change, le sous formulaire doit etre automatiquement vidé si les livraisons ne l'appartiennent pas"
+            // Actually, any new available loads will be for the new client.
+            // If the user changes client, we should probably clear items that were for the previous client.
+            // Since we fetch availableLoads for the current data.client_id,
+            // we can assume any item NOT in availableLoads AND NOT in the original selectedInvoice items (if still same client) might be wrong.
+            // Simplified: if client_id changes, clear items that were not part of the original invoice if it's a different client.
+
+            if (selectedInvoice && data.client_id !== selectedInvoice.client_id.toString()) {
+                setData(prev => ({
+                    ...prev,
+                    items: [],
+                    total_amount: 0,
+                    total_missing: 0
+                }));
+            }
+        }
+    }, [data.client_id]);
 
     useEffect(() => {
         if (selectedInvoice && isEditOpen) {
@@ -117,6 +155,24 @@ export default function FacturesChargement({ invoices, clients }: Props) {
         const newItems = [...data.items];
         newItems[index] = { ...newItems[index], [field]: value };
 
+        if (field === 'load_id') {
+            const load = availableLoads.find(l => l.id.toString() === value.toString());
+
+            if (load) {
+                newItems[index] = {
+                    ...newItems[index],
+                    load_id: load.id,
+                    bl_number: load.bl_number || '',
+                    quantity_delivered: load.volume,
+                    unit_price: load.unit_price || 0,
+                    missing_quantity: 0,
+                    total: (load.volume || 0) * (load.unit_price || 0),
+                    vehicle_registration: load.vehicle_registration,
+                    product: load.product
+                };
+            }
+        }
+
         if (field === 'unit_price' || field === 'quantity_delivered' || field === 'missing_quantity') {
             const qty = parseFloat(newItems[index].quantity_delivered) || 0;
             const price = parseFloat(newItems[index].unit_price) || 0;
@@ -131,21 +187,22 @@ export default function FacturesChargement({ invoices, clients }: Props) {
         recalculateTotals(newItems);
     };
 
-    const addLoadToInvoice = (load: any) => {
+    const addNewItem = () => {
         const newItem = {
-            load_id: load.id,
-            bl_number: load.bl_number || '',
-            quantity_delivered: load.volume,
-            unit_price: load.unit_price || 0,
+            load_id: '',
+            bl_number: '',
+            quantity_delivered: 0,
+            unit_price: 0,
             missing_quantity: 0,
-            total: (load.volume || 0) * (load.unit_price || 0),
-            vehicle_registration: load.vehicle_registration,
-            product: load.product
+            total: 0,
+            vehicle_registration: '',
+            product: ''
         };
 
-        const newItems = [...data.items, newItem];
-        recalculateTotals(newItems);
-        setIsAddLoadOpen(false);
+        setData(prev => ({
+            ...prev,
+            items: [...prev.items, newItem]
+        }));
     };
 
     const recalculateTotals = (items: any[]) => {
@@ -340,46 +397,10 @@ export default function FacturesChargement({ invoices, clients }: Props) {
 
                         <div className="flex justify-between items-center">
                             <h3 className="text-lg font-medium">Livraisons</h3>
-                            <Popover open={isAddLoadOpen} onOpenChange={setIsAddLoadOpen}>
-                                <PopoverTrigger asChild>
-                                    <Button type="button" variant="outline" size="sm" className="h-8">
-                                        <Plus className="mr-2 h-4 w-4" />
-                                        Ajouter une livraison
-                                    </Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-80 p-0" align="end">
-                                    <div className="p-2 border-b">
-                                        <h4 className="font-medium">Livraisons disponibles</h4>
-                                    </div>
-                                    <div className="max-h-60 overflow-auto">
-                                        {availableLoads
-                                            .filter(load => !data.items.find(item => item.load_id === load.id))
-                                            .length === 0 ? (
-                                                <div className="p-4 text-center text-sm text-muted-foreground">
-                                                    Aucune livraison disponible
-                                                </div>
-                                            ) : (
-                                                availableLoads
-                                                    .filter(load => !data.items.find(item => item.load_id === load.id))
-                                                    .map(load => (
-                                                        <div
-                                                            key={load.id}
-                                                            className="flex flex-col p-2 hover:bg-muted cursor-pointer border-b last:border-0"
-                                                            onClick={() => addLoadToInvoice(load)}
-                                                        >
-                                                            <div className="flex justify-between font-medium">
-                                                                <span>{load.vehicle_registration}</span>
-                                                                <span>{formatNumber(load.volume)} L</span>
-                                                            </div>
-                                                            <div className="text-xs text-muted-foreground">
-                                                                {load.product} - {load.unload_date ? format(new Date(load.unload_date), 'dd/MM/yyyy') : ''}
-                                                            </div>
-                                                        </div>
-                                                    ))
-                                            )}
-                                    </div>
-                                </PopoverContent>
-                            </Popover>
+                            <Button type="button" variant="outline" size="sm" className="h-8" onClick={addNewItem}>
+                                <Plus className="mr-2 h-4 w-4" />
+                                Ajouter une livraison
+                            </Button>
                         </div>
 
                         <div className="border rounded-md max-h-[400px] overflow-auto">
@@ -398,7 +419,27 @@ export default function FacturesChargement({ invoices, clients }: Props) {
                                 <tbody>
                                     {data.items.map((item, index) => (
                                         <tr key={index} className="border-t">
-                                            <td className="px-4 py-2">{item.vehicle_registration}</td>
+                                            <td className="px-4 py-2">
+                                                {item.load_id ? (
+                                                    item.vehicle_registration
+                                                ) : (
+                                                    <Select
+                                                        value={item.load_id?.toString() || ""}
+                                                        onValueChange={(v) => handleEditItem(index, 'load_id', v)}
+                                                    >
+                                                        <SelectTrigger className="h-8 w-[200px]">
+                                                            <SelectValue placeholder="Choisir une livraison" />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            {filteredAvailableLoads.map((load) => (
+                                                                <SelectItem key={load.id} value={load.id.toString()}>
+                                                                    {load.vehicle_registration} ({formatNumber(load.volume)} L)
+                                                                </SelectItem>
+                                                            ))}
+                                                        </SelectContent>
+                                                    </Select>
+                                                )}
+                                            </td>
                                             <td className="px-4 py-2">{item.product}</td>
                                             <td className="px-4 py-2 text-right">
                                                 <Input

@@ -4,11 +4,8 @@ import { CheckCircle2, Download, Eye, MoreHorizontal, Pencil, Plus, Search, Tras
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
-import { DataTable } from '@/components/ui/data-table';
 import AlertError from '@/components/alert-error';
+import { Badge } from '@/components/ui/badge';
 import {
     Dialog,
     DialogContent,
@@ -905,7 +902,7 @@ export default function Reglements({ payments, clients, paymentMethods }: Props)
 
             {/* Modal Détails */}
             <Dialog open={isDetailsModalOpen} onOpenChange={setIsDetailsModalOpen}>
-                <DialogContent className="max-w-3xl">
+                <DialogContent className="max-w-4xl">
                     <DialogHeader>
                         <DialogTitle>Détails du règlement</DialogTitle>
                     </DialogHeader>
@@ -970,11 +967,13 @@ export default function Reglements({ payments, clients, paymentMethods }: Props)
                                 <div className="space-y-2">
                                     <h3 className="font-semibold">Factures liées</h3>
                                     <div className="flex flex-wrap gap-2">
-                                        {detailedPayment.invoice_items.map((item: any) => (
-                                            <div key={item.id} className="text-xs border px-3 py-1 rounded bg-blue-50 text-blue-800">
-                                                Facture: <span className="font-bold">{item.invoice?.number}</span>
-                                            </div>
-                                        ))}
+                                        {Array.from(new Set(detailedPayment.invoice_items.map((item: any) => item.invoice?.number)))
+                                            .filter(Boolean)
+                                            .map((invoiceNumber: any) => (
+                                                <div key={invoiceNumber as string} className="text-xs border px-3 py-1 rounded bg-blue-50 text-blue-800">
+                                                    Facture: <span className="font-bold">{invoiceNumber as string}</span>
+                                                </div>
+                                            ))}
                                     </div>
                                 </div>
                             )}

@@ -113,8 +113,22 @@ class InvoiceController extends Controller
             foreach ($validated['items'] as $item) {
                 if (isset($item['id'])) {
                     $invoiceItem = InvoiceItem::find($item['id']);
+
+                    // If the load_id has changed, reset the old load status
+                    if ($invoiceItem->load_id != $item['load_id']) {
+                        Load::where('id', $invoiceItem->load_id)->update([
+                            'status' => LoadStatus::LIVRER,
+                        ]);
+
+                        // Update the new load status
+                        Load::where('id', $item['load_id'])->update([
+                            'status' => LoadStatus::FACTURER,
+                        ]);
+                    }
+
                     $invoiceItem->update([
                         'bl_number' => $item['bl_number'] ?? '',
+                        'load_id' => $item['load_id'],
                         'quantity_delivered' => $item['quantity_delivered'],
                         'unit_price' => $item['unit_price'],
                         'missing_quantity' => $item['missing_quantity'] ?? 0,
