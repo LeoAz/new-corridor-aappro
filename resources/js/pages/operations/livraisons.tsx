@@ -474,7 +474,7 @@ export default function Livraisons({
                 .then((data) => setAdvances(data.advances || []));
 
             fetch(
-                `${operations.default.livraisons.index().url}?client_id=${clientId}&status=LIVRER,FACTURER`,
+                `${operations.default.livraisons.index().url}?client_id=${clientId}&status=FACTURER`,
                 {
                     headers: {
                         Accept: 'application/json',
@@ -551,6 +551,18 @@ export default function Livraisons({
         if (!allSameClient) {
             toast.error(
                 'Toutes les livraisons sélectionnées doivent appartenir au même client',
+            );
+
+            return;
+        }
+
+        const allInvoiced = selectedRows.every(
+            (r) => r.status === 'FACTURER',
+        );
+
+        if (!allInvoiced) {
+            toast.error(
+                'Seules les livraisons facturées peuvent être sélectionnées pour un règlement',
             );
 
             return;

@@ -81,7 +81,7 @@ class ClientPaymentController extends Controller
                 'exists:loads,id',
                 function ($attribute, $value, $fail) {
                     $load = Load::find($value);
-                    if ($load && ! in_array($load->status, [LoadStatus::LIVRER, LoadStatus::FACTURER])) {
+                    if ($load && ! in_array($load->status, [LoadStatus::FACTURER])) {
                         $fail("La livraison {$load->vehicle_registration} ne peut pas faire l'objet d'un paiement (Statut actuel: {$load->status->value}).");
                     }
                 },
@@ -158,8 +158,8 @@ class ClientPaymentController extends Controller
                 'exists:loads,id',
                 function ($attribute, $value, $fail) use ($reglement) {
                     $load = Load::find($value);
-                    // On autorise si c'est déjà payé par ce règlement ou si c'est LIVRER/FACTURER
-                    if ($load && $load->client_payment_id !== $reglement->id && ! in_array($load->status, [LoadStatus::LIVRER, LoadStatus::FACTURER])) {
+                    // On autorise si c'est déjà payé par ce règlement ou si c'est FACTURER
+                    if ($load && $load->client_payment_id !== $reglement->id && ! in_array($load->status, [LoadStatus::FACTURER])) {
                         $fail("La livraison {$load->vehicle_registration} ne peut pas faire l'objet d'un paiement (Statut actuel: {$load->status->value}).");
                     }
                 },

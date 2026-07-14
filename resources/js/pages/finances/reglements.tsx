@@ -169,7 +169,7 @@ export default function Reglements({ payments, clients, paymentMethods }: Props)
                 });
 
             // Fetch loads
-            fetch(`${operations.default.livraisons.index().url}?client_id=${clientId}&status=LIVRER,FACTURER`, {
+            fetch(`${operations.default.livraisons.index().url}?client_id=${clientId}&status=FACTURER`, {
                 headers: {
                     Accept: 'application/json',
                     'X-Requested-With': 'XMLHttpRequest',
