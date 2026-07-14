@@ -198,6 +198,7 @@
         <table>
             <thead>
                 <tr>
+                    <th style="width: 25px;">N°</th>
                     <th>Date</th>
                     <th>Désignation / Opération</th>
                     <th class="text-right">Débit</th>
@@ -206,6 +207,7 @@
             </thead>
             <tbody>
                 <tr>
+                    <td>-</td>
                     <td style="color: #999;">{{ $dateFrom ? \Carbon\Carbon::parse($dateFrom)->format('d/m/Y') : '-' }}</td>
                     <td style="font-weight: bold; text-transform: uppercase;">REPORT DE SOLDE</td>
                     <td class="text-right">-</td>
@@ -217,6 +219,7 @@
                 </tr>
                 @foreach($operations as $op)
                     <tr>
+                        <td>{{ $loop->iteration }}</td>
                         <td style="color: #666;">{{ \Carbon\Carbon::parse($op['date'])->format('d/m/Y') }}</td>
                         <td>
                             <div style="font-weight: bold;">{{ $op['label'] }}</div>

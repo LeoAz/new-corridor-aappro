@@ -14,6 +14,7 @@ import {
     ClipboardCheck,
     BarChartHorizontal,
     Contact,
+    MapPin,
 } from 'lucide-react';
 
 import AppLogo from '@/components/app-logo';
@@ -110,9 +111,14 @@ const mainNavGroups: NavGroup[] = [
         title: 'Clients',
         items: [
             {
+                title: 'Gestion des clients',
+                href: '/clients/gestion',
+                icon: Contact,
+            },
+            {
                 title: 'Relevé de compte',
                 href: '/clients/releve',
-                icon: Contact,
+                icon: FileText,
             },
             {
                 title: 'Suivi client',
@@ -128,6 +134,11 @@ const mainNavGroups: NavGroup[] = [
                 title: 'Dépôts',
                 href: configuration.default.depots.index().url,
                 icon: Settings,
+            },
+            {
+                title: 'Villes',
+                href: '/settings/cities',
+                icon: MapPin,
             },
         ],
     },

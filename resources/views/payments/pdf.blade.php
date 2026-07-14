@@ -198,18 +198,21 @@
         <table>
             <thead>
                 <tr>
+                    <th style="width: 25px;">N°</th>
                     <th>Description / Référence</th>
                     <th class="text-right">Détails</th>
                     <th class="text-right">Montant</th>
                 </tr>
             </thead>
             <tbody>
+                @php $rowCount = 1; @endphp
                 @foreach($payment->loads as $load)
                     @php
                         $invoiceItem = $payment->invoiceItems->where('load_id', $load->id)->first();
                         $amount = $invoiceItem ? $invoiceItem->total : 0;
                     @endphp
                     <tr>
+                        <td>{{ $rowCount++ }}</td>
                         <td>
                             <div style="font-weight: bold;">Livraison: {{ $load->vehicle_registration }}</div>
                             <div style="font-size: 10px; color: #666;">Produit: {{ $load->product }} | BL: {{ $load->bl_number }}</div>
@@ -226,6 +229,7 @@
 
                 @foreach($payment->depotInvoiceItems as $item)
                     <tr>
+                        <td>{{ $rowCount++ }}</td>
                         <td>
                             <div style="font-weight: bold;">Facture Dépôt: {{ $item->depotInvoice->number ?? 'N/A' }}</div>
                             <div style="font-size: 10px; color: #666;">{{ $item->description }}</div>

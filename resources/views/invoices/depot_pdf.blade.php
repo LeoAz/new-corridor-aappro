@@ -210,6 +210,7 @@
         <table>
             <thead>
                 <tr>
+                    <th style="width: 25px;">N°</th>
                     <th>Compartiment / Produit</th>
                     <th class="text-right">Quantité</th>
                     <th class="text-right">P.U.</th>
@@ -219,6 +220,7 @@
             <tbody>
                 @foreach($invoice->items as $item)
                     <tr>
+                        <td>{{ $loop->iteration }}</td>
                         <td>
                             <div style="font-weight: bold;">{{ $item->compartment->product ?? 'N/A' }}</div>
                             <div style="font-size: 10px; color: #666;">Comp ID: #{{ $item->compartment_id }}</div>

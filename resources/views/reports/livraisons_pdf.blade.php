@@ -81,6 +81,7 @@
                 <table class="table">
                     <thead>
                         <tr>
+                            <th style="width: 25px;">N°</th>
                             <th>Véhicule</th>
                             <th>Lieu</th>
                             <th>Produit</th>
@@ -88,10 +89,14 @@
                         </tr>
                     </thead>
                     <tbody>
-                        @php $clientTotal = 0; @endphp
+                        @php
+                            $clientTotal = 0;
+                            $rowCount = 1;
+                        @endphp
                         @foreach($clientLoads as $load)
                         @php $clientTotal += (float)$load->volume; @endphp
                         <tr>
+                            <td>{{ $rowCount++ }}</td>
                             <td>{{ $load->vehicle_registration }}</td>
                             <td>{{ $load->unload_location }}</td>
                             <td>
@@ -105,7 +110,7 @@
                     </tbody>
                     <tfoot>
                         <tr style="background: #f9f9f9;">
-                            <td colspan="3" class="text-right font-bold">TOTAL CLIENT</td>
+                            <td colspan="4" class="text-right font-bold">TOTAL CLIENT</td>
                             <td class="text-right font-bold">{{ number_format($clientTotal, 0, '.', ' ') }} L</td>
                         </tr>
                     </tfoot>

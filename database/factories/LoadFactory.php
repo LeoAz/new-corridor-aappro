@@ -54,7 +54,7 @@ class LoadFactory extends Factory
             $client = Client::find($clientId);
 
             return [
-                'status' => LoadStatus::LIVRE,
+                'status' => LoadStatus::LIVRER,
                 'is_unload' => true,
                 'unload_date' => $this->faker->dateTimeBetween($attributes['load_date'], 'now'),
                 'unload_location' => $client ? $client->nom : $this->faker->address(),
@@ -75,7 +75,7 @@ class LoadFactory extends Factory
             $client = Client::find($clientId);
 
             return [
-                'status' => LoadStatus::FACTURE,
+                'status' => LoadStatus::FACTURER,
                 'is_unload' => true,
                 'unload_date' => $this->faker->dateTimeBetween($attributes['load_date'], 'now'),
                 'unload_location' => $client ? $client->nom : $this->faker->address(),

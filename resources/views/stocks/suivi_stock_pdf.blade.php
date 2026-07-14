@@ -68,6 +68,7 @@
         <table>
             <thead>
                 <tr>
+                    <th style="width: 20px;">N°</th>
                     <th>Date</th>
                     <th>Compartiment</th>
                     <th class="text-right">Quantité</th>
@@ -78,6 +79,7 @@
             <tbody>
                 @forelse($purchases as $purchase)
                     <tr>
+                        <td>{{ $loop->iteration }}</td>
                         <td>{{ $purchase->purchase_date->format('d/m/Y') }}</td>
                         <td class="font-bold">{{ $purchase->compartment->product }}</td>
                         <td class="text-right font-bold">{{ number_format($purchase->quantity, 0, '.', ' ') }} L</td>
@@ -86,7 +88,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="5" style="text-align: center; padding: 20px; color: #94a3b8;">Aucun achat sur cette période</td>
+                        <td colspan="6" style="text-align: center; padding: 20px; color: #94a3b8;">Aucun achat sur cette période</td>
                     </tr>
                 @endforelse
             </tbody>
@@ -96,6 +98,7 @@
         <table>
             <thead>
                 <tr>
+                    <th style="width: 20px;">N°</th>
                     <th>Date Charg.</th>
                     <th>Véhicule</th>
                     <th>Client</th>
@@ -107,6 +110,7 @@
             <tbody>
                 @forelse($chargements as $load)
                     <tr>
+                        <td>{{ $loop->iteration }}</td>
                         <td>{{ $load->load_date->format('d/m/Y') }}</td>
                         <td class="font-bold text-blue">{{ $load->vehicle_registration }}</td>
                         <td>{{ $load->client->nom }}</td>
@@ -116,7 +120,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="6" style="text-align: center; padding: 20px; color: #94a3b8;">Aucun chargement en cours sur cette période</td>
+                        <td colspan="7" style="text-align: center; padding: 20px; color: #94a3b8;">Aucun chargement en cours sur cette période</td>
                     </tr>
                 @endforelse
             </tbody>
@@ -126,6 +130,7 @@
         <table>
             <thead>
                 <tr>
+                    <th style="width: 20px;">N°</th>
                     <th>Date Charg.</th>
                     <th>Véhicule</th>
                     <th>Client</th>
@@ -137,6 +142,7 @@
             <tbody>
                 @forelse($livraisons as $load)
                     <tr>
+                        <td>{{ $loop->iteration }}</td>
                         <td>{{ $load->load_date->format('d/m/Y') }}</td>
                         <td class="font-bold text-blue">{{ $load->vehicle_registration }}</td>
                         <td>{{ $load->client->nom }}</td>
@@ -146,7 +152,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="6" style="text-align: center; padding: 20px; color: #94a3b8;">Aucune livraison sur cette période</td>
+                        <td colspan="7" style="text-align: center; padding: 20px; color: #94a3b8;">Aucune livraison sur cette période</td>
                     </tr>
                 @endforelse
             </tbody>
@@ -156,6 +162,7 @@
         <table>
             <thead>
                 <tr>
+                    <th style="width: 20px;">N°</th>
                     <th>Date</th>
                     <th>N° Facture</th>
                     <th>Client</th>
@@ -166,6 +173,7 @@
             <tbody>
                 @forelse($depotSales as $item)
                     <tr>
+                        <td>{{ $loop->iteration }}</td>
                         <td>{{ $item->depotInvoice->date->format('d/m/Y') }}</td>
                         <td class="font-bold text-blue">{{ $item->depotInvoice->number }}</td>
                         <td>{{ $item->depotInvoice->client->nom }}</td>
@@ -174,14 +182,14 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="5" style="text-align: center; padding: 20px; color: #94a3b8;">Aucune vente directe sur cette période</td>
+                        <td colspan="6" style="text-align: center; padding: 20px; color: #94a3b8;">Aucune vente directe sur cette période</td>
                     </tr>
                 @endforelse
             </tbody>
             @if($depotSales->count() > 0 || $chargements->count() > 0 || $livraisons->count() > 0 || $purchases->count() > 0)
             <tfoot>
                 <tr>
-                    <th colspan="2" class="text-right">TOTAL GÉNÉRAL</th>
+                    <th colspan="3" class="text-right">TOTAL GÉNÉRAL</th>
                     <th class="text-right">Entrées: {{ number_format($purchases->sum('quantity'), 0, '.', ' ') }} L</th>
                     <th colspan="2" class="text-right">Sorties: {{ number_format($chargements->sum('volume') + $livraisons->sum('volume') + $depotSales->sum('quantity'), 0, '.', ' ') }} L</th>
                 </tr>

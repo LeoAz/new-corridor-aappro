@@ -51,7 +51,7 @@ const normalizeLoadWithInvoiceItem = (load: any, paymentId?: number) => {
     };
 };
 
-const isInvoicedLoad = (load: any) => load.status === 'FACTURE' || load.invoice_items?.length > 0 || Number(load.unit_price || 0) > 0;
+const isInvoicedLoad = (load: any) => load.status === 'FACTURER' || load.invoice_items?.length > 0 || Number(load.unit_price || 0) > 0 || load.status === 'FACTURER ET PAYER';
 
 const getInvoiceItemForLoad = (payment: any, loadId: number) => {
     return payment.invoice_items?.find((item: any) => Number(item.load_id) === Number(loadId));
@@ -167,7 +167,7 @@ export default function Reglements({ payments, clients, paymentMethods }: Props)
                 });
 
             // Fetch loads
-            fetch(`/operations/livraisons?client_id=${clientId}&status=LIVRÉ,FACTURE`, {
+            fetch(`/operations/livraisons?client_id=${clientId}&status=LIVRER,FACTURER`, {
                 headers: {
                     'Accept': 'application/json',
                     'X-Requested-With': 'XMLHttpRequest'
@@ -673,6 +673,7 @@ export default function Reglements({ payments, clients, paymentMethods }: Props)
                     data={payments}
                     searchKey="reference"
                     searchPlaceholder="Rechercher par référence..."
+                    showNumbering={true}
                 />
             </div>
 
@@ -683,7 +684,7 @@ export default function Reglements({ payments, clients, paymentMethods }: Props)
                         <DialogDescription>
                             Êtes-vous sûr de vouloir supprimer ce règlement ?
                             {selectedPayment?.payment_type === 'REGLEMENT' &&
-                                " Les livraisons associées repasseront au statut 'FACTURE'."}
+                                " Les livraisons associées repasseront au statut 'FACTURÉ'."}
                         </DialogDescription>
                     </DialogHeader>
                     <DialogFooter>

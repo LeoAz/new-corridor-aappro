@@ -677,6 +677,7 @@ export default function Chargements({ loads, depots, cities, clients, filters, d
                     searchKey="vehicle_registration"
                     searchPlaceholder="Rechercher par immatriculation..."
                     hidePagination
+                    showNumbering={true}
                 />
             </div>
 

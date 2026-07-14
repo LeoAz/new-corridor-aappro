@@ -201,7 +201,7 @@ export default function Depots({ depots }: Props) {
                     columns={columns}
                     data={depots}
                     searchKey="name"
-                    searchPlaceholder="Rechercher par nom..."
+                    showNumbering={true}
                 />
             </div>
 

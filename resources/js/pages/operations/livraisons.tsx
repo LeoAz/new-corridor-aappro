@@ -194,7 +194,7 @@ export default function Livraisons({
                 cell: ({ row }) => {
                     const status = row.original.status;
                     const canBeInvoiced =
-                        status === 'LIVRÉ' || status === 'FACTURE';
+                        status === 'LIVRER' || status === 'FACTURER';
 
                     return (
                         <Checkbox
@@ -272,11 +272,11 @@ export default function Livraisons({
                         <div
                             className={cn(
                                 'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold',
-                                status === 'LIVRÉ ET PAYÉ' || status === 'PAYÉ'
+                                status === 'FACTURER ET PAYER'
                                     ? 'bg-green-100 text-green-800'
-                                    : status === 'FACTURE'
+                                    : status === 'FACTURER'
                                       ? 'bg-orange-100 text-orange-800'
-                                      : status === 'LIVRÉ'
+                                      : status === 'LIVRER'
                                         ? 'bg-blue-100 text-blue-800'
                                         : 'bg-gray-100 text-gray-800',
                             )}
@@ -473,7 +473,7 @@ export default function Livraisons({
                 .then((data) => setAdvances(data.advances || []));
 
             fetch(
-                `${operations.default.livraisons.index().url}?client_id=${clientId}&status=LIVRÉ,FACTURE`,
+                `${operations.default.livraisons.index().url}?client_id=${clientId}&status=LIVRER,FACTURER`,
                 {
                     headers: {
                         Accept: 'application/json',
@@ -961,6 +961,7 @@ export default function Livraisons({
                     searchPlaceholder="Rechercher par immatriculation..."
                     onRowSelectionChange={setSelectedRows}
                     hidePagination
+                    showNumbering={true}
                 />
             </div>
 

@@ -210,6 +210,7 @@
         <table>
             <thead>
                 <tr>
+                    <th style="width: 30px;">N°</th>
                     <th>Véhicule</th>
                     <th>Produit</th>
                     <th>N° BL</th>
@@ -221,6 +222,7 @@
             <tbody>
                 @foreach($invoice->items as $item)
                     <tr>
+                        <td>{{ $loop->iteration }}</td>
                         <td>
                             <div style="font-weight: bold;">{{ $item->loadDetails->vehicle_registration ?? 'N/A' }}</div>
                         </td>

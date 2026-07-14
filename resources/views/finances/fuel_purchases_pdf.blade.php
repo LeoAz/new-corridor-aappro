@@ -36,6 +36,7 @@
         <table>
             <thead>
                 <tr>
+                    <th style="width: 25px;">N°</th>
                     <th>Date</th>
                     <th>Produit</th>
                     <th>Dépôt</th>
@@ -48,6 +49,7 @@
             <tbody>
                 @foreach($purchases as $purchase)
                 <tr>
+                    <td>{{ $loop->iteration }}</td>
                     <td>{{ \Carbon\Carbon::parse($purchase->purchase_date)->format('d/m/Y') }}</td>
                     <td>{{ $purchase->product }}</td>
                     <td>{{ $purchase->depot->name }}</td>

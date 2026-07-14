@@ -422,6 +422,7 @@ export default function AchatCarburant({ purchases, depots, filters }: Props) {
                     searchKey="product"
                     searchPlaceholder="Rechercher par produit..."
                     hidePagination
+                    showNumbering={true}
                 />
             </div>
 

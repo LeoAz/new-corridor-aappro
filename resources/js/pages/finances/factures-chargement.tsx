@@ -231,6 +231,7 @@ export default function FacturesChargement({ invoices, clients }: Props) {
                     data={invoices}
                     searchKey="number"
                     searchPlaceholder="Rechercher par numéro..."
+                    showNumbering={true}
                 />
             </div>
 

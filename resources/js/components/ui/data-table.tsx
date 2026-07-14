@@ -24,6 +24,7 @@ interface DataTableProps<TData, TValue> {
     searchKey?: string;
     searchPlaceholder?: string;
     hidePagination?: boolean;
+    showNumbering?: boolean;
     onRowSelectionChange?: (selectedRows: TData[]) => void;
 }
 
@@ -33,6 +34,7 @@ export function DataTable<TData, TValue>({
     searchKey,
     searchPlaceholder = 'Rechercher...',
     hidePagination = false,
+    showNumbering = false,
     onRowSelectionChange,
 }: DataTableProps<TData, TValue>) {
     const [sorting, setSorting] = React.useState<SortingState>([]);
@@ -40,9 +42,23 @@ export function DataTable<TData, TValue>({
     const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({});
     const [rowSelection, setRowSelection] = React.useState({});
 
+    const numberingColumn: ColumnDef<TData, TValue>[] = showNumbering
+        ? [
+              {
+                  id: 'numbering',
+                  header: 'N°',
+                  cell: ({ row, table }) => {
+                      const pageIndex = table.getState().pagination.pageIndex;
+                      const pageSize = table.getState().pagination.pageSize;
+                      return pageIndex * pageSize + row.index + 1;
+                  },
+              },
+          ]
+        : [];
+
     const table = useReactTable({
         data,
-        columns,
+        columns: [...numberingColumn, ...columns],
         onSortingChange: setSorting,
         onColumnFiltersChange: setColumnFilters,
         getCoreRowModel: getCoreRowModel(),
@@ -108,7 +124,7 @@ export function DataTable<TData, TValue>({
                             ))
                         ) : (
                             <TableRow>
-                                <TableCell colSpan={columns.length} className="h-24 text-center">
+                                <TableCell colSpan={showNumbering ? columns.length + 1 : columns.length} className="h-24 text-center">
                                     Aucun résultat.
                                 </TableCell>
                             </TableRow>

@@ -72,6 +72,7 @@
                 <table class="table">
                     <thead>
                         <tr>
+                            <th style="width: 20px;">N°</th>
                             <th>N° Facture</th>
                             <th>Véhicule</th>
                             <th>Produit</th>
@@ -82,11 +83,15 @@
                         </tr>
                     </thead>
                     <tbody>
-                        @php $clientTotal = 0; @endphp
+                        @php
+                            $clientTotal = 0;
+                            $rowCount = 1;
+                        @endphp
                         @foreach($clientInvoices as $invoice)
                             @php $clientTotal += (float)$invoice->total_amount; @endphp
                             @foreach($invoice->items as $item)
                                 <tr>
+                                    <td>{{ $rowCount++ }}</td>
                                     @if($loop->first)
                                         <td rowspan="{{ $invoice->items->count() }}" style="vertical-align: top;">
                                             <strong>{{ $invoice->number }}</strong>
@@ -106,7 +111,7 @@
                             @endforeach
                             @if($invoice->total_missing > 0)
                                 <tr style="background-color: #fffafb;">
-                                    <td colspan="4" class="text-right" style="color: #b91c1c; font-size: 8pt;">Déduction Manquant ({{ number_format($invoice->total_missing, 2, ',', ' ') }} L)</td>
+                                    <td colspan="5" class="text-right" style="color: #b91c1c; font-size: 8pt;">Déduction Manquant ({{ number_format($invoice->total_missing, 2, ',', ' ') }} L)</td>
                                     <td colspan="3" class="text-right font-bold" style="color: #b91c1c;">- {{ number_format($invoice->total_missing * ($invoice->items->first()->unit_price ?? 0), 0, '.', ' ') }}</td>
                                 </tr>
                             @endif
@@ -114,7 +119,7 @@
                     </tbody>
                     <tfoot>
                         <tr style="background: #f5f5f5;">
-                            <td colspan="6" class="text-right font-bold">TOTAL CLIENT POUR LA JOURNÉE</td>
+                            <td colspan="7" class="text-right font-bold">TOTAL CLIENT POUR LA JOURNÉE</td>
                             <td class="text-right font-bold" style="font-size: 10pt;">{{ number_format($clientTotal, 0, '.', ' ') }} CFA</td>
                         </tr>
                     </tfoot>

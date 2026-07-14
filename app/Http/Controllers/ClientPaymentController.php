@@ -75,7 +75,15 @@ class ClientPaymentController extends Controller
         $validated = $request->validate([
             'client_id' => 'required|exists:clients,id',
             'delivery_ids' => 'nullable|array',
-            'delivery_ids.*' => 'exists:loads,id',
+            'delivery_ids.*' => [
+                'exists:loads,id',
+                function ($attribute, $value, $fail) {
+                    $load = Load::find($value);
+                    if ($load && ! in_array($load->status, [LoadStatus::LIVRER, LoadStatus::FACTURER])) {
+                        $fail("La livraison {$load->vehicle_registration} ne peut pas faire l'objet d'un paiement (Statut actuel: {$load->status->value}).");
+                    }
+                },
+            ],
             'depot_invoice_ids' => 'nullable|array',
             'depot_invoice_ids.*' => 'exists:depot_invoices,id',
             'missing_quantities' => 'nullable|array',
@@ -170,7 +178,16 @@ class ClientPaymentController extends Controller
         $validated = $request->validate([
             'client_id' => 'required|exists:clients,id',
             'delivery_ids' => 'nullable|array',
-            'delivery_ids.*' => 'exists:loads,id',
+            'delivery_ids.*' => [
+                'exists:loads,id',
+                function ($attribute, $value, $fail) use ($reglement) {
+                    $load = Load::find($value);
+                    // On autorise si c'est déjà payé par ce règlement ou si c'est LIVRER/FACTURER
+                    if ($load && $load->client_payment_id !== $reglement->id && ! in_array($load->status, [LoadStatus::LIVRER, LoadStatus::FACTURER])) {
+                        $fail("La livraison {$load->vehicle_registration} ne peut pas faire l'objet d'un paiement (Statut actuel: {$load->status->value}).");
+                    }
+                },
+            ],
             'depot_invoice_ids' => 'nullable|array',
             'depot_invoice_ids.*' => 'exists:depot_invoices,id',
             'missing_quantities' => 'nullable|array',
@@ -189,7 +206,7 @@ class ClientPaymentController extends Controller
             // 1. Restaurer le statut des anciens éléments liés
             // Livraisons
             Load::where('client_payment_id', $reglement->id)->update([
-                'status' => LoadStatus::FACTURE,
+                'status' => LoadStatus::FACTURER,
                 'is_paid' => false,
                 'client_payment_id' => null,
             ]);
@@ -314,7 +331,7 @@ class ClientPaymentController extends Controller
         DB::transaction(function () use ($reglement) {
             // Restaurer le statut des livraisons associées
             Load::where('client_payment_id', $reglement->id)->update([
-                'status' => LoadStatus::FACTURE,
+                'status' => LoadStatus::FACTURER,
                 'is_paid' => false,
                 'client_payment_id' => null,
             ]);

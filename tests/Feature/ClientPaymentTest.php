@@ -35,7 +35,7 @@ test('on peut lister les règlements', function () {
 test('on peut créer un règlement simple', function () {
     $load = Load::factory()->create([
         'client_id' => $this->client->id,
-        'status' => LoadStatus::FACTURE,
+        'status' => LoadStatus::FACTURER,
     ]);
 
     $data = [
@@ -91,7 +91,7 @@ test('on peut utiliser une avance pour un règlement', function () {
 
     $load = Load::factory()->create([
         'client_id' => $this->client->id,
-        'status' => LoadStatus::FACTURE,
+        'status' => LoadStatus::FACTURER,
     ]);
 
     $data = [
@@ -138,7 +138,7 @@ test('la suppression d\'un règlement restaure le statut de la livraison', funct
         ->assertRedirect();
 
     expect(ClientPayment::count())->toBe(0);
-    expect($load->refresh()->status)->toBe(LoadStatus::FACTURE);
+    expect($load->refresh()->status)->toBe(LoadStatus::FACTURER);
     expect($load->is_paid)->toBeFalse();
 });
 
@@ -268,10 +268,43 @@ test('la modification d\'un règlement recalcule le montant quand il arrive à z
     expect($payment->refresh()->amount)->toEqual(14950000.0);
 });
 
+test('un règlement ne peut être créé que pour des livraisons LIVRER ou FACTURER', function () {
+    $loadEnCours = Load::factory()->create([
+        'client_id' => $this->client->id,
+        'status' => LoadStatus::EN_COURS,
+    ]);
+
+    $data = [
+        'client_id' => $this->client->id,
+        'delivery_ids' => [$loadEnCours->id],
+        'amount' => 50000,
+        'payment_method' => 'Espèce',
+        'date' => now()->format('Y-m-d'),
+        'use_advance' => false,
+        'is_new_advance' => false,
+    ];
+
+    $this->actingAs($this->user)
+        ->post(route('finances.reglements.store'), $data)
+        ->assertSessionHasErrors(['delivery_ids.0']);
+
+    $loadLivrer = Load::factory()->create([
+        'client_id' => $this->client->id,
+        'status' => LoadStatus::LIVRER,
+    ]);
+
+    $data['delivery_ids'] = [$loadLivrer->id];
+
+    $this->actingAs($this->user)
+        ->post(route('finances.reglements.store'), $data)
+        ->assertSessionHasNoErrors()
+        ->assertRedirect();
+});
+
 test('les livraisons disponibles exposent leurs lignes de facture pour le calcul du règlement', function () {
     $load = Load::factory()->create([
         'client_id' => $this->client->id,
-        'status' => LoadStatus::FACTURE,
+        'status' => LoadStatus::FACTURER,
         'volume' => 30000,
     ]);
 
@@ -291,17 +324,17 @@ test('les livraisons disponibles exposent leurs lignes de facture pour le calcul
     $this->actingAs($this->user)
         ->getJson(route('operations.livraisons.index', [
             'client_id' => $this->client->id,
-            'status' => LoadStatus::FACTURE->value,
+            'status' => LoadStatus::FACTURER->value,
         ]))
         ->assertOk()
-        ->assertJsonPath('0.invoice_items.0.unit_price', '500.00')
-        ->assertJsonPath('0.invoice_items.0.missing_quantity', '75.00');
+        ->assertJsonPath('0.invoice_items.0.unit_price', 500)
+        ->assertJsonPath('0.invoice_items.0.missing_quantity', 75);
 });
 
 test('la création d\'un règlement avec manquants met à jour la facture', function () {
     $load = Load::factory()->create([
         'client_id' => $this->client->id,
-        'status' => LoadStatus::FACTURE,
+        'status' => LoadStatus::FACTURER,
         'volume' => 30000,
     ]);
 
@@ -344,7 +377,7 @@ test('la création d\'un règlement avec manquants met à jour la facture', func
 test('le manquant créé dans un règlement est exposé pour la modification', function () {
     $load = Load::factory()->create([
         'client_id' => $this->client->id,
-        'status' => LoadStatus::FACTURE,
+        'status' => LoadStatus::FACTURER,
         'volume' => 30000,
     ]);
 
@@ -380,8 +413,8 @@ test('le manquant créé dans un règlement est exposé pour la modification', f
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('finances/reglements')
-            ->where('payments.0.invoice_items.0.missing_quantity', '120.00')
-            ->where('payments.0.loads.0.invoice_items.0.missing_quantity', '120.00')
+            ->where('payments.0.invoice_items.0.missing_quantity', 120)
+            ->where('payments.0.loads.0.invoice_items.0.missing_quantity', 120)
             ->where('payments.0.loads.0.status', LoadStatus::PAYE->value)
         );
 });

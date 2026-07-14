@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\CityController;
+use App\Http\Controllers\ClientController;
 use App\Http\Controllers\ClientPaymentController;
 use App\Http\Controllers\ClientStatementController;
 use App\Http\Controllers\ClientTrackingController;
@@ -27,6 +29,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::resource('depots', DepotController::class)->only(['index', 'store', 'update', 'destroy']);
     });
 
+    // Paramètres
+    Route::prefix('settings')->name('settings.')->group(function () {
+        Route::resource('cities', CityController::class)->only(['index', 'store', 'update', 'destroy']);
+    });
+
     // Opérations
     Route::prefix('operations')->name('operations.')->group(function () {
         Route::get('chargements/download', [LoadController::class, 'downloadPdf'])->name('chargements.download');
@@ -52,14 +59,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // Clients
     Route::prefix('clients')->name('clients.')->group(function () {
+        Route::resource('gestion', ClientController::class)->parameters(['gestion' => 'client'])->except(['create', 'edit', 'show']);
         Route::get('releve', [ClientStatementController::class, 'index'])->name('releve.index');
         Route::get('releve/{client}/download', [ClientStatementController::class, 'downloadPdf'])->name('releve.download');
         Route::get('releve/{client}', [ClientStatementController::class, 'show'])->name('releve.show');
         Route::get('suivi-client', [ClientTrackingController::class, 'index'])->name('suivi-client.index');
         Route::get('suivi-client/{client}/download', [ClientTrackingController::class, 'downloadPdf'])->name('suivi-client.download');
         Route::get('suivi-client/{client}', [ClientTrackingController::class, 'show'])->name('suivi-client.show');
-        Route::get('#7', fn () => null)->name('index');
-        Route::get('#8', fn () => null)->name('suivi-creances');
+        Route::get('suivi-creances', fn () => null)->name('suivi-creances');
     });
 
     // Rapports

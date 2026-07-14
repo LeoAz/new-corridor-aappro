@@ -13,7 +13,7 @@ test('a user can create an invoice from deliveries', function () {
 
     $loads = Load::factory()->count(2)->create([
         'client_id' => $client->id,
-        'status' => LoadStatus::LIVRE,
+        'status' => LoadStatus::LIVRER,
         'volume' => 1000,
     ]);
 
@@ -43,7 +43,7 @@ test('a user can create an invoice from deliveries', function () {
 
     foreach ($loads as $load) {
         $load->refresh();
-        expect($load->status)->toBe(LoadStatus::FACTURE);
+        expect($load->status)->toBe(LoadStatus::FACTURER);
     }
 });
 
@@ -81,8 +81,8 @@ test('a user can update an invoice', function () {
     $user = User::factory()->create();
     $client = Client::factory()->create();
 
-    $load1 = Load::factory()->create(['client_id' => $client->id, 'status' => LoadStatus::FACTURE]);
-    $load2 = Load::factory()->create(['client_id' => $client->id, 'status' => LoadStatus::LIVRE]);
+    $load1 = Load::factory()->create(['client_id' => $client->id, 'status' => LoadStatus::FACTURER]);
+    $load2 = Load::factory()->create(['client_id' => $client->id, 'status' => LoadStatus::LIVRER]);
 
     $invoice = Invoice::factory()->create([
         'client_id' => $client->id,
@@ -126,13 +126,13 @@ test('a user can update an invoice', function () {
 
     expect(date('Y-m-d', strtotime($invoice->date)))->toBe('2026-01-02');
     expect($invoice->items)->toHaveCount(2);
-    expect($load2->refresh()->status)->toBe(LoadStatus::FACTURE);
+    expect($load2->refresh()->status)->toBe(LoadStatus::FACTURER);
 });
 
 test('a user can delete an invoice and reset load statuses', function () {
     $user = User::factory()->create();
     $client = Client::factory()->create();
-    $load = Load::factory()->create(['client_id' => $client->id, 'status' => LoadStatus::FACTURE]);
+    $load = Load::factory()->create(['client_id' => $client->id, 'status' => LoadStatus::FACTURER]);
 
     $invoice = Invoice::factory()->create(['client_id' => $client->id]);
     InvoiceItem::create([
@@ -149,5 +149,5 @@ test('a user can delete an invoice and reset load statuses', function () {
     $this->assertDatabaseMissing('invoices', ['id' => $invoice->id]);
 
     $load->refresh();
-    expect($load->status)->toBe(LoadStatus::LIVRE);
+    expect($load->status)->toBe(LoadStatus::LIVRER);
 });

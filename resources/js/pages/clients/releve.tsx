@@ -241,14 +241,18 @@ export default function Releve({ client, clients, statement, filters }: Props) {
                                         <tbody className="divide-y divide-gray-50">
                                             <tr className="bg-white">
                                                 <td className="px-6 py-4 text-gray-400 font-medium tabular-nums">
-                                                    {dateFrom ? format(new Date(dateFrom), 'dd/MM/yyyy') : '-'}
+                                                    {dateFrom ? format(new Date(dateFrom), 'dd/MM/yyyy') : (client?.created_at ? format(new Date(client.created_at), 'dd/MM/yyyy') : '-')}
                                                 </td>
-                                                <td className="px-6 py-4 font-bold text-gray-700 uppercase text-[11px] tracking-wider">REPORT DE SOLDE</td>
-                                                <td className="px-6 py-4 text-right text-gray-400">-</td>
-                                                <td className="px-6 py-4 text-right text-gray-800 font-medium tabular-nums">
-                                                    <span className={initialBalance > 0 ? 'text-emerald-600' : (initialBalance < 0 ? 'text-red-600' : 'text-gray-800')}>
-                                                        {initialBalance && initialBalance !== 0 ? formatNumber(Math.abs(initialBalance)) : '-'}
-                                                    </span>
+                                                <td className="px-6 py-4 font-bold text-gray-700 uppercase text-[11px] tracking-wider">SOLDE INITIAL / REPORT</td>
+                                                <td className="px-6 py-4 text-right text-gray-700 font-medium tabular-nums">
+                                                    {initialBalance < 0 ? (
+                                                        <span className="text-red-600">{formatNumber(Math.abs(initialBalance))}</span>
+                                                    ) : '-'}
+                                                </td>
+                                                <td className="px-6 py-4 text-right text-gray-700 font-medium tabular-nums">
+                                                    {initialBalance > 0 ? (
+                                                        <span className="text-emerald-600">{formatNumber(initialBalance)}</span>
+                                                    ) : (initialBalance === 0 ? '0' : '-')}
                                                 </td>
                                             </tr>
                                             {operations.map((op, index) => (

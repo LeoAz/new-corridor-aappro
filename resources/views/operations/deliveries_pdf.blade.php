@@ -37,6 +37,7 @@
         <table>
             <thead>
                 <tr>
+                    <th style="width: 25px;">N°</th>
                     <th>Date Livraison</th>
                     <th>Camion</th>
                     <th>Produit</th>
@@ -48,6 +49,7 @@
             <tbody>
                 @foreach($deliveries as $delivery)
                 <tr>
+                    <td>{{ $loop->iteration }}</td>
                     <td>{{ \Carbon\Carbon::parse($delivery->unload_date)->format('d/m/Y') }}</td>
                     <td>{{ $delivery->vehicle_registration }}</td>
                     <td>{{ $delivery->product }}</td>

@@ -5,8 +5,7 @@ namespace App\Enums;
 enum LoadStatus: string
 {
     case EN_COURS = 'EN COURS';
-    case LIVRE = 'LIVRÉ';
-    case FACTURE = 'FACTURE';
-    case PAYE = 'PAYÉ';
-    case LIVRE_ET_PAYE = 'LIVRÉ ET PAYÉ';
+    case LIVRER = 'LIVRER';
+    case FACTURER = 'FACTURER';
+    case PAYE = 'FACTURER ET PAYER';
 }

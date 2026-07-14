@@ -87,6 +87,7 @@ class ClientStatementController extends Controller
             $prevDebitDepotInvoices = DepotInvoice::where('client_id', $client->id)->where('date', '<', $dateFrom)->sum('total_amount');
             $prevCreditPayments = ClientPayment::where('client_id', $client->id)->where('date', '<', $dateFrom)->sum('amount');
             // Solde = Crédit - Débit (Positif = L'entreprise doit au client, Négatif = Le client doit)
+            // initial_balance suit la même logique (positif = crédit, négatif = débit)
             $initialBalance += ($prevCreditPayments - ($prevDebitInvoices + $prevDebitDepotInvoices));
         }
 

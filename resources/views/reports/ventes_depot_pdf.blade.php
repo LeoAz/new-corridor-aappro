@@ -69,6 +69,7 @@
                 <table class="table">
                     <thead>
                         <tr>
+                            <th style="width: 25px;">N°</th>
                             <th>N° Facture</th>
                             <th>Dépôt</th>
                             <th>Détails</th>
@@ -76,10 +77,14 @@
                         </tr>
                     </thead>
                     <tbody>
-                        @php $clientTotal = 0; @endphp
+                        @php
+                            $clientTotal = 0;
+                            $rowCount = 1;
+                        @endphp
                         @foreach($clientInvoices as $invoice)
                         @php $clientTotal += (float)$invoice->total_amount; @endphp
                         <tr>
+                            <td>{{ $rowCount++ }}</td>
                             <td>{{ $invoice->number }}</td>
                             <td>{{ $invoice->depot->name ?? 'Dépôt' }}</td>
                             <td>
@@ -93,7 +98,7 @@
                     </tbody>
                     <tfoot>
                         <tr style="background: #f9f9f9;">
-                            <td colspan="3" class="text-right font-bold">TOTAL CLIENT</td>
+                            <td colspan="4" class="text-right font-bold">TOTAL CLIENT</td>
                             <td class="text-right font-bold">{{ number_format($clientTotal, 0, '.', ' ') }} CFA</td>
                         </tr>
                     </tfoot>

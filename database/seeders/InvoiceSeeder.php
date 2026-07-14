@@ -35,7 +35,7 @@ class InvoiceSeeder extends Seeder
                         'quantity_delivered' => $load->volume,
                     ]);
 
-                    $load->update(['status' => LoadStatus::FACTURE]);
+                    $load->update(['status' => LoadStatus::FACTURER]);
                 }
             }
         }

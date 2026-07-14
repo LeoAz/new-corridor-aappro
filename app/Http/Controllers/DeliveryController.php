@@ -23,7 +23,7 @@ class DeliveryController extends Controller
                 $query = Load::where('status', $status);
             }
         } else {
-            $query = Load::whereIn('status', [LoadStatus::LIVRE, LoadStatus::LIVRE_ET_PAYE, LoadStatus::FACTURE]);
+            $query = Load::whereIn('status', [LoadStatus::LIVRER, LoadStatus::FACTURER, LoadStatus::PAYE]);
         }
 
         $query->with(['depot', 'city', 'client', 'compartment', 'invoiceItems']);
@@ -76,7 +76,7 @@ class DeliveryController extends Controller
                 'total_volume' => $totalVolume,
             ],
             'filters' => $request->only(['product', 'date_from', 'date_to', 'load_locations']),
-            'distinct_locations' => Load::whereIn('status', [LoadStatus::LIVRE, LoadStatus::LIVRE_ET_PAYE])
+            'distinct_locations' => Load::whereIn('status', [LoadStatus::LIVRER, LoadStatus::FACTURER, LoadStatus::PAYE])
                 ->whereNotNull('load_location')
                 ->distinct()
                 ->pluck('load_location'),
@@ -101,7 +101,7 @@ class DeliveryController extends Controller
             'unload_date' => $validated['unload_date'],
             'unload_location' => $validated['unload_location'],
             'client_id' => $validated['client_id'],
-            'status' => LoadStatus::LIVRE,
+            'status' => LoadStatus::LIVRER,
         ]);
 
         return back()->with('message', 'Livraison effectuée avec succès');
@@ -153,7 +153,7 @@ class DeliveryController extends Controller
                 $query = Load::where('status', $status);
             }
         } else {
-            $query = Load::whereIn('status', [LoadStatus::LIVRE, LoadStatus::LIVRE_ET_PAYE, LoadStatus::FACTURE]);
+            $query = Load::whereIn('status', [LoadStatus::LIVRER, LoadStatus::FACTURER, LoadStatus::PAYE]);
         }
 
         $query->with(['depot', 'city', 'client', 'compartment', 'invoiceItems']);

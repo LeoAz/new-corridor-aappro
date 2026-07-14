@@ -274,6 +274,7 @@ export default function FacturesDepot({ invoices, clients, depots }: Props) {
                     data={invoices}
                     searchKey="number"
                     searchPlaceholder="Rechercher par numéro..."
+                    showNumbering={true}
                 />
             </div>
 

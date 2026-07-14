@@ -265,9 +265,10 @@ export default function ReportLivraisons({ loads, stats, clients, filters }: Pro
                                         <td className="px-4 py-3">
                                             <span className={cn(
                                                 "rounded-full px-2 py-0.5 text-[10px] font-bold",
-                                                load.status === 'LIVRÉ' ? 'bg-green-100 text-green-700' :
-                                                load.status === 'FACTURE' ? 'bg-blue-100 text-blue-700' :
-                                                'bg-purple-100 text-purple-700'
+                                                load.status === 'FACTURER ET PAYER' ? 'bg-green-100 text-green-700' :
+                                                load.status === 'FACTURER' ? 'bg-orange-100 text-orange-700' :
+                                                load.status === 'LIVRER' ? 'bg-blue-100 text-blue-700' :
+                                                'bg-slate-100 text-slate-700'
                                             )}>
                                                 {load.status}
                                             </span>

@@ -180,7 +180,7 @@ class ClientTrackingController extends Controller
 
         // 2. État des créances (Livraisons LIVRÉ)
         $debts = Load::where('client_id', $client->id)
-            ->where('status', LoadStatus::LIVRE)
+            ->where('status', LoadStatus::LIVRER)
             ->with(['client', 'depot', 'compartment'])
             ->get();
 

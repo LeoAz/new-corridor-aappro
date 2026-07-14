@@ -135,7 +135,7 @@ class InvoiceController extends Controller
 
                     // Update load status to INVOICED
                     Load::where('id', $item['load_id'])->update([
-                        'status' => LoadStatus::FACTURE,
+                        'status' => LoadStatus::FACTURER,
                     ]);
                 }
             }
@@ -147,7 +147,7 @@ class InvoiceController extends Controller
 
             foreach ($removedItems as $item) {
                 Load::where('id', $item->load_id)->update([
-                    'status' => LoadStatus::LIVRE,
+                    'status' => LoadStatus::LIVRER,
                 ]);
                 $item->delete();
             }
@@ -163,7 +163,7 @@ class InvoiceController extends Controller
         return DB::transaction(function () use ($invoice) {
             foreach ($invoice->items as $item) {
                 Load::where('id', $item->load_id)->update([
-                    'status' => LoadStatus::LIVRE,
+                    'status' => LoadStatus::LIVRER,
                 ]);
             }
 
@@ -228,7 +228,7 @@ class InvoiceController extends Controller
 
                 // Update load status to INVOICED
                 Load::where('id', $item['load_id'])->update([
-                    'status' => LoadStatus::FACTURE,
+                    'status' => LoadStatus::FACTURER,
                 ]);
             }
 
