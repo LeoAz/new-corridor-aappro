@@ -24,7 +24,7 @@ export default function Login({ status, canResetPassword }: Props) {
                 action={store().url}
                 method={store().method}
                 resetOnSuccess={['password']}
-                className="flex flex-col gap-6"
+                className="grid gap-6"
             >
                 {({ processing, errors }) => (
                     <>
@@ -50,7 +50,7 @@ export default function Login({ status, canResetPassword }: Props) {
                                     {canResetPassword && (
                                         <TextLink
                                             href={request()}
-                                            className="ml-auto text-sm"
+                                            className="ml-auto text-sm underline-offset-4 hover:underline"
                                             tabIndex={5}
                                         >
                                             Mot de passe oublié ?
@@ -74,12 +74,12 @@ export default function Login({ status, canResetPassword }: Props) {
                                     name="remember"
                                     tabIndex={3}
                                 />
-                                <Label htmlFor="remember">Se souvenir de moi</Label>
+                                <Label htmlFor="remember" className="text-sm font-normal">Se souvenir de moi</Label>
                             </div>
 
                             <Button
                                 type="submit"
-                                className="mt-4 w-full"
+                                className="w-full"
                                 tabIndex={4}
                                 disabled={processing}
                                 data-test="login-button"
