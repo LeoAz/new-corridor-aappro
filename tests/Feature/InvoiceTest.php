@@ -129,6 +129,67 @@ test('a user can update an invoice', function () {
     expect($load2->refresh()->status)->toBe(LoadStatus::FACTURER);
 });
 
+test('a user can remove an item from an invoice', function () {
+    $user = User::factory()->create();
+    $client = Client::factory()->create();
+
+    $load = Load::factory()->create(['client_id' => $client->id, 'status' => LoadStatus::FACTURER]);
+
+    $invoice = Invoice::factory()->create([
+        'client_id' => $client->id,
+    ]);
+
+    $item = InvoiceItem::create([
+        'invoice_id' => $invoice->id,
+        'load_id' => $load->id,
+        'quantity_delivered' => 1000,
+        'unit_price' => 500,
+        'total' => 500000,
+    ]);
+
+    $response = $this->actingAs($user)->put(route('finances.facture-chargement.update', $invoice), [
+        'client_id' => $client->id,
+        'date' => now()->format('Y-m-d'),
+        'items' => [
+            // Empty items should fail due to min:1 validation, let's keep another item or just test the removal logic
+        ],
+        'total_amount' => 0,
+        'total_missing' => 0,
+    ]);
+
+    // Validation should fail (min:1 items)
+    $response->assertSessionHasErrors('items');
+
+    // Test with removing one and adding another
+    $load2 = Load::factory()->create(['client_id' => $client->id, 'status' => LoadStatus::LIVRER]);
+
+    $response = $this->actingAs($user)->put(route('finances.facture-chargement.update', $invoice), [
+        'client_id' => $client->id,
+        'date' => now()->format('Y-m-d'),
+        'items' => [
+            [
+                'load_id' => $load2->id,
+                'quantity_delivered' => 800,
+                'unit_price' => 500,
+                'total' => 400000,
+            ],
+        ],
+        'total_amount' => 400000,
+        'total_missing' => 0,
+    ]);
+
+    $response->assertRedirect();
+    $invoice->refresh();
+
+    expect($invoice->items)->toHaveCount(1);
+    expect($invoice->items->first()->load_id)->toBe($load2->id);
+
+    // Old load should be back to LIVRER
+    expect($load->refresh()->status)->toBe(LoadStatus::LIVRER);
+    // New load should be FACTURER
+    expect($load2->refresh()->status)->toBe(LoadStatus::FACTURER);
+});
+
 test('a user can delete an invoice and reset load statuses', function () {
     $user = User::factory()->create();
     $client = Client::factory()->create();

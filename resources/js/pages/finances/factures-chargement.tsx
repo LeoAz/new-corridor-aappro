@@ -1,7 +1,7 @@
 import { Head, router, useForm } from '@inertiajs/react';
 import type { ColumnDef } from '@tanstack/react-table';
 import { format } from 'date-fns';
-import { ArrowUpDown, CalendarIcon, Eye, MoreHorizontal, Pencil, Trash } from 'lucide-react';
+import { ArrowUpDown, CalendarIcon, Eye, MoreHorizontal, Pencil, Plus, Trash, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 
 import AlertError from '@/components/alert-error';
@@ -75,6 +75,22 @@ export default function FacturesChargement({ invoices, clients }: Props) {
         total_missing: 0,
     });
 
+    const [availableLoads, setAvailableLoads] = useState<any[]>([]);
+    const [isAddLoadOpen, setIsAddLoadOpen] = useState(false);
+
+    useEffect(() => {
+        if (isEditOpen && data.client_id) {
+            fetch(finances.default.factureChargement.index().url.split('?')[0].replace('/finances/factures-chargement', '/operations/livraisons') + `?client_id=${data.client_id}&status=LIVRER`, {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json',
+                }
+            })
+                .then(res => res.json())
+                .then(setAvailableLoads);
+        }
+    }, [isEditOpen, data.client_id]);
+
     useEffect(() => {
         if (selectedInvoice && isEditOpen) {
             setData({
@@ -107,12 +123,38 @@ export default function FacturesChargement({ invoices, clients }: Props) {
             newItems[index].total = qty * price;
         }
 
-        const totalAmount = newItems.reduce((acc, item) => acc + (parseFloat(item.total) || 0), 0);
-        const totalMissing = newItems.reduce((acc, item) => acc + (parseFloat(item.missing_quantity) || 0), 0);
+        recalculateTotals(newItems);
+    };
+
+    const removeItem = (index: number) => {
+        const newItems = data.items.filter((_, i) => i !== index);
+        recalculateTotals(newItems);
+    };
+
+    const addLoadToInvoice = (load: any) => {
+        const newItem = {
+            load_id: load.id,
+            bl_number: load.bl_number || '',
+            quantity_delivered: load.volume,
+            unit_price: 0,
+            missing_quantity: 0,
+            total: 0,
+            vehicle_registration: load.vehicle_registration,
+            product: load.product
+        };
+
+        const newItems = [...data.items, newItem];
+        recalculateTotals(newItems);
+        setIsAddLoadOpen(false);
+    };
+
+    const recalculateTotals = (items: any[]) => {
+        const totalAmount = items.reduce((acc, item) => acc + (parseFloat(item.total) || 0), 0);
+        const totalMissing = items.reduce((acc, item) => acc + (parseFloat(item.missing_quantity) || 0), 0);
 
         setData(prev => ({
             ...prev,
-            items: newItems,
+            items: items,
             total_amount: totalAmount,
             total_missing: totalMissing
         }));
@@ -296,6 +338,50 @@ export default function FacturesChargement({ invoices, clients }: Props) {
                             </div>
                         </div>
 
+                        <div className="flex justify-between items-center">
+                            <h3 className="text-lg font-medium">Livraisons</h3>
+                            <Popover open={isAddLoadOpen} onOpenChange={setIsAddLoadOpen}>
+                                <PopoverTrigger asChild>
+                                    <Button type="button" variant="outline" size="sm" className="h-8">
+                                        <Plus className="mr-2 h-4 w-4" />
+                                        Ajouter une livraison
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-80 p-0" align="end">
+                                    <div className="p-2 border-b">
+                                        <h4 className="font-medium">Livraisons disponibles</h4>
+                                    </div>
+                                    <div className="max-h-60 overflow-auto">
+                                        {availableLoads
+                                            .filter(load => !data.items.find(item => item.load_id === load.id))
+                                            .length === 0 ? (
+                                                <div className="p-4 text-center text-sm text-muted-foreground">
+                                                    Aucune livraison disponible
+                                                </div>
+                                            ) : (
+                                                availableLoads
+                                                    .filter(load => !data.items.find(item => item.load_id === load.id))
+                                                    .map(load => (
+                                                        <div
+                                                            key={load.id}
+                                                            className="flex flex-col p-2 hover:bg-muted cursor-pointer border-b last:border-0"
+                                                            onClick={() => addLoadToInvoice(load)}
+                                                        >
+                                                            <div className="flex justify-between font-medium">
+                                                                <span>{load.vehicle_registration}</span>
+                                                                <span>{formatNumber(load.volume)} L</span>
+                                                            </div>
+                                                            <div className="text-xs text-muted-foreground">
+                                                                {load.product} - {load.unload_date ? format(new Date(load.unload_date), 'dd/MM/yyyy') : ''}
+                                                            </div>
+                                                        </div>
+                                                    ))
+                                            )}
+                                    </div>
+                                </PopoverContent>
+                            </Popover>
+                        </div>
+
                         <div className="border rounded-md max-h-[400px] overflow-auto">
                             <table className="w-full text-sm">
                                 <thead className="bg-muted sticky top-0">
@@ -306,6 +392,7 @@ export default function FacturesChargement({ invoices, clients }: Props) {
                                         <th className="px-4 py-2 text-right w-32">P.U</th>
                                         <th className="px-4 py-2 text-right w-32">Manquant</th>
                                         <th className="px-4 py-2 text-right">Total</th>
+                                        <th className="px-4 py-2 text-center w-10"></th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -339,6 +426,17 @@ export default function FacturesChargement({ invoices, clients }: Props) {
                                             </td>
                                             <td className="px-4 py-2 text-right font-medium">
                                                 {formatNumber(item.total || 0)} CFA
+                                            </td>
+                                            <td className="px-4 py-2 text-center">
+                                                <Button
+                                                    type="button"
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-8 w-8 text-destructive"
+                                                    onClick={() => removeItem(index)}
+                                                >
+                                                    <X className="h-4 w-4" />
+                                                </Button>
                                             </td>
                                         </tr>
                                     ))}
