@@ -72,7 +72,7 @@ interface Props {
     clients: Client[];
 }
 
-const InvoiceForm = ({ onSubmit, onCancel, title, submitLabel, data, setData, errors, processing, clients, availableLoads, filteredAvailableLoads, handleEditItem, addNewItem, removeItem, openCombobox, setOpenCombobox, openClientCombobox, setOpenClientCombobox }: any) => (
+const InvoiceForm = ({ onSubmit, onCancel, title, submitLabel, data, setData, errors, processing, clients, availableLoads, filteredAvailableLoads, handleEditItem, addNewItem, addAllAvailableLoads, removeItem, openCombobox, setOpenCombobox, openClientCombobox, setOpenClientCombobox }: any) => (
     <DialogContent className="max-h-[90vh] w-[calc(100vw-2rem)] overflow-y-auto border border-border shadow-none sm:max-w-[90rem] xl:max-w-[96rem]">
         <DialogHeader>
             <DialogTitle>{title}</DialogTitle>
@@ -163,10 +163,18 @@ const InvoiceForm = ({ onSubmit, onCancel, title, submitLabel, data, setData, er
 
             <div className="flex justify-between items-center">
                 <h3 className="text-lg font-medium">Livraisons</h3>
-                <Button type="button" variant="outline" size="sm" className="h-8" onClick={addNewItem}>
-                    <Plus className="mr-2 h-4 w-4" />
-                    Ajouter une livraison
-                </Button>
+                <div className="flex space-x-2">
+                    {filteredAvailableLoads.length > 0 && (
+                        <Button type="button" variant="outline" size="sm" className="h-8 border-primary text-primary hover:bg-primary hover:text-white" onClick={addAllAvailableLoads}>
+                            <Plus className="mr-2 h-4 w-4" />
+                            Tout ajouter ({filteredAvailableLoads.length})
+                        </Button>
+                    )}
+                    <Button type="button" variant="outline" size="sm" className="h-8" onClick={addNewItem}>
+                        <Plus className="mr-2 h-4 w-4" />
+                        Ajouter une livraison
+                    </Button>
+                </div>
             </div>
 
             <div className="border rounded-md max-h-[400px] overflow-auto">
@@ -458,6 +466,26 @@ export default function FacturesChargement({ invoices, clients }: Props) {
         }));
     };
 
+    const addAllAvailableLoads = () => {
+        const newItemsFromLoads = filteredAvailableLoads.map(load => ({
+            id: undefined, // Nouveau item de facture
+            load_id: load.id,
+            bl_number: load.bl_number || '',
+            quantity_delivered: load.volume,
+            unit_price: load.unit_price || 0,
+            missing_quantity: 0,
+            total: (load.volume || 0) * (load.unit_price || 0),
+            vehicle_registration: load.vehicle_registration,
+            product: load.product
+        }));
+
+        const updatedItems = [...data.items, ...newItemsFromLoads];
+        // On retire les lignes vides (sans load_id) s'il y en a
+        const finalItems = updatedItems.filter(item => item.load_id || item.vehicle_registration);
+
+        recalculateTotals(finalItems);
+    };
+
     const recalculateTotals = (items: any[]) => {
         const totalAmount = items.reduce((acc, item) => acc + (parseFloat(item.total) || 0), 0);
         const totalMissing = items.reduce((acc, item) => acc + (parseFloat(item.missing_quantity) || 0), 0);
@@ -599,6 +627,7 @@ export default function FacturesChargement({ invoices, clients }: Props) {
         filteredAvailableLoads,
         handleEditItem,
         addNewItem,
+        addAllAvailableLoads,
         removeItem,
         openCombobox,
         setOpenCombobox,
