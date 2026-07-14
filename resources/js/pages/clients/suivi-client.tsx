@@ -1,7 +1,7 @@
 import { Head, router } from '@inertiajs/react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { Download, FileText, Filter, Search, History, List, Car, CalendarIcon, Check, ChevronsUpDown } from 'lucide-react';
+import { Download, FileText, Filter, Search, History, Car, CalendarIcon, Check, ChevronsUpDown } from 'lucide-react';
 import { useState } from 'react';
 
 import { Button } from '@/components/ui/button';
@@ -31,19 +31,6 @@ interface Operation {
     type: string;
 }
 
-interface Debt {
-    id: number;
-    unload_date: string;
-    unload_location: string;
-    product: string;
-    volume: number;
-    vehicle_registration: string;
-    status: string;
-    client?: { nom: string };
-    depot?: { nom: string };
-    compartment?: { nom: string };
-}
-
 interface Payment {
     id: number;
     date: string;
@@ -58,6 +45,21 @@ interface Payment {
     depot_invoice_items?: any[];
 }
 
+interface Load {
+    id: number;
+    date: string;
+    truck_number: string;
+    product: string;
+    quantity: number;
+    status: string;
+    destination?: string;
+    bl_number?: string;
+    payment_reference?: string;
+    payment_date?: string;
+    depot?: { nom: string };
+    compartment?: { nom: string };
+}
+
 interface Props {
     client?: any;
     clients: any[];
@@ -66,7 +68,12 @@ interface Props {
         initialBalance: number;
         finalBalance: number;
     };
-    debts?: Debt[];
+    loads?: {
+        en_cours: Load[];
+        livrer: Load[];
+        facturer: Load[];
+        paye: Load[];
+    };
     paymentHistory?: Payment[];
     filters: {
         date_from: string | null;
@@ -74,7 +81,7 @@ interface Props {
     };
 }
 
-export default function SuiviClient({ client, clients, statement, debts, paymentHistory, filters }: Props) {
+export default function SuiviClient({ client, clients, statement, loads, paymentHistory, filters }: Props) {
     const [activeTab, setActiveTab] = useState('statement');
     const [dateFrom, setDateFrom] = useState<string>(filters?.date_from || '');
     const [dateTo, setDateTo] = useState<string>(filters?.date_to || '');
@@ -242,15 +249,15 @@ export default function SuiviClient({ client, clients, statement, debts, payment
                                 Relevé de compte
                             </button>
                             <button
-                                onClick={() => setActiveTab('debts')}
+                                onClick={() => setActiveTab('loads')}
                                 className={`flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-[2px] whitespace-nowrap ${
-                                    activeTab === 'debts'
+                                    activeTab === 'loads'
                                         ? 'border-blue-600 text-blue-600'
                                         : 'border-transparent text-muted-foreground hover:text-foreground hover:border-muted'
                                 }`}
                             >
-                                <List className="h-4 w-4" />
-                                État des créances
+                                <Car className="h-4 w-4" />
+                                Historique Chargements
                             </button>
                             <button
                                 onClick={() => setActiveTab('payments')}
@@ -369,81 +376,97 @@ export default function SuiviClient({ client, clients, statement, debts, payment
                             </div>
                         )}
 
-                        {/* 2. ÉTAT DES CRÉANCES */}
-                        {activeTab === 'debts' && (
-                            <div className="animate-in fade-in slide-in-from-bottom-2 duration-500">
-                                <Card className="border-none shadow-none bg-white overflow-hidden">
-                                    <div className="px-6 py-4 flex items-center justify-between border-b border-gray-100">
-                                        <h3 className="font-bold text-gray-800 uppercase tracking-tight">État des créances (Livraisons non facturées)</h3>
-                                        <div className="bg-orange-100 text-orange-700 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider">
-                                            {debts?.length || 0} Chargements
-                                        </div>
-                                    </div>
-                                    <CardContent className="p-0">
-                                        <div className="overflow-x-auto">
-                                            <table className="w-full text-sm border-collapse">
-                                                <thead>
-                                                    <tr className="border-b border-gray-100 bg-gray-50/50">
-                                                        <th className="px-6 py-3 text-left font-bold text-gray-500 uppercase text-[10px] tracking-widest">Date</th>
-                                                        <th className="px-6 py-3 text-left font-bold text-gray-500 uppercase text-[10px] tracking-widest">Client</th>
-                                                        <th className="px-6 py-3 text-left font-bold text-gray-500 uppercase text-[10px] tracking-widest">Véhicule</th>
-                                                        <th className="px-6 py-3 text-left font-bold text-gray-500 uppercase text-[10px] tracking-widest">Dépôt</th>
-                                                        <th className="px-6 py-3 text-left font-bold text-gray-500 uppercase text-[10px] tracking-widest">Produit</th>
-                                                        <th className="px-6 py-3 text-right font-bold text-gray-500 uppercase text-[10px] tracking-widest">Volume</th>
-                                                        <th className="px-6 py-3 text-center font-bold text-gray-500 uppercase text-[10px] tracking-widest">Statut</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody className="divide-y divide-gray-50">
-                                                    {debts?.map((debt) => (
-                                                        <tr key={debt.id} className="hover:bg-gray-50 transition-colors">
-                                                            <td className="px-6 py-4 text-gray-400 tabular-nums whitespace-nowrap">
-                                                                {debt.unload_date ? format(new Date(debt.unload_date), 'dd/MM/yyyy') : '-'}
-                                                            </td>
-                                                            <td className="px-6 py-4 font-bold text-gray-700 uppercase text-[11px]">
-                                                                {debt.client?.nom || client?.nom}
-                                                            </td>
-                                                            <td className="px-6 py-4 font-bold text-blue-700 text-[11px]">
-                                                                {debt.vehicle_registration}
-                                                            </td>
-                                                            <td className="px-6 py-4 text-gray-600 font-medium">
-                                                                {debt.depot?.nom || '-'} <span className="text-[10px] text-gray-400">({debt.compartment?.nom || '-'})</span>
-                                                            </td>
-                                                            <td className="px-6 py-4 font-bold text-gray-800">
-                                                                {debt.product}
-                                                            </td>
-                                                            <td className="px-6 py-4 text-right font-bold text-gray-800 tabular-nums">
-                                                                {formatNumber(debt.volume)} <span className="text-[10px] font-normal text-gray-400">L</span>
-                                                            </td>
-                                                            <td className="px-6 py-4 text-center">
-                                                                <span className="inline-flex items-center rounded bg-orange-50 px-2 py-0.5 text-[9px] font-bold text-orange-600 border border-orange-100 uppercase tracking-tighter">
-                                                                    {debt.status}
-                                                                </span>
-                                                            </td>
-                                                        </tr>
-                                                    ))}
-                                                    {(!debts || debts.length === 0) && (
-                                                        <tr>
-                                                            <td colSpan={7} className="px-6 py-12 text-center text-gray-400 italic">
-                                                                Aucune créance en cours.
-                                                            </td>
-                                                        </tr>
-                                                    )}
-                                                </tbody>
-                                                {debts && debts.length > 0 && (
-                                                    <tfoot>
-                                                        <tr className="border-t-2 border-gray-100">
-                                                            <td colSpan={5} className="px-6 py-6 text-right font-bold text-gray-400 uppercase text-[10px] tracking-widest">Volume Total en attente :</td>
-                                                            <td className="px-6 py-6 text-right font-black text-gray-900 text-lg tabular-nums">
-                                                                {formatNumber(debts.reduce((acc, d) => acc + d.volume, 0))} <span className="text-xs font-normal">L</span>
-                                                            </td>
-                                                            <td></td>
-                                                        </tr>
-                                                    </tfoot>
-                                                )}
-                                            </table>
-                                        </div>
-                                    </CardContent>
-                                </Card>
+                        {/* 2. HISTORIQUE CHARGEMENTS */}
+                        {activeTab === 'loads' && (
+                            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                                {['en_cours', 'livrer', 'facturer', 'paye'].map((statusKey) => {
+                                    const statusLoads = loads?.[statusKey as keyof typeof loads] || [];
+                                    const labels = {
+                                        en_cours: 'Chargements en cours',
+                                        livrer: 'Livraisons en attente de facturation',
+                                        facturer: 'Livraisons facturées (non payées)',
+                                        paye: 'Livraisons payées'
+                                    };
+
+                                    if (statusLoads.length === 0) {
+                                        return null;
+                                    }
+
+                                    return (
+                                        <Card key={statusKey} className="border-none shadow-none bg-white overflow-hidden">
+                                            <div className="px-6 py-4 flex items-center justify-between border-b border-gray-100">
+                                                <h3 className="font-bold text-gray-800 uppercase tracking-tight">{labels[statusKey as keyof typeof labels]}</h3>
+                                                <div className="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider">
+                                                    {statusLoads.length} Chargements
+                                                </div>
+                                            </div>
+                                            <CardContent className="p-0">
+                                                <div className="overflow-x-auto">
+                                                    <table className="w-full text-sm border-collapse">
+                                                        <thead>
+                                                            <tr className="border-b border-gray-100 bg-gray-50/50">
+                                                                <th className="px-6 py-3 text-left font-bold text-gray-500 uppercase text-[10px] tracking-widest">Date</th>
+                                                                <th className="px-6 py-3 text-left font-bold text-gray-500 uppercase text-[10px] tracking-widest">Véhicule</th>
+                                                                <th className="px-6 py-3 text-left font-bold text-gray-500 uppercase text-[10px] tracking-widest">Produit</th>
+                                                                <th className="px-6 py-3 text-right font-bold text-gray-500 uppercase text-[10px] tracking-widest">Quantité</th>
+                                                                <th className="px-6 py-3 text-left font-bold text-gray-500 uppercase text-[10px] tracking-widest">Dépôt</th>
+                                                                <th className="px-6 py-3 text-left font-bold text-gray-500 uppercase text-[10px] tracking-widest">{statusKey === 'en_cours' ? 'Destination' : 'Réf/BL'}</th>
+                                                                {statusKey === 'paye' && (
+                                                                    <th className="px-6 py-3 text-left font-bold text-gray-500 uppercase text-[10px] tracking-widest">Règlement</th>
+                                                                )}
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody className="divide-y divide-gray-50">
+                                                            {statusLoads.map((load) => (
+                                                                <tr key={load.id} className="hover:bg-gray-50 transition-colors">
+                                                                    <td className="px-6 py-4 text-gray-400 tabular-nums whitespace-nowrap">
+                                                                        {load.date ? format(new Date(load.date), 'dd/MM/yyyy') : '-'}
+                                                                    </td>
+                                                                    <td className="px-6 py-4 font-bold text-blue-700 text-[11px]">
+                                                                        {load.truck_number}
+                                                                    </td>
+                                                                    <td className="px-6 py-4 font-bold text-gray-800">
+                                                                        {load.compartment?.nom || '-'}
+                                                                    </td>
+                                                                    <td className="px-6 py-4 text-right font-bold text-gray-800 tabular-nums">
+                                                                        {formatNumber(load.quantity)} <span className="text-[10px] font-normal text-gray-400">L</span>
+                                                                    </td>
+                                                                    <td className="px-6 py-4 text-gray-600 font-medium">
+                                                                        {load.depot?.nom || '-'}
+                                                                    </td>
+                                                                    <td className="px-6 py-4 text-gray-600 font-medium">
+                                                                        {statusKey === 'en_cours' ? load.destination : (load.bl_number || '-')}
+                                                                    </td>
+                                                                    {statusKey === 'paye' && (
+                                                                        <td className="px-6 py-4">
+                                                                            {load.payment_reference ? (
+                                                                                <div className="flex flex-col">
+                                                                                    <span className="text-blue-600 font-bold text-[10px] uppercase">#{load.payment_reference}</span>
+                                                                                    {load.payment_date && (
+                                                                                        <span className="text-[9px] text-gray-400 font-medium">le {format(new Date(load.payment_date), 'dd/MM/yyyy')}</span>
+                                                                                    )}
+                                                                                </div>
+                                                                            ) : (
+                                                                                <span className="text-gray-400">-</span>
+                                                                            )}
+                                                                        </td>
+                                                                    )}
+                                                                </tr>
+                                                            ))}
+                                                            {statusLoads.length === 0 && (
+                                                                <tr>
+                                                                    <td colSpan={6} className="px-6 py-12 text-center text-gray-400 italic">
+                                                                        Aucun chargement dans cette catégorie.
+                                                                    </td>
+                                                                </tr>
+                                                            )}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </CardContent>
+                                        </Card>
+                                    );
+                                })}
                             </div>
                         )}
 
@@ -474,7 +497,7 @@ export default function SuiviClient({ client, clients, statement, debts, payment
                                                     {paymentHistory?.map((payment) => (
                                                         <tr key={payment.id} className="hover:bg-gray-50 transition-colors align-top">
                                                             <td className="px-6 py-5 text-gray-400 tabular-nums whitespace-nowrap">
-                                                                {format(new Date(payment.date), 'dd/MM/yyyy')}
+                                                                {payment.date ? format(new Date(payment.date), 'dd/MM/yyyy') : '-'}
                                                             </td>
                                                             <td className="px-6 py-5">
                                                                 <span className={`inline-flex items-center rounded px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider border ${

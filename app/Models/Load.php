@@ -64,8 +64,8 @@ class Load extends Model
         return $this->hasMany(InvoiceItem::class);
     }
 
-    public function payments(): HasMany
+    public function clientPayment(): BelongsTo
     {
-        return $this->hasMany(ClientPayment::class);
+        return $this->belongsTo(ClientPayment::class, 'client_payment_id');
     }
 }

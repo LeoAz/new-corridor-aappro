@@ -265,6 +265,147 @@
 
         <div style="clear: both;"></div>
 
+        <div style="page-break-before: always;"></div>
+
+        <h3 class="section-title">HISTORIQUE DES CHARGEMENTS</h3>
+
+        @if(count($loadsEnCours) > 0)
+            <h4 style="margin: 10px 0 5px 0;">CHARGEMENTS EN COURS</h4>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Immatriculation</th>
+                        <th>Produit / Compartiment</th>
+                        <th>Quantité</th>
+                        <th>Dépôt</th>
+                        <th>Destination</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach($loadsEnCours as $load)
+                        <tr>
+                            <td>{{ \Carbon\Carbon::parse($load['date'])->format('d/m/Y') }}</td>
+                            <td>{{ $load['truck_number'] }}</td>
+                            <td>{{ $load['compartment']['nom'] ?? 'N/A' }}</td>
+                            <td>{{ number_format($load['quantity'], 0, ',', ' ') }} L</td>
+                            <td>{{ $load['depot']['nom'] ?? 'N/A' }}</td>
+                            <td>{{ $load['destination'] ?? 'N/A' }}</td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        @endif
+
+        @if(count($loadsLivrer) > 0)
+            <h4 style="margin: 10px 0 5px 0;">LIVRAISONS EN ATTENTE DE FACTURATION</h4>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Immatriculation</th>
+                        <th>Produit / Compartiment</th>
+                        <th>Quantité</th>
+                        <th>Dépôt</th>
+                        <th>N° BL</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach($loadsLivrer as $load)
+                        <tr>
+                            <td>{{ \Carbon\Carbon::parse($load['date'])->format('d/m/Y') }}</td>
+                            <td>{{ $load['truck_number'] }}</td>
+                            <td>{{ $load['compartment']['nom'] ?? 'N/A' }}</td>
+                            <td>{{ number_format($load['quantity'], 0, ',', ' ') }} L</td>
+                            <td>{{ $load['depot']['nom'] ?? 'N/A' }}</td>
+                            <td>{{ $load['bl_number'] ?? 'N/A' }}</td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        @endif
+
+        @if(count($loadsFacturer) > 0)
+            <h4 style="margin: 10px 0 5px 0;">LIVRAISONS FACTURÉES (NON PAYÉES)</h4>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Immatriculation</th>
+                        <th>Produit / Compartiment</th>
+                        <th>Quantité</th>
+                        <th>Dépôt</th>
+                        <th>N° Facture</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach($loadsFacturer as $load)
+                        <tr>
+                            <td>{{ \Carbon\Carbon::parse($load['date'])->format('d/m/Y') }}</td>
+                            <td>{{ $load['truck_number'] }}</td>
+                            <td>{{ $load['compartment']['nom'] ?? 'N/A' }}</td>
+                            <td>{{ number_format($load['quantity'], 0, ',', ' ') }} L</td>
+                            <td>{{ $load['depot']['nom'] ?? 'N/A' }}</td>
+                            <td>
+                                @php
+                                    $invoice = \App\Models\Invoice::whereHas('items', function($q) use ($load) {
+                                        $q->where('load_id', $load['id']);
+                                    })->first();
+                                @endphp
+                                {{ $invoice?->number ?? 'N/A' }}
+                            </td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        @endif
+
+        @if(count($loadsPaye) > 0)
+            <h4 style="margin: 10px 0 5px 0;">LIVRAISONS PAYÉES</h4>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Immatriculation</th>
+                        <th>Produit / Compartiment</th>
+                        <th>Quantité</th>
+                        <th>Dépôt</th>
+                        <th>N° Facture</th>
+                        <th>Règlement</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach($loadsPaye as $load)
+                        <tr>
+                            <td>{{ \Carbon\Carbon::parse($load['date'])->format('d/m/Y') }}</td>
+                            <td>{{ $load['truck_number'] }}</td>
+                            <td>{{ $load['compartment']['nom'] ?? 'N/A' }}</td>
+                            <td>{{ number_format($load['quantity'], 0, ',', ' ') }} L</td>
+                            <td>{{ $load['depot']['nom'] ?? 'N/A' }}</td>
+                            <td>
+                                @php
+                                    $invoice = \App\Models\Invoice::whereHas('items', function($q) use ($load) {
+                                        $q->where('load_id', $load['id']);
+                                    })->first();
+                                @endphp
+                                {{ $invoice?->number ?? 'N/A' }}
+                            </td>
+                            <td>
+                                @if($load['payment_reference'])
+                                    <div style="font-weight: bold; color: #2563eb;">#{{ $load['payment_reference'] }}</div>
+                                    @if($load['payment_date'])
+                                        <div style="font-size: 8px; color: #999;">le {{ \Carbon\Carbon::parse($load['payment_date'])->format('d/m/Y') }}</div>
+                                    @endif
+                                @else
+                                    -
+                                @endif
+                            </td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        @endif
+
         <div class="footer">
             <p>CORRIDOR APPRO &bull; Bamako, Mali &bull; Relevé de compte officiel</p>
             <p>Document généré le {{ date('d/m/Y à H:i') }}</p>

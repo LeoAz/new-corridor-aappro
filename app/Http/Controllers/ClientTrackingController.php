@@ -78,15 +78,74 @@ class ClientTrackingController extends Controller
             ->sortBy('date')
             ->values();
 
-        $initialBalance = 0;
+        $initialBalance = $client->initial_balance;
         if ($dateFrom) {
             $prevDebitInvoices = Invoice::where('client_id', $client->id)->where('date', '<', $dateFrom)->sum('total_amount');
             $prevDebitDepotInvoices = DepotInvoice::where('client_id', $client->id)->where('date', '<', $dateFrom)->sum('total_amount');
             $prevCreditPayments = ClientPayment::where('client_id', $client->id)->where('date', '<', $dateFrom)->sum('amount');
-            $initialBalance = ($prevDebitInvoices + $prevDebitDepotInvoices) - $prevCreditPayments;
+            $initialBalance += ($prevDebitInvoices + $prevDebitDepotInvoices) - $prevCreditPayments;
         }
 
         $finalBalance = $initialBalance + ($operations->sum('debit') - $operations->sum('credit'));
+
+        // Récupérer les historiques demandés
+        $loadsEnCours = Load::where('client_id', $client->id)
+            ->where('status', LoadStatus::EN_COURS)
+            ->with(['depot', 'compartment'])
+            ->get()
+            ->map(fn ($l) => [
+                'id' => $l->id,
+                'date' => $l->load_date?->format('Y-m-d'),
+                'truck_number' => $l->vehicle_registration,
+                'compartment' => $l->compartment,
+                'quantity' => $l->volume,
+                'depot' => $l->depot,
+                'destination' => $l->unload_location,
+            ]);
+
+        $loadsLivrer = Load::where('client_id', $client->id)
+            ->where('status', LoadStatus::LIVRER)
+            ->with(['depot', 'compartment'])
+            ->get()
+            ->map(fn ($l) => [
+                'id' => $l->id,
+                'date' => $l->unload_date?->format('Y-m-d'),
+                'truck_number' => $l->vehicle_registration,
+                'compartment' => $l->compartment,
+                'quantity' => $l->volume,
+                'depot' => $l->depot,
+                'bl_number' => $l->bl_number ?? "BL-{$l->id}",
+            ]);
+
+        $loadsFacturer = Load::where('client_id', $client->id)
+            ->where('status', LoadStatus::FACTURER)
+            ->with(['depot', 'compartment'])
+            ->get()
+            ->map(fn ($l) => [
+                'id' => $l->id,
+                'date' => $l->unload_date?->format('Y-m-d'),
+                'truck_number' => $l->vehicle_registration,
+                'compartment' => $l->compartment,
+                'quantity' => $l->volume,
+                'depot' => $l->depot,
+                'bl_number' => $l->bl_number ?? "BL-{$l->id}",
+            ]);
+
+        $loadsPaye = Load::where('client_id', $client->id)
+            ->where('status', LoadStatus::PAYE)
+            ->with(['depot', 'compartment', 'clientPayment'])
+            ->get()
+            ->map(fn ($l) => [
+                'id' => $l->id,
+                'date' => $l->unload_date?->format('Y-m-d'),
+                'truck_number' => $l->vehicle_registration,
+                'compartment' => $l->compartment,
+                'quantity' => $l->volume,
+                'depot' => $l->depot,
+                'bl_number' => $l->bl_number ?? "BL-{$l->id}",
+                'payment_reference' => $l->clientPayment?->reference ?: ($l->clientPayment ? "REG-{$l->clientPayment->id}" : null),
+                'payment_date' => $l->clientPayment?->date?->format('Y-m-d'),
+            ]);
 
         // Générer le QR Code
         $qrData = "RELEVE CLIENT: {$client->nom}\nID: #{$client->id}\nSOLDE: ".number_format(abs($finalBalance), 0, ',', ' ').' CFA';
@@ -105,7 +164,11 @@ class ClientTrackingController extends Controller
             'dateFrom' => $dateFrom,
             'dateTo' => $dateTo,
             'qrCode' => $qrCode,
-        ]);
+            'loadsEnCours' => $loadsEnCours,
+            'loadsLivrer' => $loadsLivrer,
+            'loadsFacturer' => $loadsFacturer,
+            'loadsPaye' => $loadsPaye,
+        ])->setPaper('a4', 'landscape');
 
         return $pdf->download("Releve_{$client->nom}_{$dateFrom}_au_{$dateTo}.pdf");
     }
@@ -162,12 +225,12 @@ class ClientTrackingController extends Controller
             ->sortBy('date')
             ->values();
 
-        $initialBalance = 0;
+        $initialBalance = $client->initial_balance;
         if ($dateFrom) {
             $prevDebitInvoices = Invoice::where('client_id', $client->id)->where('date', '<', $dateFrom)->sum('total_amount');
             $prevDebitDepotInvoices = DepotInvoice::where('client_id', $client->id)->where('date', '<', $dateFrom)->sum('total_amount');
             $prevCreditPayments = ClientPayment::where('client_id', $client->id)->where('date', '<', $dateFrom)->sum('amount');
-            $initialBalance = ($prevDebitInvoices + $prevDebitDepotInvoices) - $prevCreditPayments;
+            $initialBalance += ($prevDebitInvoices + $prevDebitDepotInvoices) - $prevCreditPayments;
         }
 
         $runningBalance = $initialBalance;
@@ -178,11 +241,64 @@ class ClientTrackingController extends Controller
             return $op;
         });
 
-        // 2. État des créances (Livraisons LIVRÉ)
-        $debts = Load::where('client_id', $client->id)
+        // 2. Historique des livraisons par statut
+        $loadsEnCours = Load::where('client_id', $client->id)
+            ->where('status', LoadStatus::EN_COURS)
+            ->with(['depot', 'compartment'])
+            ->get()
+            ->map(fn ($l) => [
+                'id' => $l->id,
+                'date' => $l->load_date?->format('Y-m-d'),
+                'truck_number' => $l->vehicle_registration,
+                'compartment' => $l->compartment,
+                'quantity' => $l->volume,
+                'depot' => $l->depot,
+                'destination' => $l->unload_location,
+            ]);
+
+        $loadsLivrer = Load::where('client_id', $client->id)
             ->where('status', LoadStatus::LIVRER)
-            ->with(['client', 'depot', 'compartment'])
-            ->get();
+            ->with(['depot', 'compartment'])
+            ->get()
+            ->map(fn ($l) => [
+                'id' => $l->id,
+                'date' => $l->unload_date?->format('Y-m-d'),
+                'truck_number' => $l->vehicle_registration,
+                'compartment' => $l->compartment,
+                'quantity' => $l->volume,
+                'depot' => $l->depot,
+                'bl_number' => $l->bl_number ?? "BL-{$l->id}",
+            ]);
+
+        $loadsFacturer = Load::where('client_id', $client->id)
+            ->where('status', LoadStatus::FACTURER)
+            ->with(['depot', 'compartment'])
+            ->get()
+            ->map(fn ($l) => [
+                'id' => $l->id,
+                'date' => $l->unload_date?->format('Y-m-d'),
+                'truck_number' => $l->vehicle_registration,
+                'compartment' => $l->compartment,
+                'quantity' => $l->volume,
+                'depot' => $l->depot,
+                'bl_number' => $l->bl_number ?? "BL-{$l->id}",
+            ]);
+
+        $loadsPaye = Load::where('client_id', $client->id)
+            ->where('status', LoadStatus::PAYE)
+            ->with(['depot', 'compartment', 'clientPayment'])
+            ->get()
+            ->map(fn ($l) => [
+                'id' => $l->id,
+                'date' => $l->unload_date?->format('Y-m-d'),
+                'truck_number' => $l->vehicle_registration,
+                'compartment' => $l->compartment,
+                'quantity' => $l->volume,
+                'depot' => $l->depot,
+                'bl_number' => $l->bl_number ?? "BL-{$l->id}",
+                'payment_reference' => $l->clientPayment?->reference ?: ($l->clientPayment ? "REG-{$l->clientPayment->id}" : null),
+                'payment_date' => $l->clientPayment?->date?->format('Y-m-d'),
+            ]);
 
         // 3. Historique des paiements avec livraisons liées
         $paymentHistory = ClientPayment::where('client_id', $client->id)
@@ -198,7 +314,12 @@ class ClientTrackingController extends Controller
                 'initialBalance' => $initialBalance,
                 'finalBalance' => $runningBalance,
             ],
-            'debts' => $debts,
+            'loads' => [
+                'en_cours' => $loadsEnCours,
+                'livrer' => $loadsLivrer,
+                'facturer' => $loadsFacturer,
+                'paye' => $loadsPaye,
+            ],
             'paymentHistory' => $paymentHistory,
             'filters' => [
                 'date_from' => $dateFrom,
