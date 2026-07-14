@@ -136,9 +136,9 @@ export default function FacturesChargement({ invoices, clients }: Props) {
             load_id: load.id,
             bl_number: load.bl_number || '',
             quantity_delivered: load.volume,
-            unit_price: 0,
+            unit_price: load.unit_price || 0,
             missing_quantity: 0,
-            total: 0,
+            total: (load.volume || 0) * (load.unit_price || 0),
             vehicle_registration: load.vehicle_registration,
             product: load.product
         };

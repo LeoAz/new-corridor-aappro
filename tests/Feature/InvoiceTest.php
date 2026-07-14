@@ -77,12 +77,13 @@ test('a user can download invoice pdf', function () {
         ->assertHeader('Content-Type', 'application/pdf');
 });
 
-test('a user can update an invoice', function () {
+test('a user can update an invoice and see available loads', function () {
     $user = User::factory()->create();
     $client = Client::factory()->create();
 
     $load1 = Load::factory()->create(['client_id' => $client->id, 'status' => LoadStatus::FACTURER]);
     $load2 = Load::factory()->create(['client_id' => $client->id, 'status' => LoadStatus::LIVRER]);
+    $load3 = Load::factory()->create(['client_id' => $client->id, 'status' => LoadStatus::LIVRER]);
 
     $invoice = Invoice::factory()->create([
         'client_id' => $client->id,
@@ -109,7 +110,7 @@ test('a user can update an invoice', function () {
                 'unit_price' => 500,
                 'total' => 600000,
             ],
-            // Add new item
+            // Add new item from load2
             [
                 'load_id' => $load2->id,
                 'quantity_delivered' => 800,
@@ -127,6 +128,20 @@ test('a user can update an invoice', function () {
     expect(date('Y-m-d', strtotime($invoice->date)))->toBe('2026-01-02');
     expect($invoice->items)->toHaveCount(2);
     expect($load2->refresh()->status)->toBe(LoadStatus::FACTURER);
+
+    // Verify available loads endpoint (simulating frontend fetch)
+    $responseAvailable = $this->actingAs($user)->get(route('operations.livraisons.index', [
+        'client_id' => $client->id,
+        'status' => 'LIVRER',
+    ]), ['Accept' => 'application/json', 'X-Requested-With' => 'XMLHttpRequest']);
+
+    $responseAvailable->assertStatus(200);
+    $availableData = $responseAvailable->json();
+
+    $availableIds = array_column($availableData, 'id');
+    expect($availableIds)->toContain($load3->id);
+    expect($availableIds)->not->toContain($load2->id);
+    expect($availableIds)->not->toContain($load1->id);
 });
 
 test('a user can remove an item from an invoice', function () {
