@@ -5,10 +5,10 @@ import { ArrowUpDown, CalendarIcon, Eye, MoreHorizontal, Pencil, Plus, Trash, X 
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
+import AlertError from '@/components/alert-error';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { DataTable } from '@/components/ui/data-table';
-import AlertError from '@/components/alert-error';
 import {
     Dialog,
     DialogContent,
@@ -290,7 +290,7 @@ export default function FacturesDepot({ invoices, clients, depots }: Props) {
                     }
                 }}
             >
-                <DialogContent className="max-w-4xl">
+                <DialogContent className="max-h-[90vh] w-[calc(100vw-2rem)] overflow-y-auto border border-border shadow-none sm:max-w-[90rem] xl:max-w-[96rem]">
                     <DialogHeader>
                         <DialogTitle>{isEditOpen ? `Modifier la Facture ${selectedInvoice?.number}` : 'Nouvelle Facture Dépôt'}</DialogTitle>
                     </DialogHeader>

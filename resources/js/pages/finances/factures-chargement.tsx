@@ -238,7 +238,7 @@ export default function FacturesChargement({ invoices, clients }: Props) {
 
             {/* Modal Modification */}
             <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-                <DialogContent className="max-w-4xl">
+                <DialogContent className="max-h-[90vh] w-[calc(100vw-2rem)] overflow-y-auto border border-border shadow-none sm:max-w-[90rem] xl:max-w-[96rem]">
                     <DialogHeader>
                         <DialogTitle>Modifier la Facture {selectedInvoice?.number}</DialogTitle>
                     </DialogHeader>
