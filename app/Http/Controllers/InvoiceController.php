@@ -111,6 +111,8 @@ class InvoiceController extends Controller
             $keepIds = [];
 
             foreach ($validated['items'] as $item) {
+                $itemTotal = ($item['quantity_delivered'] - ($item['missing_quantity'] ?? 0)) * $item['unit_price'];
+
                 if (isset($item['id'])) {
                     $invoiceItem = InvoiceItem::find($item['id']);
 
@@ -132,7 +134,7 @@ class InvoiceController extends Controller
                         'quantity_delivered' => $item['quantity_delivered'],
                         'unit_price' => $item['unit_price'],
                         'missing_quantity' => $item['missing_quantity'] ?? 0,
-                        'total' => $item['total'],
+                        'total' => $itemTotal,
                     ]);
                     $keepIds[] = $invoiceItem->id;
                 } else {
@@ -143,7 +145,7 @@ class InvoiceController extends Controller
                         'quantity_delivered' => $item['quantity_delivered'],
                         'unit_price' => $item['unit_price'],
                         'missing_quantity' => $item['missing_quantity'] ?? 0,
-                        'total' => $item['total'],
+                        'total' => $itemTotal,
                     ]);
                     $keepIds[] = $newItem->id;
 
@@ -230,6 +232,8 @@ class InvoiceController extends Controller
             ]);
 
             foreach ($validated['items'] as $item) {
+                $itemTotal = ($item['quantity_delivered'] - ($item['missing_quantity'] ?? 0)) * $item['unit_price'];
+
                 InvoiceItem::create([
                     'invoice_id' => $invoice->id,
                     'bl_number' => $item['bl_number'] ?? '',
@@ -237,7 +241,7 @@ class InvoiceController extends Controller
                     'quantity_delivered' => $item['quantity_delivered'],
                     'unit_price' => $item['unit_price'],
                     'missing_quantity' => $item['missing_quantity'] ?? 0,
-                    'total' => $item['total'],
+                    'total' => $itemTotal,
                 ]);
 
                 // Update load status to INVOICED

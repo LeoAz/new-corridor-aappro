@@ -144,6 +144,40 @@ test('a user can update an invoice and see available loads', function () {
     expect($availableIds)->not->toContain($load1->id);
 });
 
+test('invoice items total deducts missing quantity', function () {
+    $user = User::factory()->create();
+    $client = Client::factory()->create();
+
+    $load = Load::factory()->create([
+        'client_id' => $client->id,
+        'status' => LoadStatus::LIVRER,
+        'volume' => 1000,
+    ]);
+
+    $response = $this->actingAs($user)->post(route('finances.facture-chargement.store'), [
+        'client_id' => $client->id,
+        'date' => now()->format('Y-m-d'),
+        'items' => [
+            [
+                'load_id' => $load->id,
+                'bl_number' => 'BL-1',
+                'quantity_delivered' => 1000,
+                'unit_price' => 500,
+                'missing_quantity' => 10,
+                'total' => 0, // Sera recalculé par le serveur
+            ],
+        ],
+        'total_amount' => 495000,
+        'total_missing' => 10,
+    ]);
+
+    $response->assertRedirect();
+
+    $invoiceItem = InvoiceItem::latest()->first();
+    // Formule: (1000 - 10) * 500 = 990 * 500 = 495,000
+    expect($invoiceItem->total)->toEqual(495000);
+});
+
 test('a user can remove an item from an invoice', function () {
     $user = User::factory()->create();
     $client = Client::factory()->create();

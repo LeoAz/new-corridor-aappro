@@ -436,8 +436,9 @@ export default function FacturesChargement({ invoices, clients }: Props) {
 
         if (field === 'unit_price' || field === 'quantity_delivered' || field === 'missing_quantity') {
             const qty = parseFloat(newItems[index].quantity_delivered) || 0;
+            const missing = parseFloat(newItems[index].missing_quantity) || 0;
             const price = parseFloat(newItems[index].unit_price) || 0;
-            newItems[index].total = qty * price;
+            newItems[index].total = (qty - missing) * price;
         }
 
         recalculateTotals(newItems);
