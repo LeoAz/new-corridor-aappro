@@ -516,31 +516,46 @@ export default function SuiviStock({ depots, selectedDepot, purchases, chargemen
                                                 <h4 className="text-sm font-bold text-gray-400 uppercase tracking-widest border-b pb-2">Entrées (Achats)</h4>
                                                 <div className="flex justify-between items-center">
                                                     <span className="text-gray-600">Total volume acheté :</span>
-                                                    <span className="font-bold tabular-nums">{formatNumber(purchases.reduce((acc, p) => acc + p.quantity, 0))} L</span>
+                                                    <span className="font-bold tabular-nums">
+                                                        {formatNumber(purchases.reduce((acc, p) => acc + Number(p.quantity || 0), 0))} L
+                                                    </span>
                                                 </div>
                                                 <div className="flex justify-between items-center">
                                                     <span className="text-gray-600">Investissement total :</span>
-                                                    <span className="font-bold tabular-nums text-blue-700">{formatNumber(purchases.reduce((acc, p) => acc + p.total_price, 0))} CFA</span>
+                                                    <span className="font-bold tabular-nums text-blue-700">
+                                                        {formatNumber(purchases.reduce((acc, p) => acc + Number(p.total_price || 0), 0))} CFA
+                                                    </span>
                                                 </div>
                                             </div>
                                             <div className="space-y-4">
                                                 <h4 className="text-sm font-bold text-gray-400 uppercase tracking-widest border-b pb-2">Sorties (Ventes & Sorties)</h4>
                                                 <div className="flex justify-between items-center">
                                                     <span className="text-gray-600">Volume chargements (en cours) :</span>
-                                                    <span className="font-bold tabular-nums">{formatNumber(chargements.reduce((acc, l) => acc + l.volume, 0))} L</span>
+                                                    <span className="font-bold tabular-nums">
+                                                        {formatNumber(chargements.reduce((acc, l) => acc + Number(l.volume || 0), 0))} L
+                                                    </span>
                                                 </div>
                                                 <div className="flex justify-between items-center">
                                                     <span className="text-gray-600">Volume livraisons (confirmées) :</span>
-                                                    <span className="font-bold tabular-nums">{formatNumber(livraisons.reduce((acc, l) => acc + l.volume, 0))} L</span>
+                                                    <span className="font-bold tabular-nums">
+                                                        {formatNumber(livraisons.reduce((acc, l) => acc + Number(l.volume || 0), 0))} L
+                                                    </span>
                                                 </div>
                                                 <div className="flex justify-between items-center">
                                                     <span className="text-gray-600">Volume ventes directes :</span>
-                                                    <span className="font-bold tabular-nums">{formatNumber(depotSales.reduce((acc, s) => acc + s.quantity, 0))} L</span>
+                                                    <span className="font-bold tabular-nums">
+                                                        {formatNumber(depotSales.reduce((acc, s) => acc + Number(s.quantity || 0), 0))} L
+                                                    </span>
                                                 </div>
                                                 <div className="flex justify-between items-center pt-2 border-t font-bold">
                                                     <span className="text-gray-900">Total Sorties :</span>
                                                     <span className="text-red-600 tabular-nums">
-                                                        {formatNumber(chargements.reduce((acc, l) => acc + l.volume, 0) + livraisons.reduce((acc, l) => acc + l.volume, 0) + depotSales.reduce((acc, s) => acc + s.quantity, 0))} L
+                                                        {formatNumber(
+                                                            chargements.reduce((acc, l) => acc + Number(l.volume || 0), 0) +
+                                                                livraisons.reduce((acc, l) => acc + Number(l.volume || 0), 0) +
+                                                                depotSales.reduce((acc, s) => acc + Number(s.quantity || 0), 0),
+                                                        )}{' '}
+                                                        L
                                                     </span>
                                                 </div>
                                             </div>

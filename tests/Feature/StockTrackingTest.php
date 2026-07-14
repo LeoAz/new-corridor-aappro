@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\LoadStatus;
 use App\Models\Client;
 use App\Models\Compartment;
 use App\Models\Depot;
@@ -73,6 +74,55 @@ test('stock tracking index page displays stock data', function () {
         ->has('chargements', 1)
         ->has('livraisons', 0)
         ->has('depotSales', 1)
+    );
+});
+
+test('stock tracking sums volumes correctly', function () {
+    $depot = Depot::factory()->has(Compartment::factory()->count(1))->create();
+    $compartment = $depot->compartments->first();
+    $client = Client::factory()->create();
+
+    // 1 Load EN_COURS
+    Load::factory()->create([
+        'depot_id' => $depot->id,
+        'compartment_id' => $compartment->id,
+        'volume' => 8104500,
+        'status' => LoadStatus::EN_COURS,
+        'load_date' => now(),
+    ]);
+
+    // 1 Load LIVRER
+    Load::factory()->create([
+        'depot_id' => $depot->id,
+        'compartment_id' => $compartment->id,
+        'volume' => 687151,
+        'status' => LoadStatus::LIVRER,
+        'load_date' => now(),
+    ]);
+
+    // 1 Depot Sale
+    $invoice = DepotInvoice::factory()->create([
+        'depot_id' => $depot->id,
+        'client_id' => $client->id,
+        'date' => now(),
+    ]);
+    DepotInvoiceItem::factory()->create([
+        'depot_invoice_id' => $invoice->id,
+        'compartment_id' => $compartment->id,
+        'quantity' => 1000000,
+    ]);
+
+    $response = $this->get(route('stocks.suivi-stock', [
+        'depot_id' => $depot->id,
+        'date_from' => now()->startOfMonth()->toDateString(),
+        'date_to' => now()->toDateString(),
+    ]));
+
+    $response->assertStatus(200);
+    $response->assertInertia(fn ($page) => $page
+        ->where('chargements.0.volume', 8104500)
+        ->where('livraisons.0.volume', 687151)
+        ->where('depotSales.0.quantity', 1000000)
     );
 });
 
