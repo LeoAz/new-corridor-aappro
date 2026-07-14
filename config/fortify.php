@@ -73,7 +73,7 @@ return [
     |
     */
 
-    'home' => '/dashboard',
+    'home' => '/operations/chargements',
 
     /*
     |--------------------------------------------------------------------------
@@ -143,7 +143,6 @@ return [
     */
 
     'features' => [
-        Features::registration(),
         Features::resetPasswords(),
     ],
 

@@ -29,7 +29,6 @@ import {
     SidebarMenuButton,
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
-import * as routes from '@/routes';
 import * as configuration from '@/routes/configuration';
 import * as finances from '@/routes/finances';
 import * as operations from '@/routes/operations';
@@ -143,7 +142,7 @@ export function AppSidebar() {
                 <SidebarMenu>
                     <SidebarMenuItem>
                         <SidebarMenuButton size="lg" asChild>
-                            <Link href={routes.dashboard().url} prefetch>
+                            <Link href={operations.default.chargements.index().url} prefetch>
                                 <AppLogo />
                             </Link>
                         </SidebarMenuButton>
