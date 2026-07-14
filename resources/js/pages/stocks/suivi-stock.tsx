@@ -1,8 +1,9 @@
 import { Head, router } from '@inertiajs/react';
+import type { ColumnDef } from '@tanstack/react-table';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { Download, Filter, Search, CalendarIcon, Check, ChevronsUpDown, Package, ShoppingCart, Truck, Activity } from 'lucide-react';
-import { useState } from 'react';
+import { Download, Filter, Search, CalendarIcon, Check, ChevronsUpDown, Package, ShoppingCart, Truck, Activity, ArrowUpDown } from 'lucide-react';
+import { useMemo, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
@@ -15,6 +16,7 @@ import {
     CommandItem,
     CommandList,
 } from '@/components/ui/command';
+import { DataTable } from '@/components/ui/data-table';
 import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import AppLayout from '@/layouts/app-layout';
@@ -81,6 +83,169 @@ export default function SuiviStock({ depots, selectedDepot, purchases, chargemen
     const [dateFrom, setDateFrom] = useState<string>(filters?.date_from || '');
     const [dateTo, setDateTo] = useState<string>(filters?.date_to || '');
     const [isDepotComboboxOpen, setIsDepotComboboxOpen] = useState(false);
+
+    const purchaseColumns = useMemo<ColumnDef<Purchase>[]>(() => [
+        {
+            accessorKey: 'purchase_date',
+            header: ({ column }) => (
+                <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}>
+                    Date <ArrowUpDown className="ml-2 h-4 w-4" />
+                </Button>
+            ),
+            cell: ({ row }) => <span className="text-gray-400 tabular-nums">{format(new Date(row.original.purchase_date), 'dd/MM/yyyy')}</span>,
+        },
+        {
+            accessorKey: 'product',
+            header: ({ column }) => (
+                <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}>
+                    Produit <ArrowUpDown className="ml-2 h-4 w-4" />
+                </Button>
+            ),
+            cell: ({ row }) => <span className="font-bold text-gray-700 uppercase text-[11px]">{row.original.compartment?.product || row.original.product}</span>,
+        },
+        {
+            accessorKey: 'quantity',
+            header: ({ column }) => (
+                <Button variant="ghost" className="w-full justify-end" onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}>
+                    Quantité <ArrowUpDown className="ml-2 h-4 w-4" />
+                </Button>
+            ),
+            cell: ({ row }) => <div className="text-right font-bold text-gray-800 tabular-nums">{formatNumber(row.getValue('quantity'))} L</div>,
+        },
+        {
+            accessorKey: 'unit_price',
+            header: ({ column }) => (
+                <Button variant="ghost" className="w-full justify-end" onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}>
+                    Prix Unitaire <ArrowUpDown className="ml-2 h-4 w-4" />
+                </Button>
+            ),
+            cell: ({ row }) => <div className="text-right text-gray-500 tabular-nums">{formatNumber(row.getValue('unit_price'))}</div>,
+        },
+        {
+            accessorKey: 'total_price',
+            header: ({ column }) => (
+                <Button variant="ghost" className="w-full justify-end" onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}>
+                    Total <ArrowUpDown className="ml-2 h-4 w-4" />
+                </Button>
+            ),
+            cell: ({ row }) => <div className="text-right font-black text-blue-900 tabular-nums">{formatNumber(row.getValue('total_price'))}</div>,
+        },
+    ], []);
+
+    const loadColumns = useMemo<ColumnDef<Load>[]>(() => [
+        {
+            accessorKey: 'load_date',
+            header: ({ column }) => (
+                <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}>
+                    Date <ArrowUpDown className="ml-2 h-4 w-4" />
+                </Button>
+            ),
+            cell: ({ row }) => <span className="text-gray-400 tabular-nums">{format(new Date(row.original.load_date), 'dd/MM/yyyy')}</span>,
+        },
+        {
+            accessorKey: 'vehicle_registration',
+            header: ({ column }) => (
+                <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}>
+                    Véhicule <ArrowUpDown className="ml-2 h-4 w-4" />
+                </Button>
+            ),
+            cell: ({ row }) => <span className="font-bold text-blue-700 text-[11px]">{row.getValue('vehicle_registration')}</span>,
+        },
+        {
+            accessorKey: 'client.nom',
+            header: ({ column }) => (
+                <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}>
+                    Client <ArrowUpDown className="ml-2 h-4 w-4" />
+                </Button>
+            ),
+            cell: ({ row }) => <span className="font-bold text-gray-700 uppercase text-[11px]">{row.original.client?.nom || '-'}</span>,
+        },
+        {
+            accessorKey: 'product',
+            header: ({ column }) => (
+                <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}>
+                    Produit <ArrowUpDown className="ml-2 h-4 w-4" />
+                </Button>
+            ),
+            cell: ({ row }) => (
+                <span className="text-gray-600 font-medium">
+                    {row.original.product} <span className="text-[10px] text-gray-400">({row.original.compartment?.product})</span>
+                </span>
+            ),
+        },
+        {
+            accessorKey: 'volume',
+            header: ({ column }) => (
+                <Button variant="ghost" className="w-full justify-end" onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}>
+                    Volume <ArrowUpDown className="ml-2 h-4 w-4" />
+                </Button>
+            ),
+            cell: ({ row }) => <div className="text-right font-bold text-gray-800 tabular-nums">{formatNumber(row.getValue('volume'))} L</div>,
+        },
+        {
+            accessorKey: 'status',
+            header: ({ column }) => (
+                <Button variant="ghost" className="w-full justify-center" onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}>
+                    Statut <ArrowUpDown className="ml-2 h-4 w-4" />
+                </Button>
+            ),
+            cell: ({ row }) => (
+                <div className="text-center">
+                    <span className="inline-flex items-center rounded bg-gray-50 px-2 py-0.5 text-[9px] font-bold text-gray-600 border border-gray-100 uppercase tracking-tighter">
+                        {row.getValue('status')}
+                    </span>
+                </div>
+            ),
+        },
+    ], []);
+
+    const saleColumns = useMemo<ColumnDef<DepotSale>[]>(() => [
+        {
+            accessorKey: 'date',
+            header: ({ column }) => (
+                <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}>
+                    Date <ArrowUpDown className="ml-2 h-4 w-4" />
+                </Button>
+            ),
+            cell: ({ row }) => <span className="text-gray-400 tabular-nums">{format(new Date(row.original.date), 'dd/MM/yyyy')}</span>,
+        },
+        {
+            accessorKey: 'number',
+            header: ({ column }) => (
+                <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}>
+                    N° Facture <ArrowUpDown className="ml-2 h-4 w-4" />
+                </Button>
+            ),
+            cell: ({ row }) => <span className="font-bold text-blue-700 text-[11px]">{row.getValue('number')}</span>,
+        },
+        {
+            accessorKey: 'client',
+            header: ({ column }) => (
+                <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}>
+                    Client <ArrowUpDown className="ml-2 h-4 w-4" />
+                </Button>
+            ),
+            cell: ({ row }) => <span className="font-bold text-gray-700 uppercase text-[11px]">{row.getValue('client')}</span>,
+        },
+        {
+            accessorKey: 'compartment',
+            header: ({ column }) => (
+                <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}>
+                    Compartiment <ArrowUpDown className="ml-2 h-4 w-4" />
+                </Button>
+            ),
+            cell: ({ row }) => <span className="text-gray-600 font-medium">{row.getValue('compartment')}</span>,
+        },
+        {
+            accessorKey: 'quantity',
+            header: ({ column }) => (
+                <Button variant="ghost" className="w-full justify-end" onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}>
+                    Quantité <ArrowUpDown className="ml-2 h-4 w-4" />
+                </Button>
+            ),
+            cell: ({ row }) => <div className="text-right font-bold text-gray-800 tabular-nums">{formatNumber(row.getValue('quantity'))} L</div>,
+        },
+    ], []);
 
     const handleFilter = () => {
         if (!selectedDepot) {
@@ -388,216 +553,56 @@ export default function SuiviStock({ depots, selectedDepot, purchases, chargemen
                         {/* 2. HISTORIQUE DES ACHATS */}
                         {activeTab === 'purchases' && (
                             <div className="animate-in fade-in slide-in-from-bottom-2 duration-500">
-                                <Card className="border-none shadow-none bg-white overflow-hidden">
-                                    <CardContent className="p-0">
-                                        <div className="overflow-x-auto">
-                                            <table className="w-full text-sm border-collapse">
-                                                <thead>
-                                                    <tr className="border-b border-gray-100 bg-gray-50/50">
-                                                        <th className="px-6 py-4 text-left font-bold text-gray-500 uppercase text-[10px] tracking-widest">Date</th>
-                                                        <th className="px-6 py-4 text-left font-bold text-gray-500 uppercase text-[10px] tracking-widest">Compartiment</th>
-                                                        <th className="px-6 py-4 text-right font-bold text-gray-500 uppercase text-[10px] tracking-widest">Quantité</th>
-                                                        <th className="px-6 py-4 text-right font-bold text-gray-500 uppercase text-[10px] tracking-widest">Prix Unitaire</th>
-                                                        <th className="px-6 py-4 text-right font-bold text-gray-500 uppercase text-[10px] tracking-widest">Total</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody className="divide-y divide-gray-50">
-                                                    {purchases.map((purchase) => (
-                                                        <tr key={purchase.id} className="hover:bg-gray-50 transition-colors">
-                                                            <td className="px-6 py-4 text-gray-400 tabular-nums">
-                                                                {format(new Date(purchase.purchase_date), 'dd/MM/yyyy')}
-                                                            </td>
-                                                            <td className="px-6 py-4 font-bold text-gray-700 uppercase text-[11px]">
-                                                                {purchase.compartment?.product || purchase.product}
-                                                            </td>
-                                                            <td className="px-6 py-4 text-right font-bold text-gray-800 tabular-nums">
-                                                                {formatNumber(purchase.quantity)} L
-                                                            </td>
-                                                            <td className="px-6 py-4 text-right text-gray-500 tabular-nums">
-                                                                {formatNumber(purchase.unit_price)}
-                                                            </td>
-                                                            <td className="px-6 py-4 text-right font-black text-blue-900 tabular-nums">
-                                                                {formatNumber(purchase.total_price)}
-                                                            </td>
-                                                        </tr>
-                                                    ))}
-                                                    {purchases.length === 0 && (
-                                                        <tr>
-                                                            <td colSpan={5} className="px-6 py-12 text-center text-gray-400 italic">
-                                                                Aucun achat enregistré sur cette période.
-                                                            </td>
-                                                        </tr>
-                                                    )}
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                    </CardContent>
-                                </Card>
+                                <DataTable
+                                    columns={purchaseColumns}
+                                    data={purchases}
+                                    hidePagination={true}
+                                    showNumbering={true}
+                                    searchKey="product"
+                                    searchPlaceholder="Rechercher un produit..."
+                                />
                             </div>
                         )}
 
                         {/* 3. CHARGEMENTS */}
                         {activeTab === 'chargements' && (
                             <div className="animate-in fade-in slide-in-from-bottom-2 duration-500">
-                                <Card className="border-none shadow-none bg-white overflow-hidden">
-                                    <CardContent className="p-0">
-                                        <div className="overflow-x-auto">
-                                            <table className="w-full text-sm border-collapse">
-                                                <thead>
-                                                    <tr className="border-b border-gray-100 bg-gray-50/50">
-                                                        <th className="px-6 py-4 text-left font-bold text-gray-500 uppercase text-[10px] tracking-widest">Date Charg.</th>
-                                                        <th className="px-6 py-4 text-left font-bold text-gray-500 uppercase text-[10px] tracking-widest">Véhicule</th>
-                                                        <th className="px-6 py-4 text-left font-bold text-gray-500 uppercase text-[10px] tracking-widest">Client</th>
-                                                        <th className="px-6 py-4 text-left font-bold text-gray-500 uppercase text-[10px] tracking-widest">Produit</th>
-                                                        <th className="px-6 py-4 text-right font-bold text-gray-500 uppercase text-[10px] tracking-widest">Volume</th>
-                                                        <th className="px-6 py-4 text-center font-bold text-gray-500 uppercase text-[10px] tracking-widest">Statut</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody className="divide-y divide-gray-50">
-                                                    {chargements.map((load) => (
-                                                        <tr key={load.id} className="hover:bg-gray-50 transition-colors">
-                                                            <td className="px-6 py-4 text-gray-400 tabular-nums">
-                                                                {format(new Date(load.load_date), 'dd/MM/yyyy')}
-                                                            </td>
-                                                            <td className="px-6 py-4 font-bold text-blue-700 text-[11px]">
-                                                                {load.vehicle_registration}
-                                                            </td>
-                                                            <td className="px-6 py-4 font-bold text-gray-700 uppercase text-[11px]">
-                                                                {load.client?.nom || '-'}
-                                                            </td>
-                                                            <td className="px-6 py-4 text-gray-600 font-medium">
-                                                                {load.product} <span className="text-[10px] text-gray-400">({load.compartment?.product})</span>
-                                                            </td>
-                                                            <td className="px-6 py-4 text-right font-bold text-gray-800 tabular-nums">
-                                                                {formatNumber(load.volume)} L
-                                                            </td>
-                                                            <td className="px-6 py-4 text-center">
-                                                                <span className="inline-flex items-center rounded bg-gray-50 px-2 py-0.5 text-[9px] font-bold text-gray-600 border border-gray-100 uppercase tracking-tighter">
-                                                                    {load.status}
-                                                                </span>
-                                                            </td>
-                                                        </tr>
-                                                    ))}
-                                                    {chargements.length === 0 && (
-                                                        <tr>
-                                                            <td colSpan={6} className="px-6 py-12 text-center text-gray-400 italic">
-                                                                Aucun chargement en cours enregistré sur cette période.
-                                                            </td>
-                                                        </tr>
-                                                    )}
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                    </CardContent>
-                                </Card>
+                                <DataTable
+                                    columns={loadColumns}
+                                    data={chargements}
+                                    hidePagination={true}
+                                    showNumbering={true}
+                                    searchKey="vehicle_registration"
+                                    searchPlaceholder="Rechercher un véhicule..."
+                                />
                             </div>
                         )}
 
                         {/* 4. LIVRAISONS */}
                         {activeTab === 'livraisons' && (
                             <div className="animate-in fade-in slide-in-from-bottom-2 duration-500">
-                                <Card className="border-none shadow-none bg-white overflow-hidden">
-                                    <CardContent className="p-0">
-                                        <div className="overflow-x-auto">
-                                            <table className="w-full text-sm border-collapse">
-                                                <thead>
-                                                    <tr className="border-b border-gray-100 bg-gray-50/50">
-                                                        <th className="px-6 py-4 text-left font-bold text-gray-500 uppercase text-[10px] tracking-widest">Date Charg.</th>
-                                                        <th className="px-6 py-4 text-left font-bold text-gray-500 uppercase text-[10px] tracking-widest">Véhicule</th>
-                                                        <th className="px-6 py-4 text-left font-bold text-gray-500 uppercase text-[10px] tracking-widest">Client</th>
-                                                        <th className="px-6 py-4 text-left font-bold text-gray-500 uppercase text-[10px] tracking-widest">Produit</th>
-                                                        <th className="px-6 py-4 text-right font-bold text-gray-500 uppercase text-[10px] tracking-widest">Volume</th>
-                                                        <th className="px-6 py-4 text-center font-bold text-gray-500 uppercase text-[10px] tracking-widest">Statut</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody className="divide-y divide-gray-50">
-                                                    {livraisons.map((load) => (
-                                                        <tr key={load.id} className="hover:bg-gray-50 transition-colors">
-                                                            <td className="px-6 py-4 text-gray-400 tabular-nums">
-                                                                {format(new Date(load.load_date), 'dd/MM/yyyy')}
-                                                            </td>
-                                                            <td className="px-6 py-4 font-bold text-blue-700 text-[11px]">
-                                                                {load.vehicle_registration}
-                                                            </td>
-                                                            <td className="px-6 py-4 font-bold text-gray-700 uppercase text-[11px]">
-                                                                {load.client?.nom || '-'}
-                                                            </td>
-                                                            <td className="px-6 py-4 text-gray-600 font-medium">
-                                                                {load.product} <span className="text-[10px] text-gray-400">({load.compartment?.product})</span>
-                                                            </td>
-                                                            <td className="px-6 py-4 text-right font-bold text-gray-800 tabular-nums">
-                                                                {formatNumber(load.volume)} L
-                                                            </td>
-                                                            <td className="px-6 py-4 text-center">
-                                                                <span className="inline-flex items-center rounded bg-gray-50 px-2 py-0.5 text-[9px] font-bold text-gray-600 border border-gray-100 uppercase tracking-tighter">
-                                                                    {load.status}
-                                                                </span>
-                                                            </td>
-                                                        </tr>
-                                                    ))}
-                                                    {livraisons.length === 0 && (
-                                                        <tr>
-                                                            <td colSpan={6} className="px-6 py-12 text-center text-gray-400 italic">
-                                                                Aucune livraison enregistrée sur cette période.
-                                                            </td>
-                                                        </tr>
-                                                    )}
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                    </CardContent>
-                                </Card>
+                                <DataTable
+                                    columns={loadColumns}
+                                    data={livraisons}
+                                    hidePagination={true}
+                                    showNumbering={true}
+                                    searchKey="vehicle_registration"
+                                    searchPlaceholder="Rechercher un véhicule..."
+                                />
                             </div>
                         )}
 
                         {/* 5. VENTES DIRECTES */}
                         {activeTab === 'sales' && (
                             <div className="animate-in fade-in slide-in-from-bottom-2 duration-500">
-                                <Card className="border-none shadow-none bg-white overflow-hidden">
-                                    <CardContent className="p-0">
-                                        <div className="overflow-x-auto">
-                                            <table className="w-full text-sm border-collapse">
-                                                <thead>
-                                                    <tr className="border-b border-gray-100 bg-gray-50/50">
-                                                        <th className="px-6 py-4 text-left font-bold text-gray-500 uppercase text-[10px] tracking-widest">Date</th>
-                                                        <th className="px-6 py-4 text-left font-bold text-gray-500 uppercase text-[10px] tracking-widest">N° Facture</th>
-                                                        <th className="px-6 py-4 text-left font-bold text-gray-500 uppercase text-[10px] tracking-widest">Client</th>
-                                                        <th className="px-6 py-4 text-left font-bold text-gray-500 uppercase text-[10px] tracking-widest">Compartiment</th>
-                                                        <th className="px-6 py-4 text-right font-bold text-gray-500 uppercase text-[10px] tracking-widest">Quantité</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody className="divide-y divide-gray-50">
-                                                    {depotSales.map((sale, index) => (
-                                                        <tr key={index} className="hover:bg-gray-50 transition-colors">
-                                                            <td className="px-6 py-4 text-gray-400 tabular-nums">
-                                                                {format(new Date(sale.date), 'dd/MM/yyyy')}
-                                                            </td>
-                                                            <td className="px-6 py-4 font-bold text-blue-700 text-[11px]">
-                                                                {sale.number}
-                                                            </td>
-                                                            <td className="px-6 py-4 font-bold text-gray-700 uppercase text-[11px]">
-                                                                {sale.client}
-                                                            </td>
-                                                            <td className="px-6 py-4 text-gray-600 font-medium">
-                                                                {sale.compartment}
-                                                            </td>
-                                                            <td className="px-6 py-4 text-right font-bold text-gray-800 tabular-nums">
-                                                                {formatNumber(sale.quantity)} L
-                                                            </td>
-                                                        </tr>
-                                                    ))}
-                                                    {depotSales.length === 0 && (
-                                                        <tr>
-                                                            <td colSpan={5} className="px-6 py-12 text-center text-gray-400 italic">
-                                                                Aucune vente directe enregistrée sur cette période.
-                                                            </td>
-                                                        </tr>
-                                                    )}
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                    </CardContent>
-                                </Card>
+                                <DataTable
+                                    columns={saleColumns}
+                                    data={depotSales}
+                                    hidePagination={true}
+                                    showNumbering={true}
+                                    searchKey="client"
+                                    searchPlaceholder="Rechercher un client..."
+                                />
                             </div>
                         )}
                     </div>
