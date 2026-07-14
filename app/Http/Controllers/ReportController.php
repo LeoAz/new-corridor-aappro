@@ -117,7 +117,7 @@ class ReportController extends Controller
             'filters' => $request->all(),
             'qrcode' => $qrcode,
             'date' => now()->format('d/m/Y H:i'),
-        ]);
+        ])->setPaper('a4', 'landscape');
 
         return $pdf->download('rapport-chargements-'.now()->format('Y-m-d').'.pdf');
     }
@@ -220,7 +220,7 @@ class ReportController extends Controller
             'filters' => $request->all(),
             'qrcode' => $qrcode,
             'date' => now()->format('d/m/Y H:i'),
-        ]);
+        ])->setPaper('a4', 'landscape');
 
         return $pdf->download('rapport-livraisons-'.now()->format('Y-m-d').'.pdf');
     }
