@@ -1,12 +1,20 @@
 import { Head, router, useForm } from '@inertiajs/react';
 import type { ColumnDef } from '@tanstack/react-table';
 import { format } from 'date-fns';
-import { ArrowUpDown, CalendarIcon, Eye, MoreHorizontal, Pencil, Plus, Trash, X } from 'lucide-react';
+import { ArrowUpDown, CalendarIcon, Check, ChevronsUpDown, Eye, MoreHorizontal, Pencil, Plus, Trash, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 
 import AlertError from '@/components/alert-error';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
+import {
+    Command,
+    CommandEmpty,
+    CommandGroup,
+    CommandInput,
+    CommandItem,
+    CommandList,
+} from '@/components/ui/command';
 import { DataTable } from '@/components/ui/data-table';
 import {
     Dialog,
@@ -25,7 +33,6 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn, formatNumber } from '@/lib/utils';
 import * as finances from '@/routes/finances';
 import * as operations from '@/routes/operations';
@@ -65,7 +72,7 @@ interface Props {
     clients: Client[];
 }
 
-const InvoiceForm = ({ onSubmit, onCancel, title, submitLabel, data, setData, errors, processing, clients, availableLoads, filteredAvailableLoads, handleEditItem, addNewItem, removeItem }: any) => (
+const InvoiceForm = ({ onSubmit, onCancel, title, submitLabel, data, setData, errors, processing, clients, availableLoads, filteredAvailableLoads, handleEditItem, addNewItem, removeItem, openCombobox, setOpenCombobox, openClientCombobox, setOpenClientCombobox }: any) => (
     <DialogContent className="max-h-[90vh] w-[calc(100vw-2rem)] overflow-y-auto border border-border shadow-none sm:max-w-[90rem] xl:max-w-[96rem]">
         <DialogHeader>
             <DialogTitle>{title}</DialogTitle>
@@ -81,21 +88,51 @@ const InvoiceForm = ({ onSubmit, onCancel, title, submitLabel, data, setData, er
             <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                     <Label htmlFor="client_id">Client</Label>
-                    <Select
-                        value={data.client_id}
-                        onValueChange={(v) => setData('client_id', v)}
-                    >
-                        <SelectTrigger>
-                            <SelectValue placeholder="Sélectionner un client" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {clients.map((client: any) => (
-                                <SelectItem key={client.id} value={client.id.toString()}>
-                                    {client.nom}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
+                    <Popover open={openClientCombobox} onOpenChange={setOpenClientCombobox}>
+                        <PopoverTrigger asChild>
+                            <Button
+                                variant="outline"
+                                role="combobox"
+                                aria-expanded={openClientCombobox}
+                                className="w-full justify-between font-normal"
+                            >
+                                {data.client_id
+                                    ? clients.find((client: any) => client.id.toString() === data.client_id.toString())?.nom
+                                    : 'Sélectionner un client'}
+                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                            </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-[400px] p-0" align="start">
+                            <Command>
+                                <CommandInput placeholder="Rechercher un client..." />
+                                <CommandList>
+                                    <CommandEmpty>Aucun client trouvé.</CommandEmpty>
+                                    <CommandGroup>
+                                        {clients.map((client: any) => (
+                                            <CommandItem
+                                                key={client.id}
+                                                value={client.nom}
+                                                onSelect={() => {
+                                                    setData('client_id', client.id.toString());
+                                                    setOpenClientCombobox(false);
+                                                }}
+                                            >
+                                                <Check
+                                                    className={cn(
+                                                        'mr-2 h-4 w-4',
+                                                        data.client_id?.toString() === client.id.toString()
+                                                            ? 'opacity-100'
+                                                            : 'opacity-0'
+                                                    )}
+                                                />
+                                                {client.nom}
+                                            </CommandItem>
+                                        ))}
+                                    </CommandGroup>
+                                </CommandList>
+                            </Command>
+                        </PopoverContent>
+                    </Popover>
                 </div>
                 <div className="space-y-2 flex flex-col">
                     <Label htmlFor="date">Date</Label>
@@ -152,21 +189,59 @@ const InvoiceForm = ({ onSubmit, onCancel, title, submitLabel, data, setData, er
                                     {item.load_id && !availableLoads.some((l: any) => l.id.toString() === item.load_id.toString()) ? (
                                         item.vehicle_registration
                                     ) : (
-                                        <Select
-                                            value={item.load_id?.toString() || ""}
-                                            onValueChange={(v) => handleEditItem(index, 'load_id', v)}
+                                        <Popover
+                                            open={openCombobox === index}
+                                            onOpenChange={(open) => setOpenCombobox(open ? index : null)}
                                         >
-                                            <SelectTrigger className="h-8 w-[200px]">
-                                                <SelectValue placeholder="Choisir une livraison" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {filteredAvailableLoads.map((load: any) => (
-                                                    <SelectItem key={load.id} value={load.id.toString()}>
-                                                        {load.vehicle_registration} ({formatNumber(load.volume)} L)
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
+                                            <PopoverTrigger asChild>
+                                                <Button
+                                                    variant="outline"
+                                                    role="combobox"
+                                                    aria-expanded={openCombobox === index}
+                                                    className="h-8 w-[200px] justify-between font-normal"
+                                                >
+                                                    {item.load_id
+                                                        ? availableLoads.find(
+                                                              (l) => l.id.toString() === item.load_id.toString()
+                                                          )?.vehicle_registration + ` (${formatNumber(availableLoads.find(l => l.id.toString() === item.load_id.toString())?.volume)} L)`
+                                                        : 'Choisir une livraison'}
+                                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                                </Button>
+                                            </PopoverTrigger>
+                                            <PopoverContent className="w-[300px] p-0" align="start">
+                                                <Command>
+                                                    <CommandInput placeholder="Rechercher une livraison..." />
+                                                    <CommandList>
+                                                        <CommandEmpty>Aucune livraison trouvée.</CommandEmpty>
+                                                        <CommandGroup>
+                                                            {filteredAvailableLoads.map((load: any) => (
+                                                                <CommandItem
+                                                                    key={load.id}
+                                                                    value={`${load.vehicle_registration} ${load.bl_number || ''} ${load.product || ''}`}
+                                                                    onSelect={() => {
+                                                                        handleEditItem(index, 'load_id', load.id);
+                                                                        setOpenCombobox(null);
+                                                                    }}
+                                                                >
+                                                                    <Check
+                                                                        className={cn(
+                                                                            'mr-2 h-4 w-4',
+                                                                            item.load_id?.toString() === load.id.toString()
+                                                                                ? 'opacity-100'
+                                                                                : 'opacity-0'
+                                                                        )}
+                                                                    />
+                                                                    <div className="flex flex-col">
+                                                                        <span>{load.vehicle_registration} - {formatNumber(load.volume)} L</span>
+                                                                        <span className="text-xs text-muted-foreground">{load.product} {load.bl_number ? `(BL: ${load.bl_number})` : ''}</span>
+                                                                    </div>
+                                                                </CommandItem>
+                                                            ))}
+                                                        </CommandGroup>
+                                                    </CommandList>
+                                                </Command>
+                                            </PopoverContent>
+                                        </Popover>
                                     )}
                                 </td>
                                 <td className="px-4 py-2">{item.product}</td>
@@ -243,6 +318,8 @@ export default function FacturesChargement({ invoices, clients }: Props) {
     const [isEditOpen, setIsEditOpen] = useState(false);
     const [isDeleteOpen, setIsDeleteOpen] = useState(false);
     const [invoiceToDelete, setInvoiceToDelete] = useState<number | null>(null);
+    const [openCombobox, setOpenCombobox] = useState<number | null>(null);
+    const [openClientCombobox, setOpenClientCombobox] = useState(false);
 
     const { data, setData, post, put, processing, reset, errors, clearErrors } = useForm({
         client_id: '',
@@ -522,7 +599,11 @@ export default function FacturesChargement({ invoices, clients }: Props) {
         filteredAvailableLoads,
         handleEditItem,
         addNewItem,
-        removeItem
+        removeItem,
+        openCombobox,
+        setOpenCombobox,
+        openClientCombobox,
+        setOpenClientCombobox
     };
 
     return (
