@@ -14,6 +14,7 @@ import {
     DialogFooter,
     DialogHeader,
     DialogTitle,
+    DialogDescription,
 } from '@/components/ui/dialog';
 import {
     DropdownMenu,
@@ -67,6 +68,8 @@ interface Props {
 export default function FacturesChargement({ invoices, clients }: Props) {
     const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
     const [isEditOpen, setIsEditOpen] = useState(false);
+    const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+    const [invoiceToDelete, setInvoiceToDelete] = useState<number | null>(null);
 
     const { data, setData, put, processing, reset, errors } = useForm({
         client_id: '',
@@ -233,8 +236,18 @@ export default function FacturesChargement({ invoices, clients }: Props) {
     };
 
     const handleDelete = (id: number) => {
-        if (confirm('Êtes-vous sûr de vouloir supprimer cette facture ? Les livraisons liées repasseront au statut "LIVRÉ".')) {
-            router.delete(finances.default.factureChargement.destroy(id).url);
+        setInvoiceToDelete(id);
+        setIsDeleteOpen(true);
+    };
+
+    const confirmDelete = () => {
+        if (invoiceToDelete) {
+            router.delete(finances.default.factureChargement.destroy(invoiceToDelete).url, {
+                onFinish: () => {
+                    setIsDeleteOpen(false);
+                    setInvoiceToDelete(null);
+                }
+            });
         }
     };
 
@@ -331,9 +344,30 @@ export default function FacturesChargement({ invoices, clients }: Props) {
                     data={invoices}
                     searchKey="number"
                     searchPlaceholder="Rechercher par numéro..."
-                    showNumbering={true}
                 />
             </div>
+
+            {/* Modal de Confirmation de Suppression */}
+            <Dialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Confirmer la suppression</DialogTitle>
+                        <DialogDescription>
+                            Êtes-vous sûr de vouloir supprimer cette facture ?
+                            Les livraisons liées repasseront au statut "LIVRER".
+                            Cette action est irréversible.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsDeleteOpen(false)}>
+                            Annuler
+                        </Button>
+                        <Button variant="destructive" onClick={confirmDelete}>
+                            Supprimer
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
             {/* Modal Modification */}
             <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
