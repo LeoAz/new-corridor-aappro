@@ -65,15 +65,188 @@ interface Props {
     clients: Client[];
 }
 
+const InvoiceForm = ({ onSubmit, onCancel, title, submitLabel, data, setData, errors, processing, clients, availableLoads, filteredAvailableLoads, handleEditItem, addNewItem, removeItem }: any) => (
+    <DialogContent className="max-h-[90vh] w-[calc(100vw-2rem)] overflow-y-auto border border-border shadow-none sm:max-w-[90rem] xl:max-w-[96rem]">
+        <DialogHeader>
+            <DialogTitle>{title}</DialogTitle>
+        </DialogHeader>
+
+        {Object.keys(errors).length > 0 && (
+            <div className="px-6 pt-2">
+                <AlertError errors={Object.values(errors)} />
+            </div>
+        )}
+
+        <form onSubmit={onSubmit} className="space-y-4 p-6 pt-0">
+            <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                    <Label htmlFor="client_id">Client</Label>
+                    <Select
+                        value={data.client_id}
+                        onValueChange={(v) => setData('client_id', v)}
+                    >
+                        <SelectTrigger>
+                            <SelectValue placeholder="Sélectionner un client" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {clients.map((client: any) => (
+                                <SelectItem key={client.id} value={client.id.toString()}>
+                                    {client.nom}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
+                <div className="space-y-2 flex flex-col">
+                    <Label htmlFor="date">Date</Label>
+                    <Popover>
+                        <PopoverTrigger asChild>
+                            <Button
+                                variant={"outline"}
+                                className={cn(
+                                    "w-full justify-start text-left font-normal",
+                                    !data.date && "text-muted-foreground"
+                                )}
+                            >
+                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                {data.date ? format(new Date(data.date), "dd/MM/yyyy") : <span>Choisir une date</span>}
+                            </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0">
+                            <Calendar
+                                mode="single"
+                                selected={data.date ? new Date(data.date) : undefined}
+                                onSelect={(date) => setData('date', date ? date.toISOString().split('T')[0] : '')}
+                                initialFocus
+                            />
+                        </PopoverContent>
+                    </Popover>
+                </div>
+            </div>
+
+            <div className="flex justify-between items-center">
+                <h3 className="text-lg font-medium">Livraisons</h3>
+                <Button type="button" variant="outline" size="sm" className="h-8" onClick={addNewItem}>
+                    <Plus className="mr-2 h-4 w-4" />
+                    Ajouter une livraison
+                </Button>
+            </div>
+
+            <div className="border rounded-md max-h-[400px] overflow-auto">
+                <table className="w-full text-sm">
+                    <thead className="bg-muted sticky top-0">
+                        <tr>
+                            <th className="px-4 py-2 text-left">Véhicule</th>
+                            <th className="px-4 py-2 text-left">Produit</th>
+                            <th className="px-4 py-2 text-right w-32">Quantité</th>
+                            <th className="px-4 py-2 text-right w-32">P.U</th>
+                            <th className="px-4 py-2 text-right w-32">Manquant</th>
+                            <th className="px-4 py-2 text-right">Total</th>
+                            <th className="px-4 py-2 text-center w-10"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {data.items.map((item: any, index: number) => (
+                            <tr key={index} className="border-t">
+                                <td className="px-4 py-2">
+                                    {item.load_id && !availableLoads.some((l: any) => l.id.toString() === item.load_id.toString()) ? (
+                                        item.vehicle_registration
+                                    ) : (
+                                        <Select
+                                            value={item.load_id?.toString() || ""}
+                                            onValueChange={(v) => handleEditItem(index, 'load_id', v)}
+                                        >
+                                            <SelectTrigger className="h-8 w-[200px]">
+                                                <SelectValue placeholder="Choisir une livraison" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {filteredAvailableLoads.map((load: any) => (
+                                                    <SelectItem key={load.id} value={load.id.toString()}>
+                                                        {load.vehicle_registration} ({formatNumber(load.volume)} L)
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    )}
+                                </td>
+                                <td className="px-4 py-2">{item.product}</td>
+                                <td className="px-4 py-2 text-right">
+                                    <Input
+                                        type="number"
+                                        value={item.quantity_delivered}
+                                        onChange={(e) => handleEditItem(index, 'quantity_delivered', e.target.value)}
+                                        className="h-8 text-right"
+                                    />
+                                </td>
+                                <td className="px-4 py-2 text-right">
+                                    <Input
+                                        type="number"
+                                        value={item.unit_price}
+                                        onChange={(e) => handleEditItem(index, 'unit_price', e.target.value)}
+                                        className="h-8 text-right"
+                                    />
+                                </td>
+                                <td className="px-4 py-2 text-right">
+                                    <Input
+                                        type="number"
+                                        value={item.missing_quantity}
+                                        onChange={(e) => handleEditItem(index, 'missing_quantity', e.target.value)}
+                                        className="h-8 text-right"
+                                    />
+                                </td>
+                                <td className="px-4 py-2 text-right font-medium">
+                                    {formatNumber(item.total || 0)} CFA
+                                </td>
+                                <td className="px-4 py-2 text-center">
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8 text-destructive"
+                                        onClick={() => removeItem(index)}
+                                    >
+                                        <X className="h-4 w-4" />
+                                    </Button>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+
+            <div className="flex flex-col items-end space-y-2 border-t pt-4">
+                <div className="flex space-x-4 text-lg font-bold">
+                    <span>TOTAL MANQUANT:</span>
+                    <span className="text-primary">{formatNumber(data.total_missing)} L</span>
+                </div>
+                <div className="flex space-x-4 text-xl font-black">
+                    <span>MONTANT TOTAL:</span>
+                    <span className="text-primary">{formatNumber(data.total_amount)} CFA</span>
+                </div>
+            </div>
+
+            <DialogFooter>
+                <Button type="button" variant="outline" onClick={onCancel}>
+                    Annuler
+                </Button>
+                <Button type="submit" disabled={processing}>
+                    {submitLabel}
+                </Button>
+            </DialogFooter>
+        </form>
+    </DialogContent>
+);
+
 export default function FacturesChargement({ invoices, clients }: Props) {
     const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
+    const [isCreateOpen, setIsCreateOpen] = useState(false);
     const [isEditOpen, setIsEditOpen] = useState(false);
     const [isDeleteOpen, setIsDeleteOpen] = useState(false);
     const [invoiceToDelete, setInvoiceToDelete] = useState<number | null>(null);
 
-    const { data, setData, put, processing, reset, errors } = useForm({
+    const { data, setData, post, put, processing, reset, errors, clearErrors } = useForm({
         client_id: '',
-        date: '',
+        date: format(new Date(), 'yyyy-MM-dd'),
         items: [] as any[],
         total_amount: 0,
         total_missing: 0,
@@ -89,7 +262,7 @@ export default function FacturesChargement({ invoices, clients }: Props) {
     }, [availableLoads, data.items]);
 
     useEffect(() => {
-        if (isEditOpen && data.client_id) {
+        if ((isCreateOpen || isEditOpen) && data.client_id) {
             const url = operations.default.livraisons.index({
                 query: {
                     client_id: data.client_id,
@@ -220,6 +393,17 @@ export default function FacturesChargement({ invoices, clients }: Props) {
         }));
     };
 
+    const handleCreate = (e: React.FormEvent) => {
+        e.preventDefault();
+
+        post(finances.default.factureChargement.store().url, {
+            onSuccess: () => {
+                setIsCreateOpen(false);
+                reset();
+            },
+        });
+    };
+
     const handleUpdate = (e: React.FormEvent) => {
         e.preventDefault();
 
@@ -328,6 +512,19 @@ export default function FacturesChargement({ invoices, clients }: Props) {
         [],
     );
 
+    const sharedFormProps = {
+        data,
+        setData,
+        errors,
+        processing,
+        clients,
+        availableLoads,
+        filteredAvailableLoads,
+        handleEditItem,
+        addNewItem,
+        removeItem
+    };
+
     return (
         <>
             <Head title="Factures Chargement" />
@@ -337,6 +534,14 @@ export default function FacturesChargement({ invoices, clients }: Props) {
                     <h1 className="text-2xl font-bold text-foreground">
                         Factures Chargement
                     </h1>
+                    <Button onClick={() => {
+                        reset();
+                        clearErrors();
+                        setIsCreateOpen(true);
+                    }}>
+                        <Plus className="mr-2 h-4 w-4" />
+                        Nouvelle Facture
+                    </Button>
                 </div>
 
                 <DataTable
@@ -369,177 +574,26 @@ export default function FacturesChargement({ invoices, clients }: Props) {
                 </DialogContent>
             </Dialog>
 
+            {/* Modal Création */}
+            <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+                <InvoiceForm
+                    {...sharedFormProps}
+                    onSubmit={handleCreate}
+                    onCancel={() => setIsCreateOpen(false)}
+                    title="Nouvelle Facture"
+                    submitLabel="Générer la facture"
+                />
+            </Dialog>
+
             {/* Modal Modification */}
             <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-                <DialogContent className="max-h-[90vh] w-[calc(100vw-2rem)] overflow-y-auto border border-border shadow-none sm:max-w-[90rem] xl:max-w-[96rem]">
-                    <DialogHeader>
-                        <DialogTitle>Modifier la Facture {selectedInvoice?.number}</DialogTitle>
-                    </DialogHeader>
-
-                    {Object.keys(errors).length > 0 && (
-                        <div className="px-6 pt-2">
-                            <AlertError errors={Object.values(errors)} />
-                        </div>
-                    )}
-
-                    <form onSubmit={handleUpdate} className="space-y-4 p-6 pt-0">
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="client_id">Client</Label>
-                                <Select
-                                    value={data.client_id}
-                                    onValueChange={(v) => setData('client_id', v)}
-                                >
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Sélectionner un client" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {clients.map((client) => (
-                                            <SelectItem key={client.id} value={client.id.toString()}>
-                                                {client.nom}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            <div className="space-y-2 flex flex-col">
-                                <Label htmlFor="date">Date</Label>
-                                <Popover>
-                                    <PopoverTrigger asChild>
-                                        <Button
-                                            variant={"outline"}
-                                            className={cn(
-                                                "w-full justify-start text-left font-normal",
-                                                !data.date && "text-muted-foreground"
-                                            )}
-                                        >
-                                            <CalendarIcon className="mr-2 h-4 w-4" />
-                                            {data.date ? format(new Date(data.date), "dd/MM/yyyy") : <span>Choisir une date</span>}
-                                        </Button>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-auto p-0">
-                                        <Calendar
-                                            mode="single"
-                                            selected={data.date ? new Date(data.date) : undefined}
-                                            onSelect={(date) => setData('date', date ? date.toISOString().split('T')[0] : '')}
-                                            initialFocus
-                                        />
-                                    </PopoverContent>
-                                </Popover>
-                            </div>
-                        </div>
-
-                        <div className="flex justify-between items-center">
-                            <h3 className="text-lg font-medium">Livraisons</h3>
-                            <Button type="button" variant="outline" size="sm" className="h-8" onClick={addNewItem}>
-                                <Plus className="mr-2 h-4 w-4" />
-                                Ajouter une livraison
-                            </Button>
-                        </div>
-
-                        <div className="border rounded-md max-h-[400px] overflow-auto">
-                            <table className="w-full text-sm">
-                                <thead className="bg-muted sticky top-0">
-                                    <tr>
-                                        <th className="px-4 py-2 text-left">Véhicule</th>
-                                        <th className="px-4 py-2 text-left">Produit</th>
-                                        <th className="px-4 py-2 text-right w-32">Quantité</th>
-                                        <th className="px-4 py-2 text-right w-32">P.U</th>
-                                        <th className="px-4 py-2 text-right w-32">Manquant</th>
-                                        <th className="px-4 py-2 text-right">Total</th>
-                                        <th className="px-4 py-2 text-center w-10"></th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {data.items.map((item, index) => (
-                                        <tr key={index} className="border-t">
-                                            <td className="px-4 py-2">
-                                                {item.load_id ? (
-                                                    item.vehicle_registration
-                                                ) : (
-                                                    <Select
-                                                        value={item.load_id?.toString() || ""}
-                                                        onValueChange={(v) => handleEditItem(index, 'load_id', v)}
-                                                    >
-                                                        <SelectTrigger className="h-8 w-[200px]">
-                                                            <SelectValue placeholder="Choisir une livraison" />
-                                                        </SelectTrigger>
-                                                        <SelectContent>
-                                                            {filteredAvailableLoads.map((load) => (
-                                                                <SelectItem key={load.id} value={load.id.toString()}>
-                                                                    {load.vehicle_registration} ({formatNumber(load.volume)} L)
-                                                                </SelectItem>
-                                                            ))}
-                                                        </SelectContent>
-                                                    </Select>
-                                                )}
-                                            </td>
-                                            <td className="px-4 py-2">{item.product}</td>
-                                            <td className="px-4 py-2 text-right">
-                                                <Input
-                                                    type="number"
-                                                    value={item.quantity_delivered}
-                                                    onChange={(e) => handleEditItem(index, 'quantity_delivered', e.target.value)}
-                                                    className="h-8 text-right"
-                                                />
-                                            </td>
-                                            <td className="px-4 py-2 text-right">
-                                                <Input
-                                                    type="number"
-                                                    value={item.unit_price}
-                                                    onChange={(e) => handleEditItem(index, 'unit_price', e.target.value)}
-                                                    className="h-8 text-right"
-                                                />
-                                            </td>
-                                            <td className="px-4 py-2 text-right">
-                                                <Input
-                                                    type="number"
-                                                    value={item.missing_quantity}
-                                                    onChange={(e) => handleEditItem(index, 'missing_quantity', e.target.value)}
-                                                    className="h-8 text-right"
-                                                />
-                                            </td>
-                                            <td className="px-4 py-2 text-right font-medium">
-                                                {formatNumber(item.total || 0)} CFA
-                                            </td>
-                                            <td className="px-4 py-2 text-center">
-                                                <Button
-                                                    type="button"
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    className="h-8 w-8 text-destructive"
-                                                    onClick={() => removeItem(index)}
-                                                >
-                                                    <X className="h-4 w-4" />
-                                                </Button>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-
-                        <div className="flex flex-col items-end space-y-2 border-t pt-4">
-                            <div className="flex space-x-4 text-lg font-bold">
-                                <span>TOTAL MANQUANT:</span>
-                                <span className="text-primary">{formatNumber(data.total_missing)} L</span>
-                            </div>
-                            <div className="flex space-x-4 text-xl font-black">
-                                <span>MONTANT TOTAL:</span>
-                                <span className="text-primary">{formatNumber(data.total_amount)} CFA</span>
-                            </div>
-                        </div>
-
-                        <DialogFooter>
-                            <Button type="button" variant="outline" onClick={() => setIsEditOpen(false)}>
-                                Annuler
-                            </Button>
-                            <Button type="submit" disabled={processing}>
-                                Enregistrer les modifications
-                            </Button>
-                        </DialogFooter>
-                    </form>
-                </DialogContent>
+                <InvoiceForm
+                    {...sharedFormProps}
+                    onSubmit={handleUpdate}
+                    onCancel={() => setIsEditOpen(false)}
+                    title={`Modifier la Facture ${selectedInvoice?.number}`}
+                    submitLabel="Enregistrer les modifications"
+                />
             </Dialog>
         </>
     );
