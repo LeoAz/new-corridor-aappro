@@ -42,23 +42,35 @@ export function DataTable<TData, TValue>({
     const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({});
     const [rowSelection, setRowSelection] = React.useState({});
 
-    const numberingColumn: ColumnDef<TData, TValue>[] = showNumbering
-        ? [
-              {
-                  id: 'numbering',
-                  header: 'N°',
-                  cell: ({ row, table }) => {
-                      const pageIndex = table.getState().pagination.pageIndex;
-                      const pageSize = table.getState().pagination.pageSize;
-                      return pageIndex * pageSize + row.index + 1;
-                  },
-              },
-          ]
-        : [];
+    const finalColumns = React.useMemo(() => {
+        if (!showNumbering) {
+            return columns;
+        }
+
+        const numberingCol: ColumnDef<TData, TValue> = {
+            id: 'numbering',
+            header: 'N°',
+            cell: ({ row, table }) => {
+                const pageIndex = table.getState().pagination.pageIndex;
+                const pageSize = table.getState().pagination.pageSize;
+                return pageIndex * pageSize + row.index + 1;
+            },
+        };
+
+        const selectColIndex = columns.findIndex((col) => col.id === 'select');
+
+        if (selectColIndex !== -1) {
+            const newCols = [...columns];
+            newCols.splice(selectColIndex + 1, 0, numberingCol);
+            return newCols;
+        }
+
+        return [numberingCol, ...columns];
+    }, [columns, showNumbering]);
 
     const table = useReactTable({
         data,
-        columns: [...numberingColumn, ...columns],
+        columns: finalColumns,
         onSortingChange: setSorting,
         onColumnFiltersChange: setColumnFilters,
         getCoreRowModel: getCoreRowModel(),
@@ -124,7 +136,7 @@ export function DataTable<TData, TValue>({
                             ))
                         ) : (
                             <TableRow>
-                                <TableCell colSpan={showNumbering ? columns.length + 1 : columns.length} className="h-24 text-center">
+                                <TableCell colSpan={showNumbering ? table.getVisibleFlatColumns().length : table.getVisibleFlatColumns().length} className="h-24 text-center">
                                     Aucun résultat.
                                 </TableCell>
                             </TableRow>

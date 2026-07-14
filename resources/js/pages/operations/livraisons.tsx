@@ -893,7 +893,7 @@ export default function Livraisons({
                                                     ),
                                                 )
                                             ) : (
-                                                <div className="px-2 py-1.5 text-sm text-muted-foreground italic">
+                                                <div className="px-2 py-1.5 text-sm text-muted-foreground">
                                                     Aucun lieu disponible
                                                 </div>
                                             )}
@@ -1097,8 +1097,8 @@ export default function Livraisons({
             >
                 <DialogContent
                     className={cn(
-                        'w-[calc(100vw-2rem)] overflow-hidden border-none p-0 shadow-2xl transition-all duration-300',
-                        currentStep === 2 ? 'sm:max-w-7xl' : 'sm:max-w-5xl',
+                        'w-[calc(100vw-2rem)] overflow-hidden border border-border p-0 shadow-none transition-all duration-300',
+                        currentStep === 2 ? 'sm:max-w-7xl' : 'sm:max-w-6xl',
                     )}
                 >
                     <form onSubmit={handlePaymentSubmit}>
@@ -1148,7 +1148,7 @@ export default function Livraisons({
                                             className={cn(
                                                 'flex h-10 w-10 items-center justify-center rounded-full border-2 transition-all duration-300',
                                                 currentStep === stepItem.step
-                                                    ? 'border-blue-400 bg-blue-600 shadow-[0_0_15px_rgba(37,99,235,0.5)]'
+                                                    ? 'border-blue-500 bg-blue-600'
                                                     : currentStep >
                                                         stepItem.step
                                                       ? 'border-green-400 bg-green-600'
@@ -1519,7 +1519,7 @@ export default function Livraisons({
                                     </div>
 
                                     <div className="grid h-[450px] grid-cols-2 gap-6">
-                                        <div className="flex flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+                                        <div className="flex flex-col overflow-hidden rounded-lg border border-slate-200 bg-white">
                                             <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 p-3">
                                                 <span className="text-xs font-bold tracking-wider text-slate-600 uppercase">
                                                     Disponibles
@@ -1560,7 +1560,7 @@ export default function Livraisons({
                                                                 <ReceiptText className="h-3 w-3" />{' '}
                                                                 {load.product}
                                                             </p>
-                                                            <p className="mt-2 flex items-center gap-1 text-[10px] text-slate-400 italic">
+                                                            <p className="mt-2 flex items-center gap-1 text-[10px] text-slate-400">
                                                                 <CalendarDays className="h-2.5 w-2.5" />{' '}
                                                                 {load.unload_date
                                                                     ? format(
@@ -1590,7 +1590,7 @@ export default function Livraisons({
                                             </div>
                                         </div>
 
-                                        <div className="flex flex-col overflow-hidden rounded-xl border border-green-200 bg-green-50/10 shadow-sm">
+                                        <div className="flex flex-col overflow-hidden rounded-lg border border-green-200 bg-green-50/10">
                                             <div className="flex items-center justify-between border-b border-green-200 bg-green-50 p-3">
                                                 <span className="text-xs font-bold tracking-wider text-green-700 uppercase">
                                                     Sélectionnés
@@ -1604,7 +1604,7 @@ export default function Livraisons({
                                                     (load) => (
                                                         <div
                                                             key={load.id}
-                                                            className="group relative rounded-lg border border-green-200 bg-white p-3 shadow-sm"
+                                                            className="group relative rounded-lg border border-green-200 bg-white p-3"
                                                         >
                                                             <div className="mb-2 flex items-start justify-between">
                                                                 <div>
@@ -1707,7 +1707,7 @@ export default function Livraisons({
 
                             {currentStep === 3 && (
                                 <div className="animate-in space-y-6 duration-300 zoom-in-95 fade-in">
-                                    <div className="relative overflow-hidden rounded-2xl bg-blue-600 p-6 text-white shadow-lg shadow-blue-200">
+                                    <div className="relative overflow-hidden rounded-lg border border-blue-600 bg-blue-600 p-6 text-white">
                                         <div className="absolute -top-8 -right-8 opacity-10">
                                             <CheckCircle2 className="h-40 w-40" />
                                         </div>
@@ -1826,7 +1826,7 @@ export default function Livraisons({
                                                     {selectedLoadsList.length}
                                                 </Badge>
                                             </div>
-                                            <div className="custom-scrollbar max-h-40 divide-y divide-slate-100 overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-sm">
+                                            <div className="custom-scrollbar max-h-40 divide-y divide-slate-100 overflow-y-auto rounded-lg border border-slate-200 bg-white">
                                                 {selectedLoadsList.map(
                                                     (load) => (
                                                         <div
@@ -1839,7 +1839,7 @@ export default function Livraisons({
                                                                         load.vehicle_registration
                                                                     }
                                                                 </p>
-                                                                <p className="text-[10px] text-slate-500 italic">
+                                                                <p className="text-[10px] text-slate-500">
                                                                     {
                                                                         load.product
                                                                     }
@@ -1883,7 +1883,7 @@ export default function Livraisons({
                                             <p className="mb-1 text-[10px] font-bold tracking-widest text-yellow-700 uppercase">
                                                 Note interne
                                             </p>
-                                            <p className="text-sm text-yellow-900 italic">
+                                            <p className="text-sm text-yellow-900">
                                                 "{paymentForm.data.note}"
                                             </p>
                                         </div>
@@ -1912,10 +1912,10 @@ export default function Livraisons({
                                 <Button
                                     type="submit"
                                     className={cn(
-                                        'h-12 rounded-xl px-8 font-bold text-white shadow-lg transition-all duration-300',
+                                        'h-12 rounded-lg px-8 font-bold text-white shadow-none transition-all duration-300',
                                         currentStep === 3
-                                            ? 'bg-green-600 shadow-green-200 hover:bg-green-700'
-                                            : 'bg-blue-600 shadow-blue-200 hover:bg-blue-700',
+                                            ? 'bg-green-600 hover:bg-green-700'
+                                            : 'bg-blue-600 hover:bg-blue-700',
                                     )}
                                     disabled={
                                         paymentForm.processing ||
@@ -1982,7 +1982,7 @@ export default function Livraisons({
                 open={isInvoiceModalOpen}
                 onOpenChange={setIsInvoiceModalOpen}
             >
-                <DialogContent className="max-w-4xl">
+                <DialogContent className="max-h-[90vh] w-[calc(100vw-2rem)] overflow-y-auto border border-border shadow-none sm:max-w-[90rem] xl:max-w-[96rem]">
                     <form onSubmit={handleInvoiceSubmit}>
                         <DialogHeader>
                             <DialogTitle>Créer une facture</DialogTitle>

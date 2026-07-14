@@ -58,6 +58,44 @@ test('on peut créer un règlement simple', function () {
     expect($load->is_paid)->toBeTrue();
 });
 
+test('la création d\'un règlement génère une facture pour une livraison non facturée', function () {
+    $load = Load::factory()->create([
+        'client_id' => $this->client->id,
+        'status' => LoadStatus::LIVRER,
+        'volume' => 30000,
+    ]);
+
+    $this->actingAs($this->user)
+        ->post(route('finances.reglements.store'), [
+            'client_id' => $this->client->id,
+            'delivery_ids' => [$load->id],
+            'missing_quantities' => [$load->id => 100],
+            'amount' => 14950000,
+            'payment_method' => 'Espèce',
+            'date' => now()->format('Y-m-d'),
+            'use_advance' => false,
+            'is_new_advance' => false,
+        ])
+        ->assertSessionHasNoErrors()
+        ->assertRedirect();
+
+    $payment = ClientPayment::where('payment_type', 'REGLEMENT')->first();
+    $invoice = Invoice::first();
+    $invoiceItem = InvoiceItem::first();
+
+    expect($payment)->not->toBeNull()
+        ->and($invoice)->not->toBeNull()
+        ->and($invoice->client_id)->toBe($this->client->id)
+        ->and($invoice->total_missing)->toEqual(100.0)
+        ->and($invoice->total_amount)->toEqual(14950000.0)
+        ->and($invoiceItem->load_id)->toBe($load->id)
+        ->and($invoiceItem->unit_price)->toEqual(500.0)
+        ->and($invoiceItem->is_paid)->toBeTrue()
+        ->and($invoiceItem->client_payment_id)->toBe($payment->id)
+        ->and($load->refresh()->status)->toBe(LoadStatus::PAYE)
+        ->and($load->is_paid)->toBeTrue();
+});
+
 test('on peut créer une avance', function () {
     $data = [
         'client_id' => $this->client->id,

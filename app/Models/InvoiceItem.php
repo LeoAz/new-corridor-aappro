@@ -22,6 +22,14 @@ class InvoiceItem extends Model
         'client_payment_id',
     ];
 
+    protected $casts = [
+        'quantity_delivered' => 'float',
+        'unit_price' => 'float',
+        'missing_quantity' => 'float',
+        'total' => 'float',
+        'is_paid' => 'boolean',
+    ];
+
     public function invoice(): BelongsTo
     {
         return $this->belongsTo(Invoice::class);

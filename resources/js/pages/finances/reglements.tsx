@@ -35,6 +35,7 @@ import {
 import AppLayout from '@/layouts/app-layout';
 import { cn, formatNumber } from '@/lib/utils';
 import * as finances from '@/routes/finances';
+import * as operations from '@/routes/operations';
 
 type ClientPayment = Record<string, any>;
 
@@ -167,11 +168,11 @@ export default function Reglements({ payments, clients, paymentMethods }: Props)
                 });
 
             // Fetch loads
-            fetch(`/operations/livraisons?client_id=${clientId}&status=LIVRER,FACTURER`, {
+            fetch(`${operations.default.livraisons.index().url}?client_id=${clientId}&status=LIVRER,FACTURER`, {
                 headers: {
-                    'Accept': 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
+                    Accept: 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
             })
                 .then((res) => res.json())
                 .then((data) => {
@@ -432,7 +433,7 @@ export default function Reglements({ payments, clients, paymentMethods }: Props)
                     const loads = row.original.loads || [];
 
                     if (loads.length === 0) {
-                        return <span className="text-muted-foreground text-xs italic">Aucune livraison</span>;
+                        return <span className="text-muted-foreground text-xs">Aucune livraison</span>;
                     }
 
                     return (
@@ -443,8 +444,8 @@ export default function Reglements({ payments, clients, paymentMethods }: Props)
                                     {loads.length} {loads.length > 1 ? 'livraisons' : 'livraison'}
                                 </Button>
                             </TooltipTrigger>
-                            <TooltipContent className="p-0 border-none shadow-xl" side="right" align="start">
-                                <div className="bg-card text-card-foreground rounded-lg border shadow-sm w-72 overflow-hidden">
+                            <TooltipContent className="p-0 border-none shadow-none" side="right" align="start">
+                                <div className="bg-card text-card-foreground rounded-lg border w-72 overflow-hidden">
                                     <div className="bg-muted/50 p-3 border-b">
                                         <div className="flex items-center gap-2">
                                             <div className="bg-primary/10 p-1.5 rounded-md">
@@ -771,14 +772,14 @@ export default function Reglements({ payments, clients, paymentMethods }: Props)
                                             </div>
                                         ) : (
                                             selectedPayment.loads?.map((load: any) => (
-                                                <div key={load.id} className="flex items-center justify-between p-3 bg-white rounded-lg border border-slate-100 shadow-sm">
+                                                <div key={load.id} className="flex items-center justify-between p-3 bg-white rounded-lg border border-slate-100">
                                                     <div className="flex items-center gap-3">
                                                         <div className="bg-blue-100 p-2 rounded-lg text-blue-600">
                                                             <Truck className="h-4 w-4" />
                                                         </div>
                                                         <div>
                                                             <p className="font-bold text-sm text-slate-900">{load.vehicle_registration}</p>
-                                                            <p className="text-[10px] text-slate-500 flex items-center gap-1 italic">
+                                                            <p className="text-[10px] text-slate-500 flex items-center gap-1">
                                                                 <Calendar className="h-3 w-3" /> {load.loading_date ? format(new Date(load.loading_date), 'dd/MM/yyyy') : '-'} • {load.product}
                                                             </p>
                                                         </div>
@@ -790,7 +791,7 @@ export default function Reglements({ payments, clients, paymentMethods }: Props)
                                             ))
                                         )}
                                         {(!selectedPayment.loads || selectedPayment.loads.length === 0) && !selectedPayment.depot_invoice_id && (
-                                            <div className="text-center py-8 text-slate-400 italic text-sm">
+                                            <div className="text-center py-8 text-slate-400 text-sm">
                                                 Aucun élément lié trouvé.
                                             </div>
                                         )}
@@ -987,7 +988,7 @@ export default function Reglements({ payments, clients, paymentMethods }: Props)
 
             {/* Modal Saisie Règlement sur Livraisons / Dépôt */}
             <Dialog open={isPaymentModalOpen} onOpenChange={setIsPaymentModalOpen}>
-                <DialogContent className={cn('w-[calc(100vw-2rem)] transition-all duration-300 overflow-hidden border-none p-0 shadow-2xl', currentStep === 2 ? 'sm:max-w-7xl' : 'sm:max-w-5xl')}>
+                <DialogContent className={cn('w-[calc(100vw-2rem)] transition-all duration-300 overflow-hidden border border-border p-0 shadow-none', currentStep === 2 ? 'sm:max-w-7xl' : 'sm:max-w-6xl')}>
                     <form onSubmit={handlePaymentSubmit}>
                         {/* Stepper Header */}
                         <div className="bg-slate-900 p-6 text-white">
@@ -1021,7 +1022,7 @@ export default function Reglements({ payments, clients, paymentMethods }: Props)
                                             <div className={cn(
                                                 "w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 border-2",
                                                 currentStep === s.step
-                                                    ? "bg-blue-600 border-blue-400 shadow-[0_0_15px_rgba(37,99,235,0.5)]"
+                                                    ? "bg-blue-600 border-blue-500"
                                                     : currentStep > s.step
                                                         ? "bg-green-600 border-green-400"
                                                         : "bg-slate-900 border-slate-700 text-slate-500"
@@ -1279,7 +1280,7 @@ export default function Reglements({ payments, clients, paymentMethods }: Props)
 
                                     <div className="grid grid-cols-2 gap-6 h-[450px]">
                                         {/* Colonne Gauche: Disponibles */}
-                                        <div className="flex flex-col border border-slate-200 rounded-xl overflow-hidden bg-white shadow-sm">
+                                        <div className="flex flex-col border border-slate-200 rounded-lg overflow-hidden bg-white">
                                             <div className="p-3 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
                                                 <span className="text-xs font-bold text-slate-600 uppercase tracking-wider">Disponibles</span>
                                                 <Badge variant="secondary" className="bg-slate-200 text-slate-700">
@@ -1297,7 +1298,7 @@ export default function Reglements({ payments, clients, paymentMethods }: Props)
                                                             <p className="text-xs text-slate-500 flex items-center gap-1">
                                                                 <ReceiptText className="h-3 w-3" /> {load.product}
                                                             </p>
-                                                            <p className="text-[10px] text-slate-400 mt-2 flex items-center gap-1 italic">
+                                                            <p className="text-[10px] text-slate-400 mt-2 flex items-center gap-1">
                                                                 <Calendar className="h-2.5 w-2.5" /> {load.unload_date ? format(new Date(load.unload_date), 'dd/MM/yyyy') : '-'}
                                                             </p>
                                                             <div className="absolute right-2 bottom-2 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -1315,7 +1316,7 @@ export default function Reglements({ payments, clients, paymentMethods }: Props)
                                                             <p className="text-xs text-slate-500 flex items-center gap-1">
                                                                 <Building2 className="h-3 w-3" /> {inv.product || 'Produit'}
                                                             </p>
-                                                            <p className="text-[10px] text-slate-400 mt-2 flex items-center gap-1 italic">
+                                                            <p className="text-[10px] text-slate-400 mt-2 flex items-center gap-1">
                                                                 <Calendar className="h-2.5 w-2.5" /> {inv.date ? format(new Date(inv.date), 'dd/MM/yyyy') : '-'}
                                                             </p>
                                                             <div className="absolute right-2 bottom-2 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -1334,7 +1335,7 @@ export default function Reglements({ payments, clients, paymentMethods }: Props)
                                         </div>
 
                                         {/* Colonne Droite: Sélectionnés */}
-                                        <div className="flex flex-col border border-green-200 rounded-xl overflow-hidden bg-green-50/10 shadow-sm">
+                                        <div className="flex flex-col border border-green-200 rounded-lg overflow-hidden bg-green-50/10">
                                             <div className="p-3 bg-green-50 border-b border-green-200 flex justify-between items-center">
                                                 <span className="text-xs font-bold text-green-700 uppercase tracking-wider">Sélectionnés</span>
                                                 <Badge className="bg-green-600 text-white border-none">
@@ -1344,7 +1345,7 @@ export default function Reglements({ payments, clients, paymentMethods }: Props)
                                             <div className="flex-1 overflow-y-auto p-2 space-y-2 custom-scrollbar">
                                                 {paymentType === 'DELIVERY' ? (
                                                     selectedLoadsList.map((load) => (
-                                                        <div key={load.id} className="p-3 border border-green-200 rounded-lg bg-white shadow-sm relative group">
+                                                        <div key={load.id} className="p-3 border border-green-200 rounded-lg bg-white relative group">
                                                             <div className="flex justify-between items-start mb-2">
                                                                 <div>
                                                                     <span className="font-bold text-sm text-slate-900">{load.vehicle_registration}</span>
@@ -1387,7 +1388,7 @@ export default function Reglements({ payments, clients, paymentMethods }: Props)
                                                     ))
                                                 ) : (
                                                     selectedDepotInvoicesList.map((inv) => (
-                                                        <div key={inv.id} className="p-3 border border-green-200 rounded-lg bg-white shadow-sm relative group">
+                                                        <div key={inv.id} className="p-3 border border-green-200 rounded-lg bg-white relative group">
                                                             <div className="flex justify-between items-start mb-1">
                                                                 <div>
                                                                     <span className="font-bold text-sm text-slate-900">{inv.number}</span>
@@ -1426,7 +1427,7 @@ export default function Reglements({ payments, clients, paymentMethods }: Props)
 
                             {currentStep === 3 && (
                                 <div className="space-y-6 animate-in fade-in zoom-in-95 duration-300">
-                                    <div className="bg-blue-600 text-white rounded-2xl p-6 shadow-lg shadow-blue-200 overflow-hidden relative">
+                                    <div className="bg-blue-600 text-white rounded-lg border border-blue-600 p-6 overflow-hidden relative">
                                         <div className="absolute -right-8 -top-8 opacity-10">
                                             <CheckCircle2 className="h-40 w-40" />
                                         </div>
@@ -1482,13 +1483,13 @@ export default function Reglements({ payments, clients, paymentMethods }: Props)
                                                 </h4>
                                                 <Badge variant="secondary" className="bg-slate-100 text-slate-600">{paymentType === 'DELIVERY' ? selectedLoadsList.length : selectedDepotInvoicesList.length}</Badge>
                                             </div>
-                                            <div className="border border-slate-200 rounded-xl divide-y divide-slate-100 max-h-40 overflow-y-auto bg-white shadow-sm custom-scrollbar">
+                                            <div className="border border-slate-200 rounded-lg divide-y divide-slate-100 max-h-40 overflow-y-auto bg-white custom-scrollbar">
                                                 {paymentType === 'DELIVERY' ? (
                                                     selectedLoadsList.map((load) => (
                                                         <div key={load.id} className="p-3 flex justify-between items-center hover:bg-slate-50 transition-colors">
                                                             <div>
                                                                 <p className="font-bold text-xs text-slate-900">{load.vehicle_registration}</p>
-                                                                <p className="text-[10px] text-slate-500 italic">{load.product}</p>
+                                                                <p className="text-[10px] text-slate-500">{load.product}</p>
                                                             </div>
                                                             <div className="text-right">
                                                                 <p className="font-bold text-xs text-blue-700">{formatNumber(load.volume)} L</p>
@@ -1503,7 +1504,7 @@ export default function Reglements({ payments, clients, paymentMethods }: Props)
                                                         <div key={inv.id} className="p-3 flex justify-between items-center hover:bg-slate-50 transition-colors">
                                                             <div>
                                                                 <p className="font-bold text-xs text-slate-900">{inv.number}</p>
-                                                                <p className="text-[10px] text-slate-500 italic">{inv.product || 'Vente Dépôt'}</p>
+                                                                <p className="text-[10px] text-slate-500">{inv.product || 'Vente Dépôt'}</p>
                                                             </div>
                                                             <div className="text-right">
                                                                 <p className="font-bold text-xs text-blue-700">{formatNumber(inv.total_amount)} CFA</p>
@@ -1518,7 +1519,7 @@ export default function Reglements({ payments, clients, paymentMethods }: Props)
                                     {paymentForm.data.note && (
                                         <div className="bg-yellow-50 p-4 rounded-xl border border-yellow-100">
                                             <p className="text-[10px] font-bold text-yellow-700 uppercase tracking-widest mb-1">Note interne</p>
-                                            <p className="text-sm text-yellow-900 italic">"{paymentForm.data.note}"</p>
+                                            <p className="text-sm text-yellow-900">{paymentForm.data.note}</p>
                                         </div>
                                     )}
                                 </div>
@@ -1539,10 +1540,10 @@ export default function Reglements({ payments, clients, paymentMethods }: Props)
                                 <Button
                                     type="submit"
                                     className={cn(
-                                        "h-12 px-8 rounded-xl font-bold transition-all duration-300 shadow-lg",
+                                        "h-12 px-8 rounded-lg font-bold transition-all duration-300 shadow-none",
                                         (paymentType === 'DEPOT' || currentStep === 3)
-                                            ? "bg-green-600 hover:bg-green-700 text-white shadow-green-200"
-                                            : "bg-blue-600 hover:bg-blue-700 text-white shadow-blue-200"
+                                            ? "bg-green-600 hover:bg-green-700 text-white"
+                                            : "bg-blue-600 hover:bg-blue-700 text-white"
                                     )}
                                     disabled={
                                         paymentForm.processing ||

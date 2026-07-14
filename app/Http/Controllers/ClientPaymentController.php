@@ -7,10 +7,12 @@ use App\Models\Client;
 use App\Models\ClientPayment;
 use App\Models\DepotInvoice;
 use App\Models\DepotInvoiceItem;
+use App\Models\Invoice;
 use App\Models\InvoiceItem;
 use App\Models\Load;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
@@ -126,33 +128,7 @@ class ClientPaymentController extends Controller
 
             // 2. Mettre à jour les livraisons si ce n'est pas une simple avance
             if (! $validated['is_new_advance']) {
-                if (! empty($deliveryIds)) {
-                    foreach ($deliveryIds as $deliveryId) {
-                        $missingQuantity = $missingQuantities[$deliveryId] ?? 0;
-
-                        Load::where('id', $deliveryId)->update([
-                            'status' => LoadStatus::PAYE,
-                            'is_paid' => true,
-                            'client_payment_id' => $payment->id,
-                            'unload_location' => DB::raw("IFNULL(unload_location, '')"),
-                        ]);
-
-                        $invoiceItem = InvoiceItem::where('load_id', $deliveryId)->first();
-                        if ($invoiceItem) {
-                            $invoiceItem->update([
-                                'is_paid' => true,
-                                'client_payment_id' => $payment->id,
-                                'missing_quantity' => $missingQuantity,
-                            ]);
-
-                            $invoice = $invoiceItem->invoice;
-                            if ($invoice) {
-                                $invoice->total_amount = $invoice->items()->sum(DB::raw('(quantity_delivered - missing_quantity) * unit_price'));
-                                $invoice->save();
-                            }
-                        }
-                    }
-                }
+                $this->attachDeliveriesToPayment($payment, $deliveryIds, $missingQuantities, $totalAmount);
 
                 if (! empty($depotInvoiceIds)) {
                     foreach ($depotInvoiceIds as $depotInvoiceId) {
@@ -259,33 +235,7 @@ class ClientPaymentController extends Controller
 
             // 3. Appliquer les nouveaux liens si ce n'est pas une simple avance
             if (! $validated['is_new_advance']) {
-                if (! empty($deliveryIds)) {
-                    foreach ($deliveryIds as $deliveryId) {
-                        $missingQuantity = $missingQuantities[$deliveryId] ?? 0;
-
-                        Load::where('id', $deliveryId)->update([
-                            'status' => LoadStatus::PAYE,
-                            'is_paid' => true,
-                            'client_payment_id' => $reglement->id,
-                            'unload_location' => DB::raw("IFNULL(unload_location, '')"),
-                        ]);
-
-                        $invoiceItem = InvoiceItem::where('load_id', $deliveryId)->first();
-                        if ($invoiceItem) {
-                            $invoiceItem->update([
-                                'is_paid' => true,
-                                'client_payment_id' => $reglement->id,
-                                'missing_quantity' => $missingQuantity,
-                            ]);
-
-                            $invoice = $invoiceItem->invoice;
-                            if ($invoice) {
-                                $invoice->total_amount = $invoice->items()->sum(DB::raw('(quantity_delivered - missing_quantity) * unit_price'));
-                                $invoice->save();
-                            }
-                        }
-                    }
-                }
+                $this->attachDeliveriesToPayment($reglement, $deliveryIds, $missingQuantities, $totalAmount);
 
                 if (! empty($depotInvoiceIds)) {
                     foreach ($depotInvoiceIds as $depotInvoiceId) {
@@ -380,5 +330,141 @@ class ClientPaymentController extends Controller
         }
 
         return $amount;
+    }
+
+    /**
+     * @param  array<int, int|string>  $deliveryIds
+     * @param  array<int|string, int|float|string|null>  $missingQuantities
+     */
+    private function attachDeliveriesToPayment(ClientPayment $payment, array $deliveryIds, array $missingQuantities, float $paymentAmount): void
+    {
+        if ($deliveryIds === []) {
+            return;
+        }
+
+        $invoiceItems = InvoiceItem::with('invoice')
+            ->whereIn('load_id', $deliveryIds)
+            ->get()
+            ->keyBy('load_id');
+
+        $loadsWithoutInvoice = Load::with('client')
+            ->whereIn('id', array_values(array_filter($deliveryIds, fn ($deliveryId) => ! $invoiceItems->has($deliveryId))))
+            ->get();
+
+        if ($loadsWithoutInvoice->isNotEmpty()) {
+            $this->createInvoiceForUninvoicedLoads(
+                payment: $payment,
+                loads: $loadsWithoutInvoice,
+                deliveryIds: $deliveryIds,
+                missingQuantities: $missingQuantities,
+                existingInvoiceItems: $invoiceItems,
+                paymentAmount: $paymentAmount,
+            );
+
+            $invoiceItems = InvoiceItem::with('invoice')
+                ->whereIn('load_id', $deliveryIds)
+                ->get()
+                ->keyBy('load_id');
+        }
+
+        foreach ($deliveryIds as $deliveryId) {
+            $missingQuantity = (float) ($missingQuantities[$deliveryId] ?? 0);
+
+            Load::where('id', $deliveryId)->update([
+                'status' => LoadStatus::PAYE,
+                'is_paid' => true,
+                'client_payment_id' => $payment->id,
+                'unload_location' => DB::raw("IFNULL(unload_location, '')"),
+            ]);
+
+            $invoiceItem = $invoiceItems->get($deliveryId);
+            if (! $invoiceItem) {
+                continue;
+            }
+
+            $invoiceItem->update([
+                'is_paid' => true,
+                'client_payment_id' => $payment->id,
+                'missing_quantity' => $missingQuantity,
+            ]);
+
+            $this->recalculateInvoice($invoiceItem->invoice);
+        }
+    }
+
+    /**
+     * @param  Collection<int, Load>  $loads
+     * @param  array<int, int|string>  $deliveryIds
+     * @param  array<int|string, int|float|string|null>  $missingQuantities
+     * @param  Collection<int|string, InvoiceItem>  $existingInvoiceItems
+     */
+    private function createInvoiceForUninvoicedLoads(ClientPayment $payment, Collection $loads, array $deliveryIds, array $missingQuantities, Collection $existingInvoiceItems, float $paymentAmount): void
+    {
+        $existingTotal = $existingInvoiceItems->sum(function (InvoiceItem $item) use ($missingQuantities): float {
+            $missingQuantity = (float) ($missingQuantities[$item->load_id] ?? $item->missing_quantity ?? 0);
+
+            return ((float) $item->quantity_delivered - $missingQuantity) * (float) $item->unit_price;
+        });
+
+        $remainingAmount = max($paymentAmount - $existingTotal, 0);
+        $totalQuantity = $loads->sum(function (Load $load) use ($missingQuantities): float {
+            return max((float) $load->volume - (float) ($missingQuantities[$load->id] ?? 0), 0);
+        });
+        $unitPrice = $totalQuantity > 0 ? $remainingAmount / $totalQuantity : 0;
+
+        $date = $payment->date?->format('Y-m-d') ?? now()->format('Y-m-d');
+        $invoice = Invoice::create([
+            'client_id' => $payment->client_id,
+            'number' => $this->nextInvoiceNumber($date),
+            'date' => $date,
+            'client_name' => $payment->client?->nom ?? $loads->first()?->client?->nom ?? '',
+            'issuer_name' => auth()->user()?->name ?? 'Système',
+            'total_missing' => $loads->sum(fn (Load $load): float => (float) ($missingQuantities[$load->id] ?? 0)),
+            'total_amount' => $remainingAmount,
+        ]);
+
+        foreach ($loads->sortBy(fn (Load $load) => array_search($load->id, $deliveryIds)) as $load) {
+            $missingQuantity = (float) ($missingQuantities[$load->id] ?? 0);
+            $quantity = (float) $load->volume;
+            $lineTotal = max($quantity - $missingQuantity, 0) * $unitPrice;
+
+            InvoiceItem::create([
+                'invoice_id' => $invoice->id,
+                'bl_number' => '',
+                'load_id' => $load->id,
+                'quantity_delivered' => $quantity,
+                'unit_price' => $unitPrice,
+                'missing_quantity' => $missingQuantity,
+                'total' => $lineTotal,
+                'is_paid' => true,
+                'client_payment_id' => $payment->id,
+            ]);
+        }
+
+        $this->recalculateInvoice($invoice);
+    }
+
+    private function nextInvoiceNumber(string $date): string
+    {
+        $year = date('Y', strtotime($date));
+        $lastInvoice = Invoice::whereYear('date', $year)
+            ->orderBy('id', 'desc')
+            ->first();
+
+        $nextNumber = $lastInvoice ? ((int) substr($lastInvoice->number, -5)) + 1 : 1;
+
+        return sprintf('FAC-%s-%05d', $year, $nextNumber);
+    }
+
+    private function recalculateInvoice(?Invoice $invoice): void
+    {
+        if (! $invoice) {
+            return;
+        }
+
+        $invoice->update([
+            'total_missing' => $invoice->items()->sum('missing_quantity'),
+            'total_amount' => $invoice->items()->sum(DB::raw('(quantity_delivered - missing_quantity) * unit_price')),
+        ]);
     }
 }
