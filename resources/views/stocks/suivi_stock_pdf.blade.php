@@ -41,6 +41,9 @@
                         <h1 class="title">Suivi du Stock</h1>
                         <div class="info">
                             Dépôt: <strong>{{ $depot->name }}</strong><br>
+                            @if(isset($filteredProduct) && $filteredProduct)
+                                Produit: <strong>{{ $filteredProduct }}</strong><br>
+                            @endif
                             Période: Du <strong>{{ date('d/m/Y', strtotime($dateFrom)) }}</strong> au <strong>{{ date('d/m/Y', strtotime($dateTo)) }}</strong><br>
                             Généré le: {{ date('d/m/Y H:i') }}
                         </div>
@@ -57,10 +60,12 @@
         <div class="section-title">Situation Actuelle</div>
         <div class="compartment-grid">
             @foreach($depot->compartments as $comp)
-                <div class="compartment-item">
-                    <div class="compartment-name">{{ $comp->product }}</div>
-                    <div class="compartment-value">{{ number_format($comp->quantity, 0, '.', ' ') }} L</div>
-                </div>
+                @if(!isset($compartment_id) || !$compartment_id || $compartment_id == $comp->id)
+                    <div class="compartment-item">
+                        <div class="compartment-name">{{ $comp->product }}</div>
+                        <div class="compartment-value">{{ number_format($comp->quantity, 0, '.', ' ') }} L</div>
+                    </div>
+                @endif
             @endforeach
         </div>
 

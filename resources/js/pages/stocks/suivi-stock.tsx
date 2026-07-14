@@ -75,6 +75,7 @@ interface Props {
         depot_id: number | string;
         date_from: string;
         date_to: string;
+        compartment_id?: number | string | null;
     };
 }
 
@@ -82,6 +83,7 @@ export default function SuiviStock({ depots, selectedDepot, purchases, chargemen
     const [activeTab, setActiveTab] = useState('situation');
     const [dateFrom, setDateFrom] = useState<string>(filters?.date_from || '');
     const [dateTo, setDateTo] = useState<string>(filters?.date_to || '');
+    const [compartmentId, setCompartmentId] = useState<string>(filters?.compartment_id?.toString() || 'all');
     const [isDepotComboboxOpen, setIsDepotComboboxOpen] = useState(false);
 
     const purchaseColumns = useMemo<ColumnDef<Purchase>[]>(() => [
@@ -256,6 +258,7 @@ export default function SuiviStock({ depots, selectedDepot, purchases, chargemen
             depot_id: selectedDepot.id,
             date_from: dateFrom,
             date_to: dateTo,
+            compartment_id: compartmentId === 'all' ? null : compartmentId,
         }, { preserveState: true });
     };
 
@@ -264,6 +267,7 @@ export default function SuiviStock({ depots, selectedDepot, purchases, chargemen
             depot_id: depotId,
             date_from: dateFrom,
             date_to: dateTo,
+            compartment_id: compartmentId === 'all' ? null : compartmentId,
         });
     };
 
@@ -333,7 +337,7 @@ export default function SuiviStock({ depots, selectedDepot, purchases, chargemen
                     <Card className="md:col-span-3">
                         <CardHeader className="pb-3">
                             <CardTitle className="text-sm font-medium flex items-center">
-                                <Filter className="mr-2 h-4 w-4" /> Filtres par période
+                                <Filter className="mr-2 h-4 w-4" /> Filtres par période et produit
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="flex items-end gap-4">
@@ -389,6 +393,61 @@ export default function SuiviStock({ depots, selectedDepot, purchases, chargemen
                                     </PopoverContent>
                                 </Popover>
                             </div>
+
+                            <div className="grid w-full max-w-[200px] items-center gap-1.5">
+                                <Label>Produit</Label>
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                        <Button
+                                            variant="outline"
+                                            className="w-full justify-between font-normal"
+                                        >
+                                            {compartmentId === 'all'
+                                                ? "Tous les produits"
+                                                : selectedDepot?.compartments.find(c => c.id.toString() === compartmentId)?.product || "Tous les produits"}
+                                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                        </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-[200px] p-0">
+                                        <Command>
+                                            <CommandInput placeholder="Rechercher un produit..." />
+                                            <CommandList>
+                                                <CommandEmpty>Aucun produit trouvé.</CommandEmpty>
+                                                <CommandGroup>
+                                                    <CommandItem
+                                                        value="all"
+                                                        onSelect={() => setCompartmentId('all')}
+                                                    >
+                                                        <Check
+                                                            className={cn(
+                                                                "mr-2 h-4 w-4",
+                                                                compartmentId === 'all' ? "opacity-100" : "opacity-0"
+                                                            )}
+                                                        />
+                                                        Tous les produits
+                                                    </CommandItem>
+                                                    {selectedDepot?.compartments.map((comp) => (
+                                                        <CommandItem
+                                                            key={comp.id}
+                                                            value={comp.product}
+                                                            onSelect={() => setCompartmentId(comp.id.toString())}
+                                                        >
+                                                            <Check
+                                                                className={cn(
+                                                                    "mr-2 h-4 w-4",
+                                                                    compartmentId === comp.id.toString() ? "opacity-100" : "opacity-0"
+                                                                )}
+                                                            />
+                                                            {comp.product}
+                                                        </CommandItem>
+                                                    ))}
+                                                </CommandGroup>
+                                            </CommandList>
+                                        </Command>
+                                    </PopoverContent>
+                                </Popover>
+                            </div>
+
                             <Button onClick={handleFilter} className="bg-blue-600 text-white hover:bg-blue-700">
                                 <Search className="mr-2 h-4 w-4" /> Actualiser
                             </Button>
@@ -460,29 +519,34 @@ export default function SuiviStock({ depots, selectedDepot, purchases, chargemen
                         {activeTab === 'situation' && (
                             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
                                 <div className="grid gap-4 md:grid-cols-3">
-                                    {selectedDepot.compartments.map((comp) => (
-                                        <Card key={comp.id} className="border-none shadow-sm bg-white overflow-hidden">
-                                            <CardHeader className="pb-2 bg-gray-50/50">
-                                                <CardTitle className="text-xs font-bold uppercase tracking-widest text-gray-500">
-                                                    {comp.product}
-                                                </CardTitle>
-                                            </CardHeader>
-                                            <CardContent className="pt-4">
-                                                <div className="flex items-baseline justify-between">
-                                                    <span className="text-3xl font-black text-blue-900 tabular-nums">
-                                                        {formatNumber(comp.quantity)}
-                                                    </span>
-                                                    <span className="text-sm font-bold text-gray-400">LITRES</span>
-                                                </div>
-                                                <div className="mt-4 h-2 w-full bg-gray-100 rounded-full overflow-hidden">
-                                                    <div
-                                                        className="h-full bg-blue-600 rounded-full"
-                                                        style={{ width: `${Math.min((comp.quantity / 1000000) * 100, 100)}%` }}
-                                                    />
-                                                </div>
-                                            </CardContent>
-                                        </Card>
-                                    ))}
+                                    {selectedDepot.compartments
+                                        .filter(comp => compartmentId === 'all' || comp.id.toString() === compartmentId)
+                                        .map((comp) => (
+                                            <Card key={comp.id} className={cn(
+                                                "border-none shadow-sm bg-white overflow-hidden",
+                                                compartmentId !== 'all' && comp.id.toString() === compartmentId && "ring-2 ring-blue-600"
+                                            )}>
+                                                <CardHeader className="pb-2 bg-gray-50/50">
+                                                    <CardTitle className="text-xs font-bold uppercase tracking-widest text-gray-500">
+                                                        {comp.product}
+                                                    </CardTitle>
+                                                </CardHeader>
+                                                <CardContent className="pt-4">
+                                                    <div className="flex items-baseline justify-between">
+                                                        <span className="text-3xl font-black text-blue-900 tabular-nums">
+                                                            {formatNumber(comp.quantity)}
+                                                        </span>
+                                                        <span className="text-sm font-bold text-gray-400">LITRES</span>
+                                                    </div>
+                                                    <div className="mt-4 h-2 w-full bg-gray-100 rounded-full overflow-hidden">
+                                                        <div
+                                                            className="h-full bg-blue-600 rounded-full"
+                                                            style={{ width: `${Math.min((comp.quantity / 1000000) * 100, 100)}%` }}
+                                                        />
+                                                    </div>
+                                                </CardContent>
+                                            </Card>
+                                        ))}
                                 </div>
 
                                 <Card className="border-none shadow-none bg-white overflow-hidden">
@@ -501,6 +565,10 @@ export default function SuiviStock({ depots, selectedDepot, purchases, chargemen
 
                                                 if (dateTo) {
                                                     url.searchParams.append('date_to', dateTo);
+                                                }
+
+                                                if (compartmentId !== 'all') {
+                                                    url.searchParams.append('compartment_id', compartmentId);
                                                 }
 
                                                 window.location.href = url.toString();

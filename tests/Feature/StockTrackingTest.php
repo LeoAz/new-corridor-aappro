@@ -139,6 +139,112 @@ test('stock tracking pdf download is accessible', function () {
     $response->assertHeader('Content-Type', 'application/pdf');
 });
 
+test('stock tracking can be filtered by product', function () {
+    $depot = Depot::factory()->has(Compartment::factory()->count(2))->create();
+    $comp1 = $depot->compartments[0];
+    $comp2 = $depot->compartments[1];
+
+    // Purchase for product 1
+    FuelPurchase::factory()->create([
+        'depot_id' => $depot->id,
+        'compartment_id' => $comp1->id,
+        'quantity' => 1000,
+        'purchase_date' => now(),
+    ]);
+
+    // Purchase for product 2
+    FuelPurchase::factory()->create([
+        'depot_id' => $depot->id,
+        'compartment_id' => $comp2->id,
+        'quantity' => 2000,
+        'purchase_date' => now(),
+    ]);
+
+    // Filter by product 1
+    $response = $this->get(route('stocks.suivi-stock', [
+        'depot_id' => $depot->id,
+        'date_from' => now()->startOfMonth()->toDateString(),
+        'date_to' => now()->toDateString(),
+        'compartment_id' => $comp1->id,
+    ]));
+
+    $response->assertStatus(200);
+    $response->assertInertia(fn ($page) => $page
+        ->has('purchases', 1)
+        ->where('purchases.0.compartment_id', $comp1->id)
+    );
+
+    // Filter by product 2
+    $response = $this->get(route('stocks.suivi-stock', [
+        'depot_id' => $depot->id,
+        'date_from' => now()->startOfMonth()->toDateString(),
+        'date_to' => now()->toDateString(),
+        'compartment_id' => $comp2->id,
+    ]));
+
+    $response->assertStatus(200);
+    $response->assertInertia(fn ($page) => $page
+        ->has('purchases', 1)
+        ->where('purchases.0.compartment_id', $comp2->id)
+    );
+});
+
+test('stock tracking filters all history types by product', function () {
+    $depot = Depot::factory()->has(Compartment::factory()->count(2))->create();
+    $comp1 = $depot->compartments[0];
+    $comp2 = $depot->compartments[1];
+    $client = Client::factory()->create();
+
+    // Data for Product 1
+    FuelPurchase::factory()->create(['depot_id' => $depot->id, 'compartment_id' => $comp1->id, 'purchase_date' => now()]);
+    Load::factory()->create(['depot_id' => $depot->id, 'compartment_id' => $comp1->id, 'status' => LoadStatus::EN_COURS, 'load_date' => now(), 'client_id' => $client->id]);
+    Load::factory()->create(['depot_id' => $depot->id, 'compartment_id' => $comp1->id, 'status' => LoadStatus::LIVRER, 'load_date' => now(), 'client_id' => $client->id]);
+    $invoice1 = DepotInvoice::factory()->create(['depot_id' => $depot->id, 'client_id' => $client->id, 'date' => now()]);
+    DepotInvoiceItem::factory()->create(['depot_invoice_id' => $invoice1->id, 'compartment_id' => $comp1->id]);
+
+    // Data for Product 2
+    FuelPurchase::factory()->create(['depot_id' => $depot->id, 'compartment_id' => $comp2->id, 'purchase_date' => now()]);
+    Load::factory()->create(['depot_id' => $depot->id, 'compartment_id' => $comp2->id, 'status' => LoadStatus::EN_COURS, 'load_date' => now(), 'client_id' => $client->id]);
+    Load::factory()->create(['depot_id' => $depot->id, 'compartment_id' => $comp2->id, 'status' => LoadStatus::LIVRER, 'load_date' => now(), 'client_id' => $client->id]);
+    $invoice2 = DepotInvoice::factory()->create(['depot_id' => $depot->id, 'client_id' => $client->id, 'date' => now()]);
+    DepotInvoiceItem::factory()->create(['depot_invoice_id' => $invoice2->id, 'compartment_id' => $comp2->id]);
+
+    // Request with Filter for Product 1
+    $response = $this->get(route('stocks.suivi-stock', [
+        'depot_id' => $depot->id,
+        'date_from' => now()->startOfMonth()->toDateString(),
+        'date_to' => now()->toDateString(),
+        'compartment_id' => $comp1->id,
+    ]));
+
+    $response->assertStatus(200);
+    $response->assertInertia(fn ($page) => $page
+        ->has('purchases', 1)
+        ->has('chargements', 1)
+        ->has('livraisons', 1)
+        ->has('depotSales', 1)
+        ->where('purchases.0.compartment_id', $comp1->id)
+        ->where('chargements.0.compartment_id', $comp1->id)
+        ->where('livraisons.0.compartment_id', $comp1->id)
+        // depotSales is mapped to a custom array in controller
+    );
+});
+
+test('stock tracking pdf download supports product filter', function () {
+    $depot = Depot::factory()->has(Compartment::factory()->count(1))->create();
+    $comp = $depot->compartments->first();
+
+    $response = $this->get(route('stocks.suivi-stock.download', [
+        'depot_id' => $depot->id,
+        'date_from' => now()->startOfMonth()->toDateString(),
+        'date_to' => now()->toDateString(),
+        'compartment_id' => $comp->id,
+    ]));
+
+    $response->assertStatus(200);
+    $response->assertHeader('Content-Type', 'application/pdf');
+});
+
 test('stock tracking pdf download works even if load client is missing', function () {
     $depot = Depot::factory()->has(Compartment::factory()->count(1))->create();
     $compartment = $depot->compartments->first();

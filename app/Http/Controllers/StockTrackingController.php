@@ -25,6 +25,7 @@ class StockTrackingController extends Controller
             'depot_id' => $request->get('depot_id', $depots->first()?->id),
             'date_from' => $request->get('date_from', now()->startOfMonth()->toDateString()),
             'date_to' => $request->get('date_to', now()->toDateString()),
+            'compartment_id' => $request->get('compartment_id'),
         ];
 
         $selectedDepot = Depot::with('compartments')->find($filters['depot_id']);
@@ -32,6 +33,9 @@ class StockTrackingController extends Controller
         // Historique des achats
         $purchases = FuelPurchase::where('depot_id', $filters['depot_id'])
             ->whereBetween('purchase_date', [$filters['date_from'].' 00:00:00', $filters['date_to'].' 23:59:59'])
+            ->when($filters['compartment_id'], function ($query, $compartmentId) {
+                return $query->where('compartment_id', $compartmentId);
+            })
             ->with(['compartment'])
             ->orderBy('purchase_date', 'desc')
             ->get();
@@ -40,6 +44,9 @@ class StockTrackingController extends Controller
         $chargements = Load::where('depot_id', $filters['depot_id'])
             ->whereBetween('load_date', [$filters['date_from'].' 00:00:00', $filters['date_to'].' 23:59:59'])
             ->where('status', LoadStatus::EN_COURS)
+            ->when($filters['compartment_id'], function ($query, $compartmentId) {
+                return $query->where('compartment_id', $compartmentId);
+            })
             ->with(['client', 'compartment'])
             ->orderBy('load_date', 'desc')
             ->get();
@@ -48,6 +55,9 @@ class StockTrackingController extends Controller
         $livraisons = Load::where('depot_id', $filters['depot_id'])
             ->whereBetween('load_date', [$filters['date_from'].' 00:00:00', $filters['date_to'].' 23:59:59'])
             ->where('status', '!=', LoadStatus::EN_COURS)
+            ->when($filters['compartment_id'], function ($query, $compartmentId) {
+                return $query->where('compartment_id', $compartmentId);
+            })
             ->with(['client', 'compartment'])
             ->orderBy('load_date', 'desc')
             ->get();
@@ -57,6 +67,9 @@ class StockTrackingController extends Controller
             $query->where('depot_id', $filters['depot_id'])
                 ->whereBetween('date', [$filters['date_from'].' 00:00:00', $filters['date_to'].' 23:59:59']);
         })
+            ->when($filters['compartment_id'], function ($query, $compartmentId) {
+                return $query->where('compartment_id', $compartmentId);
+            })
             ->with(['depotInvoice.client', 'compartment'])
             ->get()
             ->map(function ($item) {
@@ -87,11 +100,15 @@ class StockTrackingController extends Controller
         $depotId = $request->get('depot_id');
         $dateFrom = $request->get('date_from');
         $dateTo = $request->get('date_to');
+        $compartmentId = $request->get('compartment_id');
 
         $depot = Depot::with('compartments')->findOrFail($depotId);
 
         $purchases = FuelPurchase::where('depot_id', $depotId)
             ->whereBetween('purchase_date', [$dateFrom.' 00:00:00', $dateTo.' 23:59:59'])
+            ->when($compartmentId, function ($query, $compartmentId) {
+                return $query->where('compartment_id', $compartmentId);
+            })
             ->with(['compartment'])
             ->orderBy('purchase_date', 'asc')
             ->get();
@@ -100,6 +117,9 @@ class StockTrackingController extends Controller
         $chargements = Load::where('depot_id', $depotId)
             ->whereBetween('load_date', [$dateFrom.' 00:00:00', $dateTo.' 23:59:59'])
             ->where('status', LoadStatus::EN_COURS)
+            ->when($compartmentId, function ($query, $compartmentId) {
+                return $query->where('compartment_id', $compartmentId);
+            })
             ->with(['client', 'compartment'])
             ->orderBy('load_date', 'asc')
             ->get();
@@ -108,6 +128,9 @@ class StockTrackingController extends Controller
         $livraisons = Load::where('depot_id', $depotId)
             ->whereBetween('load_date', [$dateFrom.' 00:00:00', $dateTo.' 23:59:59'])
             ->where('status', '!=', LoadStatus::EN_COURS)
+            ->when($compartmentId, function ($query, $compartmentId) {
+                return $query->where('compartment_id', $compartmentId);
+            })
             ->with(['client', 'compartment'])
             ->orderBy('load_date', 'asc')
             ->get();
@@ -116,10 +139,15 @@ class StockTrackingController extends Controller
             $query->where('depot_id', $depotId)
                 ->whereBetween('date', [$dateFrom.' 00:00:00', $dateTo.' 23:59:59']);
         })
+            ->when($compartmentId, function ($query, $compartmentId) {
+                return $query->where('compartment_id', $compartmentId);
+            })
             ->with(['depotInvoice.client', 'compartment'])
             ->get();
 
-        $qrData = "Suivi Stock - Depot: {$depot->name} - Période: {$dateFrom} au {$dateTo}";
+        $filteredProduct = $compartmentId ? $depot->compartments->firstWhere('id', $compartmentId)?->product : null;
+
+        $qrData = "Suivi Stock - Depot: {$depot->name} ".($filteredProduct ? "($filteredProduct) " : '')." - Période: {$dateFrom} au {$dateTo}";
         $qrCode = base64_encode((new Writer(new ImageRenderer(
             new RendererStyle(100),
             new SvgImageBackEnd
@@ -134,6 +162,8 @@ class StockTrackingController extends Controller
             'dateFrom' => $dateFrom,
             'dateTo' => $dateTo,
             'qrCode' => $qrCode,
+            'compartment_id' => $compartmentId,
+            'filteredProduct' => $filteredProduct,
         ]);
 
         return $pdf->download("Suivi_Stock_{$depot->name}_{$dateFrom}_{$dateTo}.pdf");
