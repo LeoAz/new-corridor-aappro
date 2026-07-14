@@ -113,7 +113,7 @@
                         <td>{{ $loop->iteration }}</td>
                         <td>{{ $load->load_date->format('d/m/Y') }}</td>
                         <td class="font-bold text-blue">{{ $load->vehicle_registration }}</td>
-                        <td>{{ $load->client->nom }}</td>
+                        <td>{{ $load->client?->nom ?? 'Client inconnu' }}</td>
                         <td>{{ $load->product }}</td>
                         <td class="text-right font-bold">{{ number_format($load->volume, 0, '.', ' ') }} L</td>
                         <td>{{ $load->status->value }}</td>
@@ -145,7 +145,7 @@
                         <td>{{ $loop->iteration }}</td>
                         <td>{{ $load->load_date->format('d/m/Y') }}</td>
                         <td class="font-bold text-blue">{{ $load->vehicle_registration }}</td>
-                        <td>{{ $load->client->nom }}</td>
+                        <td>{{ $load->client?->nom ?? 'Client inconnu' }}</td>
                         <td>{{ $load->product }}</td>
                         <td class="text-right font-bold">{{ number_format($load->volume, 0, '.', ' ') }} L</td>
                         <td>{{ $load->status->value }}</td>
@@ -176,7 +176,7 @@
                         <td>{{ $loop->iteration }}</td>
                         <td>{{ $item->depotInvoice->date->format('d/m/Y') }}</td>
                         <td class="font-bold text-blue">{{ $item->depotInvoice->number }}</td>
-                        <td>{{ $item->depotInvoice->client->nom }}</td>
+                        <td>{{ $item->depotInvoice->client?->nom ?? 'Client inconnu' }}</td>
                         <td>{{ $item->compartment->product }}</td>
                         <td class="text-right font-bold">{{ number_format($item->quantity, 0, '.', ' ') }} L</td>
                     </tr>

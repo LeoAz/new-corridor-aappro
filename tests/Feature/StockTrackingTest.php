@@ -88,3 +88,26 @@ test('stock tracking pdf download is accessible', function () {
     $response->assertStatus(200);
     $response->assertHeader('Content-Type', 'application/pdf');
 });
+
+test('stock tracking pdf download works even if load client is missing', function () {
+    $depot = Depot::factory()->has(Compartment::factory()->count(1))->create();
+    $compartment = $depot->compartments->first();
+
+    // Create a load without a client_id (if the database allows it)
+    // or just a load where the client relation might fail
+    $load = Load::factory()->create([
+        'depot_id' => $depot->id,
+        'compartment_id' => $compartment->id,
+        'client_id' => null,
+        'load_date' => now()->toDateTimeString(),
+    ]);
+
+    $response = $this->get(route('stocks.suivi-stock.download', [
+        'depot_id' => $depot->id,
+        'date_from' => now()->startOfMonth()->toDateString(),
+        'date_to' => now()->toDateString(),
+    ]));
+
+    $response->assertStatus(200);
+    $response->assertHeader('Content-Type', 'application/pdf');
+});
