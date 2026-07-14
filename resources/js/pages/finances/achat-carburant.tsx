@@ -7,9 +7,11 @@ import { useEffect, useMemo, useState } from 'react';
 import type { DateRange } from 'react-day-picker';
 import { toast } from 'sonner';
 
+import AlertError from '@/components/alert-error';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Card } from '@/components/ui/card';
+
 import {
     Command,
     CommandEmpty,
@@ -434,7 +436,14 @@ export default function AchatCarburant({ purchases, depots, filters }: Props) {
                             <DialogTitle>Nouvel achat de carburant</DialogTitle>
                             <DialogDescription>Enregistrez un nouvel achat de carburant pour approvisionner vos stocks.</DialogDescription>
                         </DialogHeader>
-                        <div className="grid gap-6 py-4">
+
+                        {Object.keys(errors).length > 0 && (
+                            <div className="px-6 pt-4">
+                                <AlertError errors={Object.values(errors)} />
+                            </div>
+                        )}
+
+                        <div className="grid gap-6 py-4 px-6">
                             <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                                 <div className="space-y-2">
                                     <Label>Date d'achat</Label>
@@ -602,7 +611,14 @@ export default function AchatCarburant({ purchases, depots, filters }: Props) {
                             <DialogTitle>Modifier l'achat de carburant</DialogTitle>
                             <DialogDescription>Modifiez les informations de l'achat sélectionné.</DialogDescription>
                         </DialogHeader>
-                        <div className="grid gap-6 py-4">
+
+                        {Object.keys(errors).length > 0 && (
+                            <div className="px-6 pt-4">
+                                <AlertError errors={Object.values(errors)} />
+                            </div>
+                        )}
+
+                        <div className="grid gap-6 py-4 px-6">
                             <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                                 <div className="space-y-2">
                                     <Label>Date d'achat</Label>

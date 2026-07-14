@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { DataTable } from '@/components/ui/data-table';
+import AlertError from '@/components/alert-error';
 import {
     Dialog,
     DialogContent,
@@ -743,6 +744,11 @@ export default function Reglements({ payments, clients, paymentMethods }: Props)
                     )}
 
                     <form onSubmit={handleEdit} className="space-y-4">
+                        {Object.keys(editForm.errors).length > 0 && (
+                            <div className="px-6 pt-2">
+                                <AlertError errors={Object.values(editForm.errors)} />
+                            </div>
+                        )}
                         {selectedPayment && !selectedPayment.is_advance && editStep === 1 ? (
                             <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
                                 <div className="bg-slate-50 rounded-xl border border-slate-200 overflow-hidden">
@@ -1042,6 +1048,11 @@ export default function Reglements({ payments, clients, paymentMethods }: Props)
                         </div>
 
                         <div className="p-6">
+                            {Object.keys(paymentForm.errors).length > 0 && (
+                                <div className="mb-4">
+                                    <AlertError errors={Object.values(paymentForm.errors)} />
+                                </div>
+                            )}
                             {currentStep === 1 && (
                                 <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
                                     <div className="space-y-4">
@@ -1581,7 +1592,12 @@ export default function Reglements({ payments, clients, paymentMethods }: Props)
                             Enregistrez un nouvel acompte pour un client.
                         </DialogDescription>
                     </DialogHeader>
-                    <form onSubmit={handleAdvanceSubmit} className="space-y-4">
+                    <form onSubmit={handleAdvanceSubmit} className="space-y-4 p-6 pt-0">
+                        {Object.keys(advanceForm.errors).length > 0 && (
+                            <div className="mb-4">
+                                <AlertError errors={Object.values(advanceForm.errors)} />
+                            </div>
+                        )}
                         <div className="space-y-2">
                             <Label>Client</Label>
                             <Select

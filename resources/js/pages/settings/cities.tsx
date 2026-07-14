@@ -1,3 +1,4 @@
+import * as citiesActions from '@/actions/App/Http/Controllers/CityController';
 import { Head, useForm } from '@inertiajs/react';
 import type { ColumnDef } from '@tanstack/react-table';
 import { Edit, MoreHorizontal, Plus, Trash } from 'lucide-react';
@@ -5,6 +6,7 @@ import { useMemo, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { DataTable } from '@/components/ui/data-table';
+import AlertError from '@/components/alert-error';
 import {
     Dialog,
     DialogContent,
@@ -56,6 +58,7 @@ export default function CitiesPage({ cities }: Props) {
                 id: 'actions',
                 cell: ({ row }) => {
                     const city = row.original;
+
                     return (
                         <div className="text-right">
                             <DropdownMenu>
@@ -91,7 +94,7 @@ export default function CitiesPage({ cities }: Props) {
 
     const handleCreate = (e: React.FormEvent) => {
         e.preventDefault();
-        post(route('settings.cities.store'), {
+        post(citiesActions.store().url, {
             onSuccess: () => {
                 setIsCreateDialogOpen(false);
                 reset();
@@ -106,7 +109,7 @@ export default function CitiesPage({ cities }: Props) {
             return;
         }
 
-        put(route('settings.cities.update', editingCity.id), {
+        put(citiesActions.update(editingCity.id).url, {
             onSuccess: () => {
                 setEditingCity(null);
                 reset();
@@ -119,7 +122,7 @@ export default function CitiesPage({ cities }: Props) {
             return;
         }
 
-        destroy(route('settings.cities.destroy', cityToDelete.id), {
+        destroy(citiesActions.destroy(cityToDelete.id).url, {
             onSuccess: () => {
                 setIsDeleteDialogOpen(false);
                 setCityToDelete(null);
@@ -177,6 +180,13 @@ export default function CitiesPage({ cities }: Props) {
                                 Entrez le nom de la ville de destination.
                             </DialogDescription>
                         </DialogHeader>
+
+                        {Object.keys(errors).length > 0 && (
+                            <div className="px-4 pt-4">
+                                <AlertError errors={Object.values(errors)} />
+                            </div>
+                        )}
+
                         <div className="grid gap-4 py-4">
                             <div className="grid gap-2">
                                 <Label htmlFor="name">Nom de la ville <span className="text-destructive">*</span></Label>
@@ -208,6 +218,13 @@ export default function CitiesPage({ cities }: Props) {
                                 Mettez à jour le nom de la ville.
                             </DialogDescription>
                         </DialogHeader>
+
+                        {Object.keys(errors).length > 0 && (
+                            <div className="px-4 pt-4">
+                                <AlertError errors={Object.values(errors)} />
+                            </div>
+                        )}
+
                         <div className="grid gap-4 py-4">
                             <div className="grid gap-2">
                                 <Label htmlFor="edit_name">Nom de la ville <span className="text-destructive">*</span></Label>

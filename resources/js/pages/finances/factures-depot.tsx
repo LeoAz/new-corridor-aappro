@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { DataTable } from '@/components/ui/data-table';
+import AlertError from '@/components/alert-error';
 import {
     Dialog,
     DialogContent,
@@ -293,7 +294,14 @@ export default function FacturesDepot({ invoices, clients, depots }: Props) {
                     <DialogHeader>
                         <DialogTitle>{isEditOpen ? `Modifier la Facture ${selectedInvoice?.number}` : 'Nouvelle Facture Dépôt'}</DialogTitle>
                     </DialogHeader>
-                    <form onSubmit={isEditOpen ? handleUpdate : handleSubmit} className="space-y-4">
+
+                    {Object.keys(errors).length > 0 && (
+                        <div className="px-6 pt-2">
+                            <AlertError errors={Object.values(errors)} />
+                        </div>
+                    )}
+
+                    <form onSubmit={isEditOpen ? handleUpdate : handleSubmit} className="space-y-4 p-6 pt-0">
                         <div className="grid grid-cols-3 gap-4">
                             <div className="space-y-2">
                                 <Label>Client</Label>

@@ -1,3 +1,4 @@
+import * as clientsActions from '@/actions/App/Http/Controllers/ClientController';
 import { Head, useForm } from '@inertiajs/react';
 import type { ColumnDef } from '@tanstack/react-table';
 import { Edit, MoreHorizontal, Trash, UserPlus } from 'lucide-react';
@@ -5,6 +6,7 @@ import { useMemo, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { DataTable } from '@/components/ui/data-table';
+import AlertError from '@/components/alert-error';
 import {
     Dialog,
     DialogContent,
@@ -74,6 +76,7 @@ export default function GestionClients({ clients }: Props) {
                 header: () => <div className="text-right">Solde Initial</div>,
                 cell: ({ row }) => {
                     const balance = parseFloat(row.getValue('initial_balance'));
+
                     return (
                         <div className="text-right font-medium">
                             <span className={balance > 0 ? 'text-emerald-600' : (balance < 0 ? 'text-red-600' : '')}>
@@ -87,6 +90,7 @@ export default function GestionClients({ clients }: Props) {
                 id: 'actions',
                 cell: ({ row }) => {
                     const client = row.original;
+
                     return (
                         <div className="text-right">
                             <DropdownMenu>
@@ -122,7 +126,7 @@ export default function GestionClients({ clients }: Props) {
 
     const handleCreate = (e: React.FormEvent) => {
         e.preventDefault();
-        post(route('clients.gestion.store'), {
+        post(clientsActions.store().url, {
             onSuccess: () => {
                 setIsCreateDialogOpen(false);
                 reset();
@@ -137,7 +141,7 @@ export default function GestionClients({ clients }: Props) {
             return;
         }
 
-        put(route('clients.gestion.update', editingClient.id), {
+        put(clientsActions.update(editingClient.id).url, {
             onSuccess: () => {
                 setEditingClient(null);
                 reset();
@@ -150,7 +154,7 @@ export default function GestionClients({ clients }: Props) {
             return;
         }
 
-        destroy(route('clients.gestion.destroy', clientToDelete.id), {
+        destroy(clientsActions.destroy(clientToDelete.id).url, {
             onSuccess: () => {
                 setIsDeleteDialogOpen(false);
                 setClientToDelete(null);
@@ -210,6 +214,13 @@ export default function GestionClients({ clients }: Props) {
                                 Remplissez les informations ci-dessous pour créer un client.
                             </DialogDescription>
                         </DialogHeader>
+
+                        {Object.keys(errors).length > 0 && (
+                            <div className="px-4 pt-4">
+                                <AlertError errors={Object.values(errors)} />
+                            </div>
+                        )}
+
                         <div className="grid gap-4 py-4">
                             <div className="grid gap-2">
                                 <Label htmlFor="nom">Nom complet <span className="text-destructive">*</span></Label>
@@ -271,6 +282,13 @@ export default function GestionClients({ clients }: Props) {
                                 Mettez à jour les informations du client.
                             </DialogDescription>
                         </DialogHeader>
+
+                        {Object.keys(errors).length > 0 && (
+                            <div className="px-4 pt-4">
+                                <AlertError errors={Object.values(errors)} />
+                            </div>
+                        )}
+
                         <div className="grid gap-4 py-4">
                             <div className="grid gap-2">
                                 <Label htmlFor="edit_nom">Nom complet <span className="text-destructive">*</span></Label>

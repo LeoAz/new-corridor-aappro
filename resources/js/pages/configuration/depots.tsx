@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
 import { DataTable } from '@/components/ui/data-table';
+import AlertError from '@/components/alert-error';
 import {
     Dialog,
     DialogContent,
@@ -214,6 +215,13 @@ export default function Depots({ depots }: Props) {
                                 Gérez les informations du dépôt et ses compartiments.
                             </DialogDescription>
                         </DialogHeader>
+
+                        {Object.keys(errors).length > 0 && (
+                            <div className="px-4 pt-4">
+                                <AlertError errors={Object.values(errors)} />
+                            </div>
+                        )}
+
                         <div className="grid gap-6 py-4">
                             <div className="space-y-2">
                                 <Label htmlFor="name">Nom du dépôt</Label>

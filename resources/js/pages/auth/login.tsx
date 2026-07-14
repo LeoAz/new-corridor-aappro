@@ -1,4 +1,5 @@
 import { Form, Head } from '@inertiajs/react';
+import AlertError from '@/components/alert-error';
 import InputError from '@/components/input-error';
 import PasswordInput from '@/components/password-input';
 import TextLink from '@/components/text-link';
@@ -28,6 +29,9 @@ export default function Login({ status, canResetPassword }: Props) {
             >
                 {({ processing, errors }) => (
                     <>
+                        {Object.keys(errors).length > 0 && (
+                            <AlertError errors={Object.values(errors)} />
+                        )}
                         <div className="grid gap-6">
                             <div className="grid gap-2">
                                 <Label htmlFor="email">Adresse e-mail</Label>

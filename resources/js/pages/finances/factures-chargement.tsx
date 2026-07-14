@@ -4,6 +4,7 @@ import { format } from 'date-fns';
 import { ArrowUpDown, CalendarIcon, Eye, MoreHorizontal, Pencil, Trash } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 
+import AlertError from '@/components/alert-error';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { DataTable } from '@/components/ui/data-table';
@@ -66,7 +67,7 @@ export default function FacturesChargement({ invoices, clients }: Props) {
     const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
     const [isEditOpen, setIsEditOpen] = useState(false);
 
-    const { data, setData, put, processing, reset } = useForm({
+    const { data, setData, put, processing, reset, errors } = useForm({
         client_id: '',
         date: '',
         items: [] as any[],
@@ -241,7 +242,14 @@ export default function FacturesChargement({ invoices, clients }: Props) {
                     <DialogHeader>
                         <DialogTitle>Modifier la Facture {selectedInvoice?.number}</DialogTitle>
                     </DialogHeader>
-                    <form onSubmit={handleUpdate} className="space-y-4">
+
+                    {Object.keys(errors).length > 0 && (
+                        <div className="px-6 pt-2">
+                            <AlertError errors={Object.values(errors)} />
+                        </div>
+                    )}
+
+                    <form onSubmit={handleUpdate} className="space-y-4 p-6 pt-0">
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
                                 <Label htmlFor="client_id">Client</Label>

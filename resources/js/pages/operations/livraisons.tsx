@@ -35,6 +35,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Card } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { DataTable } from '@/components/ui/data-table';
+import AlertError from '@/components/alert-error';
 import {
     Dialog,
     DialogContent,
@@ -972,7 +973,14 @@ export default function Livraisons({
                         <DialogHeader>
                             <DialogTitle>Modifier la livraison</DialogTitle>
                         </DialogHeader>
-                        <div className="grid gap-4 py-4">
+
+                        {Object.keys(errors).length > 0 && (
+                            <div className="px-6 pt-4">
+                                <AlertError errors={Object.values(errors)} />
+                            </div>
+                        )}
+
+                        <div className="grid gap-4 py-4 px-6">
                             <div className="space-y-2">
                                 <Label>Date de livraison</Label>
                                 <Popover>
@@ -1180,6 +1188,12 @@ export default function Livraisons({
                         </div>
 
                         <div className="p-6">
+                            {Object.keys(paymentForm.errors).length > 0 && (
+                                <div className="mb-4">
+                                    <AlertError errors={Object.values(paymentForm.errors)} />
+                                </div>
+                            )}
+
                             {currentStep === 1 && (
                                 <div className="animate-in space-y-6 duration-300 fade-in slide-in-from-bottom-4">
                                     <div className="space-y-4">
@@ -1992,7 +2006,13 @@ export default function Livraisons({
                             </DialogDescription>
                         </DialogHeader>
 
-                        <div className="grid gap-6 py-4">
+                        {Object.keys(invoiceForm.errors).length > 0 && (
+                            <div className="px-6 pt-4">
+                                <AlertError errors={Object.values(invoiceForm.errors)} />
+                            </div>
+                        )}
+
+                        <div className="grid gap-6 py-4 px-6">
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2">
                                     <Label>Client</Label>
