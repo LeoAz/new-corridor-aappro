@@ -513,13 +513,13 @@ export default function SuiviClient({ client, clients, statement, loads, payment
                                             <div className="flex items-center w-full max-w-[400px] justify-between text-gray-600">
                                                 <span className="text-sm font-medium">Total Débit:</span>
                                                 <span className="text-lg font-bold tabular-nums text-red-600">
-                                                    {formatNumber(statementData.reduce((acc, op) => acc + op.debit, 0))}
+                                                    {formatNumber(statementData.reduce((acc, op) => acc + Number(op.debit || 0), 0))}
                                                 </span>
                                             </div>
                                             <div className="flex items-center w-full max-w-[400px] justify-between text-gray-600">
                                                 <span className="text-sm font-medium">Total Crédit:</span>
                                                 <span className="text-lg font-bold tabular-nums text-emerald-600">
-                                                    {formatNumber(statementData.reduce((acc, op) => acc + op.credit, 0))}
+                                                    {formatNumber(statementData.reduce((acc, op) => acc + Number(op.credit || 0), 0))}
                                                 </span>
                                             </div>
                                             <div className="w-full max-w-[400px] border-t-2 border-gray-100 pt-4 mt-2 flex items-center justify-between">

@@ -299,13 +299,13 @@ export default function Releve({ client, clients, statement, filters }: Props) {
                                             <div className="flex items-center w-full max-w-[400px] justify-between">
                                                 <span className="text-sm font-medium text-gray-500">Total Débit:</span>
                                                 <span className="text-lg font-bold tabular-nums text-red-600">
-                                                    {formatNumber(tableData.reduce((acc, op) => acc + op.debit, 0))}
+                                                    {formatNumber(tableData.reduce((acc, op) => acc + Number(op.debit || 0), 0))}
                                                 </span>
                                             </div>
                                             <div className="flex items-center w-full max-w-[400px] justify-between">
                                                 <span className="text-sm font-medium text-gray-500">Total Crédit:</span>
                                                 <span className="text-lg font-bold tabular-nums text-emerald-600">
-                                                    {formatNumber(tableData.reduce((acc, op) => acc + op.credit, 0))}
+                                                    {formatNumber(tableData.reduce((acc, op) => acc + Number(op.credit || 0), 0))}
                                                 </span>
                                             </div>
                                         </div>
