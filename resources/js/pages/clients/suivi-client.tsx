@@ -1,7 +1,18 @@
 import { Head, router } from '@inertiajs/react';
+import type { ColumnDef } from '@tanstack/react-table';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { Download, FileText, Filter, Search, History, Car, CalendarIcon, Check, ChevronsUpDown } from 'lucide-react';
+import {
+    CalendarIcon,
+    Car,
+    Check,
+    ChevronsUpDown,
+    Download,
+    FileText,
+    Filter,
+    History,
+    Search
+} from 'lucide-react';
 import { useState } from 'react';
 
 import { Button } from '@/components/ui/button';
@@ -15,8 +26,10 @@ import {
     CommandItem,
     CommandList,
 } from '@/components/ui/command';
+import { DataTable } from '@/components/ui/data-table';
 import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import AppLayout from '@/layouts/app-layout';
 import { cn, formatNumber } from '@/lib/utils';
 import * as clientsActions from '@/routes/clients';
@@ -50,14 +63,14 @@ interface Load {
     date: string;
     truck_number: string;
     product: string;
+    compartment: string;
     quantity: number;
     status: string;
     destination?: string;
     bl_number?: string;
     payment_reference?: string;
     payment_date?: string;
-    depot?: { nom: string };
-    compartment?: { nom: string };
+    depot?: string;
 }
 
 interface Props {
@@ -82,10 +95,104 @@ interface Props {
 }
 
 export default function SuiviClient({ client, clients, statement, loads, paymentHistory, filters }: Props) {
-    const [activeTab, setActiveTab] = useState('statement');
     const [dateFrom, setDateFrom] = useState<string>(filters?.date_from || '');
     const [dateTo, setDateTo] = useState<string>(filters?.date_to || '');
     const [isClientComboboxOpen, setIsClientComboboxOpen] = useState(false);
+
+    const statementColumns: ColumnDef<Operation>[] = [
+        {
+            accessorKey: 'date',
+            header: 'Date',
+            cell: ({ row }) => format(new Date(row.original.date), 'dd/MM/yyyy'),
+        },
+        {
+            accessorKey: 'label',
+            header: 'Opération',
+            cell: ({ row }) => (
+                <div className="flex flex-col">
+                    <span className="font-medium">{row.original.label}</span>
+                    {row.original.reference && (
+                        <span className="text-[10px] text-muted-foreground uppercase">Réf: #{row.original.reference}</span>
+                    )}
+                </div>
+            ),
+        },
+        {
+            accessorKey: 'debit',
+            header: () => <div className="text-right">Débit</div>,
+            cell: ({ row }) => (
+                <div className="text-right font-medium text-red-600">
+                    {row.original.debit > 0 ? formatNumber(row.original.debit) : '-'}
+                </div>
+            ),
+        },
+        {
+            accessorKey: 'credit',
+            header: () => <div className="text-right">Crédit</div>,
+            cell: ({ row }) => (
+                <div className="text-right font-medium text-emerald-600">
+                    {row.original.credit > 0 ? formatNumber(row.original.credit) : '-'}
+                </div>
+            ),
+        },
+    ];
+
+    const loadColumns: ColumnDef<Load>[] = [
+        {
+            accessorKey: 'date',
+            header: 'Date',
+            cell: ({ row }) => row.original.date ? format(new Date(row.original.date), 'dd/MM/yyyy') : '-',
+        },
+        {
+            accessorKey: 'truck_number',
+            header: 'Véhicule',
+            cell: ({ row }) => <span className="font-bold text-blue-600">{row.original.truck_number}</span>,
+        },
+        {
+            accessorKey: 'product',
+            header: 'Produit',
+            cell: ({ row }) => <span className="font-medium">{row.original.compartment || row.original.product || '-'}</span>,
+        },
+        {
+            accessorKey: 'quantity',
+            header: () => <div className="text-right">Quantité</div>,
+            cell: ({ row }) => (
+                <div className="text-right font-bold">
+                    {formatNumber(row.original.quantity)} <span className="text-[10px] font-normal text-muted-foreground ml-1">L</span>
+                </div>
+            ),
+        },
+        {
+            accessorKey: 'depot',
+            header: 'Dépôt',
+            cell: ({ row }) => row.original.depot || '-',
+        },
+        {
+            id: 'reference',
+            header: 'Réf / BL',
+            cell: ({ row }) => row.original.bl_number || row.original.destination || '-',
+        },
+    ];
+
+    const paidLoadColumns: ColumnDef<Load>[] = [
+        ...loadColumns,
+        {
+            accessorKey: 'payment_reference',
+            header: 'Règlement',
+            cell: ({ row }) => (
+                <div className="flex flex-col">
+                    {row.original.payment_reference ? (
+                        <>
+                            <span className="text-blue-600 font-bold text-[10px]">#{row.original.payment_reference}</span>
+                            {row.original.payment_date && (
+                                <span className="text-[9px] text-muted-foreground">le {format(new Date(row.original.payment_date), 'dd/MM/yyyy')}</span>
+                            )}
+                        </>
+                    ) : '-'}
+                </div>
+            ),
+        },
+    ];
 
     const handleFilter = () => {
         if (!client) {
@@ -236,45 +343,47 @@ export default function SuiviClient({ client, clients, statement, loads, payment
 
                 {client ? (
                     <div className="flex flex-col gap-6">
-                        <div className="flex items-center gap-2 border-b pb-1 overflow-x-auto no-scrollbar">
-                            <button
-                                onClick={() => setActiveTab('statement')}
-                                className={`flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-[2px] whitespace-nowrap ${
-                                    activeTab === 'statement'
-                                        ? 'border-blue-600 text-blue-600'
-                                        : 'border-transparent text-muted-foreground hover:text-foreground hover:border-muted'
-                                }`}
-                            >
-                                <FileText className="h-4 w-4" />
-                                Relevé de compte
-                            </button>
-                            <button
-                                onClick={() => setActiveTab('loads')}
-                                className={`flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-[2px] whitespace-nowrap ${
-                                    activeTab === 'loads'
-                                        ? 'border-blue-600 text-blue-600'
-                                        : 'border-transparent text-muted-foreground hover:text-foreground hover:border-muted'
-                                }`}
-                            >
-                                <Car className="h-4 w-4" />
-                                Historique Chargements
-                            </button>
-                            <button
-                                onClick={() => setActiveTab('payments')}
-                                className={`flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-[2px] whitespace-nowrap ${
-                                    activeTab === 'payments'
-                                        ? 'border-blue-600 text-blue-600'
-                                        : 'border-transparent text-muted-foreground hover:text-foreground hover:border-muted'
-                                }`}
-                            >
-                                <History className="h-4 w-4" />
-                                Historique paiements
-                            </button>
-                        </div>
+                        <Tabs defaultValue="statement" className="w-full">
+                            <TabsList className="w-full justify-start border-b rounded-none h-auto p-0 bg-transparent gap-6">
+                                <TabsTrigger
+                                    value="statement"
+                                    className="data-[state=active]:border-blue-600 data-[state=active]:text-blue-600 border-b-2 border-transparent rounded-none bg-transparent px-4 py-2 text-sm font-medium transition-colors hover:text-foreground"
+                                >
+                                    <FileText className="h-4 w-4 mr-2" />
+                                    Relevé de compte
+                                </TabsTrigger>
+                                <TabsTrigger
+                                    value="loads"
+                                    className="data-[state=active]:border-blue-600 data-[state=active]:text-blue-600 border-b-2 border-transparent rounded-none bg-transparent px-4 py-2 text-sm font-medium transition-colors hover:text-foreground"
+                                >
+                                    <Car className="h-4 w-4 mr-2" />
+                                    Historique Chargements
+                                </TabsTrigger>
+                                <TabsTrigger
+                                    value="deliveries"
+                                    className="data-[state=active]:border-blue-600 data-[state=active]:text-blue-600 border-b-2 border-transparent rounded-none bg-transparent px-4 py-2 text-sm font-medium transition-colors hover:text-foreground"
+                                >
+                                    <Car className="h-4 w-4 mr-2" />
+                                    Historique Livraisons
+                                </TabsTrigger>
+                                <TabsTrigger
+                                    value="paid-deliveries"
+                                    className="data-[state=active]:border-blue-600 data-[state=active]:text-blue-600 border-b-2 border-transparent rounded-none bg-transparent px-4 py-2 text-sm font-medium transition-colors hover:text-foreground"
+                                >
+                                    <Check className="h-4 w-4 mr-2" />
+                                    Livraisons Payées
+                                </TabsTrigger>
+                                <TabsTrigger
+                                    value="payments"
+                                    className="data-[state=active]:border-blue-600 data-[state=active]:text-blue-600 border-b-2 border-transparent rounded-none bg-transparent px-4 py-2 text-sm font-medium transition-colors hover:text-foreground"
+                                >
+                                    <History className="h-4 w-4 mr-2" />
+                                    Historique paiements
+                                </TabsTrigger>
+                            </TabsList>
 
-                        {/* 1. RELEVÉ DE COMPTE */}
-                        {activeTab === 'statement' && (
-                            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                            {/* 1. RELEVÉ DE COMPTE */}
+                            <TabsContent value="statement" className="mt-6 space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
                                 <Card className="border-none shadow-none bg-white overflow-hidden">
                                     <div className="px-6 py-4 flex items-center justify-between border-b border-gray-100">
                                         <h3 className="font-bold text-gray-800 uppercase tracking-tight">Relevé de compte détaillé</h3>
@@ -299,64 +408,34 @@ export default function SuiviClient({ client, clients, statement, loads, payment
                                             <Download className="mr-2 h-3.5 w-3.5" /> Exporter PDF
                                         </Button>
                                     </div>
-                                    <CardContent className="p-0">
-                                        <div className="overflow-x-auto">
-                                            <table className="w-full text-sm border-collapse">
-                                                <thead>
-                                                    <tr className="border-b border-gray-100 bg-gray-50/50">
-                                                        <th className="px-6 py-3 text-left font-bold text-gray-500 uppercase text-[10px] tracking-widest">Date</th>
-                                                        <th className="px-6 py-3 text-left font-bold text-gray-500 uppercase text-[10px] tracking-widest">Opération</th>
-                                                        <th className="px-6 py-3 text-right font-bold text-gray-500 uppercase text-[10px] tracking-widest">Débit</th>
-                                                        <th className="px-6 py-3 text-right font-bold text-gray-500 uppercase text-[10px] tracking-widest">Crédit</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody className="divide-y divide-gray-50">
-                                                    <tr className="bg-white">
-                                                        <td className="px-6 py-4 text-gray-400 font-medium tabular-nums">
-                                                            {dateFrom ? format(new Date(dateFrom), 'dd/MM/yyyy') : '-'}
-                                                        </td>
-                                                        <td className="px-6 py-4 font-bold text-gray-700 uppercase text-[11px] tracking-wider">REPORT DE SOLDE</td>
-                                                        <td className="px-6 py-4 text-right text-gray-800 font-medium tabular-nums">
-                                                            {statement?.initialBalance && statement.initialBalance < 0 ? (
-                                                                <span className="text-red-600">{formatNumber(Math.abs(statement.initialBalance))}</span>
-                                                            ) : '-'}
-                                                        </td>
-                                                        <td className="px-6 py-4 text-right text-gray-800 font-medium tabular-nums">
-                                                            {statement?.initialBalance && statement.initialBalance > 0 ? (
-                                                                <span className="text-emerald-600">{formatNumber(statement.initialBalance)}</span>
-                                                            ) : (statement?.initialBalance === 0 ? '0' : '-')}
-                                                        </td>
-                                                    </tr>
-                                                    {statement?.operations?.map((op, index) => (
-                                                        <tr key={index} className="hover:bg-gray-50/50 transition-colors">
-                                                            <td className="px-6 py-4 text-gray-400 tabular-nums">
-                                                                {format(new Date(op.date), 'dd/MM/yyyy')}
-                                                            </td>
-                                                            <td className="px-6 py-4">
-                                                                <span className="text-gray-700 font-medium">
-                                                                    {op.label} {op.reference && <span className="text-gray-400 ml-1">#{op.reference}</span>}
-                                                                </span>
-                                                            </td>
-                                                            <td className="px-6 py-4 text-right text-gray-700 font-medium tabular-nums">
-                                                                {op.debit > 0 ? formatNumber(op.debit) : '-'}
-                                                            </td>
-                                                            <td className="px-6 py-4 text-right text-gray-700 font-medium tabular-nums">
-                                                                {op.credit > 0 ? formatNumber(op.credit) : '-'}
-                                                            </td>
-                                                        </tr>
-                                                    ))}
-                                                    {(!statement?.operations || statement.operations.length === 0) && (
-                                                        <tr>
-                                                            <td colSpan={4} className="px-6 py-12 text-center text-gray-400 italic">
-                                                                Aucun mouvement enregistré sur cette période.
-                                                            </td>
-                                                        </tr>
-                                                    )}
-                                                </tbody>
-                                            </table>
+                                    <CardContent className="p-6">
+                                        <div className="mb-4 p-4 bg-gray-50 rounded-lg flex items-center justify-between">
+                                            <div className="flex items-center gap-4">
+                                                <span className="font-bold text-gray-500 text-xs uppercase tracking-widest">Report de solde :</span>
+                                                <div className="flex gap-4">
+                                                    {statement?.initialBalance && statement.initialBalance < 0 ? (
+                                                        <span className="text-red-600 font-bold tabular-nums">Débit: {formatNumber(Math.abs(statement.initialBalance))} FCFA</span>
+                                                    ) : null}
+                                                    {statement?.initialBalance && statement.initialBalance >= 0 ? (
+                                                        <span className="text-emerald-600 font-bold tabular-nums">Crédit: {formatNumber(statement.initialBalance)} FCFA</span>
+                                                    ) : null}
+                                                    {!statement?.initialBalance && <span className="text-gray-400 font-bold">0 FCFA</span>}
+                                                </div>
+                                            </div>
+                                            <p className="text-[10px] text-gray-400 italic">
+                                                Au {dateFrom ? format(new Date(dateFrom), 'dd/MM/yyyy') : format(new Date(), 'dd/MM/yyyy')}
+                                            </p>
                                         </div>
 
-                                        <div className="flex flex-col items-end px-6 py-8 space-y-2">
+                                        <DataTable
+                                            columns={statementColumns}
+                                            data={statement?.operations || []}
+                                            searchKey="label"
+                                            searchPlaceholder="Filtrer par opération..."
+                                            hidePagination={true}
+                                        />
+
+                                        <div className="flex flex-col items-end mt-8 space-y-2">
                                             <div className="flex items-center w-full max-w-[300px] justify-between text-gray-600">
                                                 <span className="text-sm font-medium">Total Débit:</span>
                                                 <span className="text-lg font-bold tabular-nums">
@@ -387,106 +466,73 @@ export default function SuiviClient({ client, clients, statement, loads, payment
                                         </div>
                                     </CardContent>
                                 </Card>
-                            </div>
-                        )}
+                            </TabsContent>
 
-                        {/* 2. HISTORIQUE CHARGEMENTS */}
-                        {activeTab === 'loads' && (
-                            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
-                                {['en_cours', 'livrer', 'facturer', 'paye'].map((statusKey) => {
-                                    const statusLoads = loads?.[statusKey as keyof typeof loads] || [];
-                                    const labels = {
-                                        en_cours: 'Chargements en cours',
-                                        livrer: 'Livraisons en attente de facturation',
-                                        facturer: 'Livraisons facturées (non payées)',
-                                        paye: 'Livraisons payées'
-                                    };
+                            {/* 2. HISTORIQUE CHARGEMENTS */}
+                            <TabsContent value="loads" className="mt-6 space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                                <Card className="border-none shadow-none bg-white overflow-hidden">
+                                    <div className="px-6 py-4 flex items-center justify-between border-b border-gray-100">
+                                        <h3 className="font-bold text-gray-800 uppercase tracking-tight">Historique des chargements</h3>
+                                        <div className="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider">
+                                            {loads?.en_cours.length || 0} Chargements en cours
+                                        </div>
+                                    </div>
+                                    <CardContent className="p-6">
+                                        <DataTable
+                                            columns={loadColumns}
+                                            data={loads?.en_cours || []}
+                                            searchKey="truck_number"
+                                            searchPlaceholder="Filtrer par véhicule..."
+                                            hidePagination={true}
+                                        />
+                                    </CardContent>
+                                </Card>
+                            </TabsContent>
 
-                                    if (statusLoads.length === 0) {
-                                        return null;
-                                    }
+                            {/* 3. HISTORIQUE LIVRAISONS */}
+                            <TabsContent value="deliveries" className="mt-6 space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                                <Card className="border-none shadow-none bg-white overflow-hidden">
+                                    <div className="px-6 py-4 flex items-center justify-between border-b border-gray-100">
+                                        <h3 className="font-bold text-gray-800 uppercase tracking-tight">Historique des livraisons</h3>
+                                        <div className="bg-orange-100 text-orange-700 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider">
+                                            {(loads?.livrer.length || 0) + (loads?.facturer.length || 0)} Livraisons
+                                        </div>
+                                    </div>
+                                    <CardContent className="p-6">
+                                        <DataTable
+                                            columns={loadColumns}
+                                            data={[...(loads?.livrer || []), ...(loads?.facturer || [])]}
+                                            searchKey="truck_number"
+                                            searchPlaceholder="Filtrer par véhicule..."
+                                            hidePagination={true}
+                                        />
+                                    </CardContent>
+                                </Card>
+                            </TabsContent>
 
-                                    return (
-                                        <Card key={statusKey} className="border-none shadow-none bg-white overflow-hidden">
-                                            <div className="px-6 py-4 flex items-center justify-between border-b border-gray-100">
-                                                <h3 className="font-bold text-gray-800 uppercase tracking-tight">{labels[statusKey as keyof typeof labels]}</h3>
-                                                <div className="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider">
-                                                    {statusLoads.length} Chargements
-                                                </div>
-                                            </div>
-                                            <CardContent className="p-0">
-                                                <div className="overflow-x-auto">
-                                                    <table className="w-full text-sm border-collapse">
-                                                        <thead>
-                                                            <tr className="border-b border-gray-100 bg-gray-50/50">
-                                                                <th className="px-6 py-3 text-left font-bold text-gray-500 uppercase text-[10px] tracking-widest">Date</th>
-                                                                <th className="px-6 py-3 text-left font-bold text-gray-500 uppercase text-[10px] tracking-widest">Véhicule</th>
-                                                                <th className="px-6 py-3 text-left font-bold text-gray-500 uppercase text-[10px] tracking-widest">Produit</th>
-                                                                <th className="px-6 py-3 text-right font-bold text-gray-500 uppercase text-[10px] tracking-widest">Quantité</th>
-                                                                <th className="px-6 py-3 text-left font-bold text-gray-500 uppercase text-[10px] tracking-widest">Dépôt</th>
-                                                                <th className="px-6 py-3 text-left font-bold text-gray-500 uppercase text-[10px] tracking-widest">{statusKey === 'en_cours' ? 'Destination' : 'Réf/BL'}</th>
-                                                                {statusKey === 'paye' && (
-                                                                    <th className="px-6 py-3 text-left font-bold text-gray-500 uppercase text-[10px] tracking-widest">Règlement</th>
-                                                                )}
-                                                            </tr>
-                                                        </thead>
-                                                        <tbody className="divide-y divide-gray-50">
-                                                            {statusLoads.map((load) => (
-                                                                <tr key={load.id} className="hover:bg-gray-50 transition-colors">
-                                                                    <td className="px-6 py-4 text-gray-400 tabular-nums whitespace-nowrap">
-                                                                        {load.date ? format(new Date(load.date), 'dd/MM/yyyy') : '-'}
-                                                                    </td>
-                                                                    <td className="px-6 py-4 font-bold text-blue-700 text-[11px]">
-                                                                        {load.truck_number}
-                                                                    </td>
-                                                                    <td className="px-6 py-4 font-bold text-gray-800">
-                                                                        {load.compartment?.product || '-'}
-                                                                    </td>
-                                                                    <td className="px-6 py-4 text-right font-bold text-gray-800 tabular-nums">
-                                                                        {formatNumber(load.quantity)} <span className="text-[10px] font-normal text-gray-400">L</span>
-                                                                    </td>
-                                                                    <td className="px-6 py-4 text-gray-600 font-medium">
-                                                                        {load.depot?.name || '-'}
-                                                                    </td>
-                                                                    <td className="px-6 py-4 text-gray-600 font-medium">
-                                                                        {statusKey === 'en_cours' ? load.destination : (load.bl_number || '-')}
-                                                                    </td>
-                                                                    {statusKey === 'paye' && (
-                                                                        <td className="px-6 py-4">
-                                                                            {load.payment_reference ? (
-                                                                                <div className="flex flex-col">
-                                                                                    <span className="text-blue-600 font-bold text-[10px] uppercase">#{load.payment_reference}</span>
-                                                                                    {load.payment_date && (
-                                                                                        <span className="text-[9px] text-gray-400 font-medium">le {format(new Date(load.payment_date), 'dd/MM/yyyy')}</span>
-                                                                                    )}
-                                                                                </div>
-                                                                            ) : (
-                                                                                <span className="text-gray-400">-</span>
-                                                                            )}
-                                                                        </td>
-                                                                    )}
-                                                                </tr>
-                                                            ))}
-                                                            {statusLoads.length === 0 && (
-                                                                <tr>
-                                                                    <td colSpan={6} className="px-6 py-12 text-center text-gray-400 italic">
-                                                                        Aucun chargement dans cette catégorie.
-                                                                    </td>
-                                                                </tr>
-                                                            )}
-                                                        </tbody>
-                                                    </table>
-                                                </div>
-                                            </CardContent>
-                                        </Card>
-                                    );
-                                })}
-                            </div>
-                        )}
+                            {/* 4. LIVRAISONS PAYÉES */}
+                            <TabsContent value="paid-deliveries" className="mt-6 space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                                <Card className="border-none shadow-none bg-white overflow-hidden">
+                                    <div className="px-6 py-4 flex items-center justify-between border-b border-gray-100">
+                                        <h3 className="font-bold text-gray-800 uppercase tracking-tight">Livraisons réglées</h3>
+                                        <div className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider">
+                                            {loads?.paye.length || 0} Livraisons payées
+                                        </div>
+                                    </div>
+                                    <CardContent className="p-6">
+                                        <DataTable
+                                            columns={paidLoadColumns}
+                                            data={loads?.paye || []}
+                                            searchKey="truck_number"
+                                            searchPlaceholder="Filtrer par véhicule..."
+                                            hidePagination={true}
+                                        />
+                                    </CardContent>
+                                </Card>
+                            </TabsContent>
 
-                        {/* 3. HISTORIQUE PAIEMENTS */}
-                        {activeTab === 'payments' && (
-                            <div className="animate-in fade-in slide-in-from-bottom-2 duration-500">
+                            {/* 5. HISTORIQUE PAIEMENTS */}
+                            <TabsContent value="payments" className="mt-6 space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
                                 <Card className="border-none shadow-none bg-white overflow-hidden">
                                     <div className="px-6 py-4 flex items-center justify-between border-b border-gray-100">
                                         <div>
@@ -567,8 +613,8 @@ export default function SuiviClient({ client, clients, statement, loads, payment
                                         </div>
                                     </CardContent>
                                 </Card>
-                            </div>
-                        )}
+                            </TabsContent>
+                        </Tabs>
                     </div>
                 ) : (
                     <div className="flex flex-col items-center justify-center py-20 bg-muted/20 rounded-xl border-2 border-dashed">

@@ -295,7 +295,7 @@
                         <tr>
                             <td>{{ \Carbon\Carbon::parse($load['date'])->format('d/m/Y') }}</td>
                             <td>{{ $load['truck_number'] }}</td>
-                            <td>{{ $load['compartment'] ?? 'N/A' }}</td>
+                            <td>{{ $load['product'] ?? ($load['compartment'] ?? 'N/A') }}</td>
                             <td>{{ number_format($load['quantity'], 0, ',', ' ') }} L</td>
                             <td>{{ $load['depot'] ?? 'N/A' }}</td>
                             <td>{{ $load['destination'] ?? 'N/A' }}</td>
@@ -323,7 +323,7 @@
                         <tr>
                             <td>{{ \Carbon\Carbon::parse($load['date'])->format('d/m/Y') }}</td>
                             <td>{{ $load['truck_number'] }}</td>
-                            <td>{{ $load['compartment'] ?? 'N/A' }}</td>
+                            <td>{{ $load['product'] ?? ($load['compartment'] ?? 'N/A') }}</td>
                             <td>{{ number_format($load['quantity'], 0, ',', ' ') }} L</td>
                             <td>{{ $load['depot'] ?? 'N/A' }}</td>
                             <td>{{ $load['bl_number'] ?? 'N/A' }}</td>
@@ -351,7 +351,7 @@
                         <tr>
                             <td>{{ \Carbon\Carbon::parse($load['date'])->format('d/m/Y') }}</td>
                             <td>{{ $load['truck_number'] }}</td>
-                            <td>{{ $load['compartment'] ?? 'N/A' }}</td>
+                            <td>{{ $load['product'] ?? ($load['compartment'] ?? 'N/A') }}</td>
                             <td>{{ number_format($load['quantity'], 0, ',', ' ') }} L</td>
                             <td>{{ $load['depot'] ?? 'N/A' }}</td>
                             <td>
@@ -387,7 +387,7 @@
                         <tr>
                             <td>{{ \Carbon\Carbon::parse($load['date'])->format('d/m/Y') }}</td>
                             <td>{{ $load['truck_number'] }}</td>
-                            <td>{{ $load['compartment'] ?? 'N/A' }}</td>
+                            <td>{{ $load['product'] ?? ($load['compartment'] ?? 'N/A') }}</td>
                             <td>{{ number_format($load['quantity'], 0, ',', ' ') }} L</td>
                             <td>{{ $load['depot'] ?? 'N/A' }}</td>
                             <td>
