@@ -110,6 +110,10 @@ class ClientStatementController extends Controller
             'dateFrom' => $dateFrom,
             'dateTo' => $dateTo,
             'qrCode' => $qrCode,
+            'loadsEnCours' => [],
+            'loadsLivrer' => [],
+            'loadsFacturer' => [],
+            'loadsPaye' => [],
         ]);
 
         return $pdf->download("Releve_{$client->nom}_{$dateFrom}_au_{$dateTo}.pdf");

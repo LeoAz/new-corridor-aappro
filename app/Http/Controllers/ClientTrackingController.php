@@ -97,9 +97,9 @@ class ClientTrackingController extends Controller
                 'id' => $l->id,
                 'date' => $l->load_date?->format('Y-m-d'),
                 'truck_number' => $l->vehicle_registration,
-                'compartment' => $l->compartment,
+                'compartment' => $l->compartment?->product ?? 'N/A',
                 'quantity' => $l->volume,
-                'depot' => $l->depot,
+                'depot' => $l->depot?->name ?? 'N/A',
                 'destination' => $l->unload_location,
             ]);
 
@@ -111,9 +111,9 @@ class ClientTrackingController extends Controller
                 'id' => $l->id,
                 'date' => $l->unload_date?->format('Y-m-d'),
                 'truck_number' => $l->vehicle_registration,
-                'compartment' => $l->compartment,
+                'compartment' => $l->compartment?->product ?? 'N/A',
                 'quantity' => $l->volume,
-                'depot' => $l->depot,
+                'depot' => $l->depot?->name ?? 'N/A',
                 'bl_number' => $l->bl_number ?? "BL-{$l->id}",
             ]);
 
@@ -125,9 +125,9 @@ class ClientTrackingController extends Controller
                 'id' => $l->id,
                 'date' => $l->unload_date?->format('Y-m-d'),
                 'truck_number' => $l->vehicle_registration,
-                'compartment' => $l->compartment,
+                'compartment' => $l->compartment?->product ?? 'N/A',
                 'quantity' => $l->volume,
-                'depot' => $l->depot,
+                'depot' => $l->depot?->name ?? 'N/A',
                 'bl_number' => $l->bl_number ?? "BL-{$l->id}",
             ]);
 
@@ -139,9 +139,9 @@ class ClientTrackingController extends Controller
                 'id' => $l->id,
                 'date' => $l->unload_date?->format('Y-m-d'),
                 'truck_number' => $l->vehicle_registration,
-                'compartment' => $l->compartment,
+                'compartment' => $l->compartment?->product ?? 'N/A',
                 'quantity' => $l->volume,
-                'depot' => $l->depot,
+                'depot' => $l->depot?->name ?? 'N/A',
                 'bl_number' => $l->bl_number ?? "BL-{$l->id}",
                 'payment_reference' => $l->clientPayment?->reference ?: ($l->clientPayment ? "REG-{$l->clientPayment->id}" : null),
                 'payment_date' => $l->clientPayment?->date?->format('Y-m-d'),
@@ -250,9 +250,9 @@ class ClientTrackingController extends Controller
                 'id' => $l->id,
                 'date' => $l->load_date?->format('Y-m-d'),
                 'truck_number' => $l->vehicle_registration,
-                'compartment' => $l->compartment,
+                'compartment' => $l->compartment?->product ?? 'N/A',
                 'quantity' => $l->volume,
-                'depot' => $l->depot,
+                'depot' => $l->depot?->name ?? 'N/A',
                 'destination' => $l->unload_location,
             ]);
 
@@ -264,9 +264,9 @@ class ClientTrackingController extends Controller
                 'id' => $l->id,
                 'date' => $l->unload_date?->format('Y-m-d'),
                 'truck_number' => $l->vehicle_registration,
-                'compartment' => $l->compartment,
+                'compartment' => $l->compartment?->product ?? 'N/A',
                 'quantity' => $l->volume,
-                'depot' => $l->depot,
+                'depot' => $l->depot?->name ?? 'N/A',
                 'bl_number' => $l->bl_number ?? "BL-{$l->id}",
             ]);
 
@@ -278,9 +278,9 @@ class ClientTrackingController extends Controller
                 'id' => $l->id,
                 'date' => $l->unload_date?->format('Y-m-d'),
                 'truck_number' => $l->vehicle_registration,
-                'compartment' => $l->compartment,
+                'compartment' => $l->compartment?->product ?? 'N/A',
                 'quantity' => $l->volume,
-                'depot' => $l->depot,
+                'depot' => $l->depot?->name ?? 'N/A',
                 'bl_number' => $l->bl_number ?? "BL-{$l->id}",
             ]);
 
@@ -292,9 +292,9 @@ class ClientTrackingController extends Controller
                 'id' => $l->id,
                 'date' => $l->unload_date?->format('Y-m-d'),
                 'truck_number' => $l->vehicle_registration,
-                'compartment' => $l->compartment,
+                'compartment' => $l->compartment?->product ?? 'N/A',
                 'quantity' => $l->volume,
-                'depot' => $l->depot,
+                'depot' => $l->depot?->name ?? 'N/A',
                 'bl_number' => $l->bl_number ?? "BL-{$l->id}",
                 'payment_reference' => $l->clientPayment?->reference ?: ($l->clientPayment ? "REG-{$l->clientPayment->id}" : null),
                 'payment_date' => $l->clientPayment?->date?->format('Y-m-d'),

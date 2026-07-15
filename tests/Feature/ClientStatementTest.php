@@ -43,3 +43,10 @@ test('client statement show page calculates balance correctly', function () {
         ->has('statement.operations', 2)
     );
 });
+
+test('it can download client statement pdf', function () {
+    $this->actingAs($this->user)
+        ->get(route('clients.releve.download', $this->client->id))
+        ->assertStatus(200)
+        ->assertHeader('Content-Type', 'application/pdf');
+});
