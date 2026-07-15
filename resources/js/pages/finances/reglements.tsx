@@ -905,7 +905,7 @@ export default function Reglements({ payments, clients, paymentMethods }: Props)
 
             {/* Modal Détails */}
             <Dialog open={isDetailsModalOpen} onOpenChange={setIsDetailsModalOpen}>
-                <DialogContent className="max-w-4xl">
+                <DialogContent className="max-h-[calc(100vh-2rem)] w-[calc(100vw-2rem)] overflow-y-auto sm:max-w-6xl">
                     <DialogHeader>
                         <DialogTitle>Détails du règlement</DialogTitle>
                     </DialogHeader>
