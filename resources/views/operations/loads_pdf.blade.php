@@ -51,8 +51,8 @@
                     <td>{{ $loop->iteration }}</td>
                     <td>{{ \Carbon\Carbon::parse($load->load_date)->format('d/m/Y') }}</td>
                     <td>{{ $load->vehicle_registration }}</td>
-                    <td>{{ $load->product }}</td>
-                    <td>{{ $load->depot->name ?? $load->load_location }}</td>
+                    <td>{{ $load->compartment->product ?? ($load->product ?? 'N/A') }}</td>
+                    <td>{{ $load->depot->name ?? ($load->load_location ?? 'N/A') }}</td>
                     <td>{{ $load->client->nom ?? $load->client_name }}</td>
                     <td class="text-right">{{ number_format($load->volume, 0, ',', ' ') }}</td>
                 </tr>

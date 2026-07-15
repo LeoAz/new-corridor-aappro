@@ -199,6 +199,7 @@ export default function Chargements({ loads, depots, cities, clients, filters, d
                         <ArrowUpDown className="ml-2 h-4 w-4" />
                     </Button>
                 ),
+                cell: ({ row }) => row.original.compartment?.product || row.original.product || '-',
             },
             {
                 accessorKey: 'volume',

@@ -41,6 +41,7 @@
                     <th>Date Livraison</th>
                     <th>Camion</th>
                     <th>Produit</th>
+                    <th>Dépôt</th>
                     <th>Client</th>
                     <th>Lieu Décharge</th>
                     <th class="text-right">Volume (L)</th>
@@ -52,7 +53,8 @@
                     <td>{{ $loop->iteration }}</td>
                     <td>{{ \Carbon\Carbon::parse($delivery->unload_date)->format('d/m/Y') }}</td>
                     <td>{{ $delivery->vehicle_registration }}</td>
-                    <td>{{ $delivery->product }}</td>
+                    <td>{{ $delivery->compartment->product ?? ($delivery->product ?? 'N/A') }}</td>
+                    <td>{{ $delivery->depot->name ?? 'N/A' }}</td>
                     <td>{{ $delivery->client->nom ?? $delivery->client_name }}</td>
                     <td>{{ $delivery->unload_location }}</td>
                     <td class="text-right">{{ number_format($delivery->volume, 0, ',', ' ') }}</td>

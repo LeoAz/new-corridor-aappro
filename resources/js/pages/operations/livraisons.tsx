@@ -253,6 +253,12 @@ export default function Livraisons({
             {
                 accessorKey: 'product',
                 header: 'Produit',
+                cell: ({ row }) => row.original.compartment?.product || row.original.product || '-',
+            },
+            {
+                accessorKey: 'depot.name',
+                header: 'Dépôt',
+                cell: ({ row }) => row.original.depot?.name || '-',
             },
             {
                 accessorKey: 'volume',

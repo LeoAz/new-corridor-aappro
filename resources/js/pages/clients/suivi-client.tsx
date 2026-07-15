@@ -426,13 +426,13 @@ export default function SuiviClient({ client, clients, statement, loads, payment
                                                                         {load.truck_number}
                                                                     </td>
                                                                     <td className="px-6 py-4 font-bold text-gray-800">
-                                                                        {load.compartment?.nom || '-'}
+                                                                        {load.compartment?.product || '-'}
                                                                     </td>
                                                                     <td className="px-6 py-4 text-right font-bold text-gray-800 tabular-nums">
                                                                         {formatNumber(load.quantity)} <span className="text-[10px] font-normal text-gray-400">L</span>
                                                                     </td>
                                                                     <td className="px-6 py-4 text-gray-600 font-medium">
-                                                                        {load.depot?.nom || '-'}
+                                                                        {load.depot?.name || '-'}
                                                                     </td>
                                                                     <td className="px-6 py-4 text-gray-600 font-medium">
                                                                         {statusKey === 'en_cours' ? load.destination : (load.bl_number || '-')}
