@@ -1,4 +1,5 @@
 import { Head, router } from '@inertiajs/react';
+import type { ColumnDef } from '@tanstack/react-table';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { CalendarIcon, Check, ChevronsUpDown, Download, FileText, Filter, Search } from 'lucide-react';
@@ -15,6 +16,7 @@ import {
     CommandItem,
     CommandList,
 } from '@/components/ui/command';
+import { DataTable } from '@/components/ui/data-table';
 import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import AppLayout from '@/layouts/app-layout';
@@ -71,6 +73,59 @@ export default function Releve({ client, clients, statement, filters }: Props) {
     const operations = statement?.operations || [];
     const initialBalance = statement?.initialBalance || 0;
     const finalBalance = statement?.finalBalance || 0;
+
+    const columns: ColumnDef<Operation>[] = [
+        {
+            accessorKey: 'date',
+            header: 'Date',
+            cell: ({ row }) => row.original.date ? format(new Date(row.original.date), 'dd/MM/yyyy') : '-',
+        },
+        {
+            accessorKey: 'label',
+            header: 'Opération',
+            cell: ({ row }) => (
+                <div className="flex flex-col">
+                    <span className={cn("font-medium", row.original.type === 'initial' && "font-bold uppercase text-[11px] tracking-wider")}>
+                        {row.original.label}
+                    </span>
+                    {row.original.reference && (
+                        <span className="text-[10px] text-muted-foreground uppercase">Réf: #{row.original.reference}</span>
+                    )}
+                </div>
+            ),
+        },
+        {
+            accessorKey: 'debit',
+            header: () => <div className="text-right">Débit</div>,
+            cell: ({ row }) => (
+                <div className="text-right font-medium text-red-600">
+                    {row.original.debit > 0 ? formatNumber(row.original.debit) : (row.original.debit === 0 && row.original.type === 'initial' ? '0' : '-')}
+                </div>
+            ),
+        },
+        {
+            accessorKey: 'credit',
+            header: () => <div className="text-right">Crédit</div>,
+            cell: ({ row }) => (
+                <div className="text-right font-medium text-emerald-600">
+                    {row.original.credit > 0 ? formatNumber(row.original.credit) : '-'}
+                </div>
+            ),
+        },
+    ];
+
+    const tableData: Operation[] = [
+        {
+            date: dateFrom || client?.created_at || new Date().toISOString(),
+            label: 'SOLDE INITIAL / REPORT',
+            reference: '',
+            debit: initialBalance < 0 ? Math.abs(initialBalance) : 0,
+            credit: initialBalance > 0 ? initialBalance : 0,
+            balance: initialBalance,
+            type: 'initial',
+        },
+        ...operations,
+    ];
 
     return (
         <>
@@ -227,89 +282,50 @@ export default function Releve({ client, clients, statement, filters }: Props) {
                                     <Download className="mr-2 h-3.5 w-3.5" /> Exporter PDF
                                 </Button>
                             </div>
-                            <CardContent className="p-0">
-                                <div className="overflow-x-auto">
-                                    <table className="w-full text-sm border-collapse">
-                                        <thead>
-                                            <tr className="border-b border-gray-100 bg-gray-50/50">
-                                                <th className="px-6 py-3 text-left font-bold text-gray-500 uppercase text-[10px] tracking-widest">Date</th>
-                                                <th className="px-6 py-3 text-left font-bold text-gray-500 uppercase text-[10px] tracking-widest">Opération</th>
-                                                <th className="px-6 py-3 text-right font-bold text-gray-500 uppercase text-[10px] tracking-widest">Débit</th>
-                                                <th className="px-6 py-3 text-right font-bold text-gray-500 uppercase text-[10px] tracking-widest">Crédit</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-gray-50">
-                                            <tr className="bg-white">
-                                                <td className="px-6 py-4 text-gray-400 font-medium tabular-nums">
-                                                    {dateFrom ? format(new Date(dateFrom), 'dd/MM/yyyy') : (client?.created_at ? format(new Date(client.created_at), 'dd/MM/yyyy') : '-')}
-                                                </td>
-                                                <td className="px-6 py-4 font-bold text-gray-700 uppercase text-[11px] tracking-wider">SOLDE INITIAL / REPORT</td>
-                                                <td className="px-6 py-4 text-right text-gray-700 font-medium tabular-nums">
-                                                    {initialBalance < 0 ? (
-                                                        <span className="text-red-600">{formatNumber(Math.abs(initialBalance))}</span>
-                                                    ) : (initialBalance === 0 ? '0' : '-')}
-                                                </td>
-                                                <td className="px-6 py-4 text-right text-gray-700 font-medium tabular-nums">
-                                                    {initialBalance > 0 ? (
-                                                        <span className="text-emerald-600">{formatNumber(initialBalance)}</span>
-                                                    ) : '-'}
-                                                </td>
-                                            </tr>
-                                            {operations.map((op, index) => (
-                                                <tr key={index} className="hover:bg-gray-50/50 transition-colors">
-                                                    <td className="px-6 py-4 text-gray-400 tabular-nums">
-                                                        {format(new Date(op.date), 'dd/MM/yyyy')}
-                                                    </td>
-                                                    <td className="px-6 py-4">
-                                                        <span className="text-gray-700 font-medium">
-                                                            {op.label} {op.reference && <span className="text-gray-400 ml-1">#{op.reference}</span>}
-                                                        </span>
-                                                    </td>
-                                                    <td className="px-6 py-4 text-right text-gray-700 font-medium tabular-nums">
-                                                        {op.debit > 0 ? (
-                                                            <span className="text-red-600">{formatNumber(op.debit)}</span>
-                                                        ) : '-'}
-                                                    </td>
-                                                    <td className="px-6 py-4 text-right text-gray-700 font-medium tabular-nums">
-                                                        {op.credit > 0 ? (
-                                                            <span className="text-emerald-600">{formatNumber(op.credit)}</span>
-                                                        ) : '-'}
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                            {operations.length === 0 && (
-                                                <tr>
-                                                    <td colSpan={4} className="px-6 py-12 text-center text-gray-400 italic">
-                                                        Aucune opération enregistrée sur cette période.
-                                                    </td>
-                                                </tr>
-                                            )}
-                                        </tbody>
-                                        <tfoot className="bg-gray-50/50 border-t-2 border-gray-100">
-                                            <tr>
-                                                <td colSpan={2} className="px-6 py-4 text-right font-bold text-gray-800 uppercase text-[10px] tracking-widest">Solde Final au {format(new Date(), 'dd/MM/yyyy')}</td>
-                                                <td colSpan={2} className="px-6 py-4 text-right">
-                                                    <div className="flex flex-col items-end">
-                                                        <span className={`text-xl font-black tabular-nums ${finalBalance < 0 ? 'text-red-600' : 'text-emerald-600'}`}>
-                                                            {formatNumber(Math.abs(finalBalance))} CFA
-                                                        </span>
-                                                        <span className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter">
-                                                            {finalBalance < 0 ? 'Le client doit (Débit)' : 'L\'entreprise doit (Crédit)'}
-                                                        </span>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                            <tr>
-                                                <td colSpan={2} className="px-6 py-2 text-right text-[10px] text-gray-400 font-medium">TOTAUX DE LA PÉRIODE (SOLDE INCLUS)</td>
-                                                <td className="px-6 py-2 text-right text-red-600 font-bold tabular-nums">
-                                                    {formatNumber(operations.reduce((acc, op) => acc + op.debit, 0) + (initialBalance < 0 ? Math.abs(initialBalance) : 0))}
-                                                </td>
-                                                <td className="px-6 py-2 text-right text-emerald-600 font-bold tabular-nums">
-                                                    {formatNumber(operations.reduce((acc, op) => acc + op.credit, 0) + (initialBalance > 0 ? initialBalance : 0))}
-                                                </td>
-                                            </tr>
-                                        </tfoot>
-                                    </table>
+                            <CardContent className="p-6">
+                                <DataTable
+                                    columns={columns}
+                                    data={tableData}
+                                    searchKey="label"
+                                    searchPlaceholder="Filtrer par opération..."
+                                    hidePagination={true}
+                                />
+
+                                <div className="mt-8 space-y-4">
+                                    <div className="flex flex-col items-end border-b pb-4 border-gray-100">
+                                        <div className="flex items-center w-full max-w-[400px] justify-between text-gray-400 font-bold text-[10px] uppercase tracking-widest mb-2">
+                                            <span>Totaux de la période (Solde Inclus)</span>
+                                        </div>
+                                        <div className="flex items-center w-full max-w-[400px] justify-between">
+                                            <span className="text-sm font-medium text-gray-500">Total Débit:</span>
+                                            <span className="text-lg font-bold tabular-nums text-red-600">
+                                                {formatNumber(operations.reduce((acc, op) => acc + op.debit, 0) + (initialBalance < 0 ? Math.abs(initialBalance) : 0))}
+                                            </span>
+                                        </div>
+                                        <div className="flex items-center w-full max-w-[400px] justify-between">
+                                            <span className="text-sm font-medium text-gray-500">Total Crédit:</span>
+                                            <span className="text-lg font-bold tabular-nums text-emerald-600">
+                                                {formatNumber(operations.reduce((acc, op) => acc + op.credit, 0) + (initialBalance > 0 ? initialBalance : 0))}
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex flex-col items-end">
+                                        <div className="w-full max-w-[400px] flex items-center justify-between">
+                                            <div className="flex flex-col">
+                                                <span className="text-xl font-black text-blue-900 uppercase tracking-tight">SOLDE DU COMPTE:</span>
+                                                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">
+                                                    {finalBalance < 0 ? 'Le client doit (Débit)' : 'L\'entreprise doit (Crédit)'}
+                                                </span>
+                                            </div>
+                                            <span className={`text-2xl font-black tabular-nums ${finalBalance < 0 ? 'text-red-600' : 'text-emerald-600'}`}>
+                                                {formatNumber(Math.abs(finalBalance))} <span className="text-sm ml-1 font-bold">CFA</span>
+                                            </span>
+                                        </div>
+                                        <p className="text-[10px] text-gray-400 italic mt-4 text-right">
+                                            * Un solde négatif en rouge indique que le client doit, un solde positif en vert indique une avance client.
+                                        </p>
+                                    </div>
                                 </div>
                             </CardContent>
                         </Card>

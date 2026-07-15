@@ -110,7 +110,9 @@ export default function SuiviClient({ client, clients, statement, loads, payment
             header: 'Opération',
             cell: ({ row }) => (
                 <div className="flex flex-col">
-                    <span className="font-medium">{row.original.label}</span>
+                    <span className={cn("font-medium", row.original.type === 'initial' && "font-bold uppercase text-[11px] tracking-wider")}>
+                        {row.original.label}
+                    </span>
                     {row.original.reference && (
                         <span className="text-[10px] text-muted-foreground uppercase">Réf: #{row.original.reference}</span>
                     )}
@@ -122,7 +124,7 @@ export default function SuiviClient({ client, clients, statement, loads, payment
             header: () => <div className="text-right">Débit</div>,
             cell: ({ row }) => (
                 <div className="text-right font-medium text-red-600">
-                    {row.original.debit > 0 ? formatNumber(row.original.debit) : '-'}
+                    {row.original.debit > 0 ? formatNumber(row.original.debit) : (row.original.debit === 0 && row.original.type === 'initial' ? '0' : '-')}
                 </div>
             ),
         },
@@ -483,27 +485,20 @@ export default function SuiviClient({ client, clients, statement, loads, payment
                                         </Button>
                                     </div>
                                     <CardContent className="p-6">
-                                        <div className="mb-4 p-4 bg-gray-50 rounded-lg flex items-center justify-between">
-                                            <div className="flex items-center gap-4">
-                                                <span className="font-bold text-gray-500 text-xs uppercase tracking-widest">Report de solde :</span>
-                                                <div className="flex gap-4">
-                                                    {statement?.initialBalance && statement.initialBalance < 0 ? (
-                                                        <span className="text-red-600 font-bold tabular-nums">Débit: {formatNumber(Math.abs(statement.initialBalance))} FCFA</span>
-                                                    ) : null}
-                                                    {statement?.initialBalance && statement.initialBalance >= 0 ? (
-                                                        <span className="text-emerald-600 font-bold tabular-nums">Crédit: {formatNumber(statement.initialBalance)} FCFA</span>
-                                                    ) : null}
-                                                    {!statement?.initialBalance && <span className="text-gray-400 font-bold">0 FCFA</span>}
-                                                </div>
-                                            </div>
-                                            <p className="text-[10px] text-gray-400 italic">
-                                                Au {dateFrom ? format(new Date(dateFrom), 'dd/MM/yyyy') : format(new Date(), 'dd/MM/yyyy')}
-                                            </p>
-                                        </div>
-
                                         <DataTable
                                             columns={statementColumns}
-                                            data={statement?.operations || []}
+                                            data={[
+                                                {
+                                                    date: dateFrom || new Date().toISOString(),
+                                                    label: 'SOLDE INITIAL / REPORT',
+                                                    reference: '',
+                                                    debit: (statement?.initialBalance || 0) < 0 ? Math.abs(statement?.initialBalance || 0) : 0,
+                                                    credit: (statement?.initialBalance || 0) > 0 ? statement?.initialBalance || 0 : 0,
+                                                    balance: statement?.initialBalance || 0,
+                                                    type: 'initial',
+                                                },
+                                                ...(statement?.operations || [])
+                                            ]}
                                             searchKey="label"
                                             searchPlaceholder="Filtrer par opération..."
                                             hidePagination={true}
