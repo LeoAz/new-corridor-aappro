@@ -194,6 +194,80 @@ export default function SuiviClient({ client, clients, statement, loads, payment
         },
     ];
 
+    const paymentColumns: ColumnDef<Payment>[] = [
+        {
+            accessorKey: 'date',
+            header: 'Date',
+            cell: ({ row }) => row.original.date ? format(new Date(row.original.date), 'dd/MM/yyyy') : '-',
+        },
+        {
+            accessorKey: 'payment_type',
+            header: 'Type',
+            cell: ({ row }) => (
+                <span className={`inline-flex items-center rounded px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider border ${
+                    row.original.is_advance
+                        ? 'bg-blue-50 text-blue-600 border-blue-100'
+                        : 'bg-green-50 text-green-600 border-green-100'
+                }`}>
+                    {row.original.is_advance ? 'Avance' : 'Règlement'}
+                </span>
+            ),
+        },
+        {
+            accessorKey: 'reference',
+            header: 'Référence',
+            cell: ({ row }) => (
+                <span className="font-bold text-gray-600 text-sm font-mono">
+                    #{row.original.reference || `ID-${row.original.id}`}
+                </span>
+            ),
+        },
+        {
+            accessorKey: 'payment_method',
+            header: 'Méthode',
+            cell: ({ row }) => (
+                <span className="text-gray-500 font-medium uppercase text-xs">
+                    {row.original.payment_method}
+                </span>
+            ),
+        },
+        {
+            id: 'details',
+            header: 'Détails / Véhicules',
+            cell: ({ row }) => (
+                <div className="space-y-1.5">
+                    {row.original.note && <p className="text-xs text-gray-400 italic mb-2.5">&ldquo;{row.original.note}&rdquo;</p>}
+                    <div className="flex flex-wrap gap-2">
+                        {(row.original.loads && row.original.loads.length > 0) ? (
+                            row.original.loads.map((load: any) => (
+                                <span key={load.id} className="inline-flex items-center gap-1.5 bg-gray-100 px-2 py-1 rounded text-[10px] font-bold text-gray-600 border border-gray-200 uppercase">
+                                    <Car className="h-3 w-3" /> {load.vehicle_registration} ({formatNumber(load.volume)}L)
+                                </span>
+                            ))
+                        ) : (row.original.invoice_items && row.original.invoice_items.length > 0) ? (
+                            row.original.invoice_items.map((item: any) => (
+                                <span key={item.id} className="inline-flex items-center gap-1.5 bg-gray-100 px-2 py-1 rounded text-[10px] font-bold text-gray-600 border border-gray-200 uppercase">
+                                    Facture #{item.invoice_number}
+                                </span>
+                            ))
+                        ) : (
+                            <span className="text-[10px] text-gray-400 uppercase font-bold italic tracking-tighter">Flux direct</span>
+                        )}
+                    </div>
+                </div>
+            ),
+        },
+        {
+            accessorKey: 'amount',
+            header: () => <div className="text-right">Montant</div>,
+            cell: ({ row }) => (
+                <div className={`text-right font-black text-lg tabular-nums ${row.original.is_advance ? 'text-blue-700' : 'text-green-700'}`}>
+                    {formatNumber(row.original.amount)} <span className="text-xs font-normal opacity-50">CFA</span>
+                </div>
+            ),
+        },
+    ];
+
     const handleFilter = () => {
         if (!client) {
             return;
@@ -540,77 +614,14 @@ export default function SuiviClient({ client, clients, statement, loads, payment
                                             <p className="text-[10px] text-gray-400 mt-0.5 uppercase tracking-widest font-bold">Total encaissé sur la période : {formatNumber(paymentHistory?.reduce((acc, p) => acc + p.amount, 0) || 0)} CFA</p>
                                         </div>
                                     </div>
-                                    <CardContent className="p-0">
-                                        <div className="overflow-x-auto">
-                                            <table className="w-full text-base border-collapse">
-                                                <thead>
-                                                    <tr className="border-b border-gray-100 bg-gray-50/50">
-                                                        <th className="px-6 py-4 text-left font-bold text-gray-500 uppercase text-xs tracking-widest">Date</th>
-                                                        <th className="px-6 py-4 text-left font-bold text-gray-500 uppercase text-xs tracking-widest">Type</th>
-                                                        <th className="px-6 py-4 text-left font-bold text-gray-500 uppercase text-xs tracking-widest">Référence</th>
-                                                        <th className="px-6 py-4 text-left font-bold text-gray-500 uppercase text-xs tracking-widest">Méthode</th>
-                                                        <th className="px-6 py-4 text-left font-bold text-gray-500 uppercase text-xs tracking-widest">Détails / Véhicules</th>
-                                                        <th className="px-6 py-4 text-right font-bold text-gray-500 uppercase text-xs tracking-widest">Montant</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody className="divide-y divide-gray-50">
-                                                    {paymentHistory?.map((payment) => (
-                                                        <tr key={payment.id} className="hover:bg-gray-50 transition-colors align-top">
-                                                            <td className="px-6 py-5 text-gray-400 tabular-nums whitespace-nowrap">
-                                                                {payment.date ? format(new Date(payment.date), 'dd/MM/yyyy') : '-'}
-                                                            </td>
-                                                            <td className="px-6 py-5">
-                                                                <span className={`inline-flex items-center rounded px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider border ${
-                                                                    payment.is_advance
-                                                                        ? 'bg-blue-50 text-blue-600 border-blue-100'
-                                                                        : 'bg-green-50 text-green-600 border-green-100'
-                                                                }`}>
-                                                                    {payment.is_advance ? 'Avance' : 'Règlement'}
-                                                                </span>
-                                                            </td>
-                                                            <td className="px-6 py-5 font-bold text-gray-600 text-sm font-mono">
-                                                                #{payment.reference || `ID-${payment.id}`}
-                                                            </td>
-                                                            <td className="px-6 py-5 text-gray-500 font-medium uppercase text-xs">
-                                                                {payment.payment_method}
-                                                            </td>
-                                                            <td className="px-6 py-5">
-                                                                <div className="space-y-1.5">
-                                                                    {payment.note && <p className="text-xs text-gray-400 italic mb-2.5">&ldquo;{payment.note}&rdquo;</p>}
-                                                                    <div className="flex flex-wrap gap-2">
-                                                                        {(payment.loads && payment.loads.length > 0) ? (
-                                                                            payment.loads.map((load: any) => (
-                                                                                <span key={load.id} className="inline-flex items-center gap-1.5 bg-gray-100 px-2 py-1 rounded text-[10px] font-bold text-gray-600 border border-gray-200 uppercase">
-                                                                                    <Car className="h-3 w-3" /> {load.vehicle_registration} ({formatNumber(load.volume)}L)
-                                                                                </span>
-                                                                            ))
-                                                                        ) : (payment.invoice_items && payment.invoice_items.length > 0) ? (
-                                                                            payment.invoice_items.map((item: any) => (
-                                                                                <span key={item.id} className="inline-flex items-center gap-1.5 bg-gray-100 px-2 py-1 rounded text-[10px] font-bold text-gray-600 border border-gray-200 uppercase">
-                                                                                    Facture #{item.invoice_number}
-                                                                                </span>
-                                                                            ))
-                                                                        ) : (
-                                                                            <span className="text-[10px] text-gray-400 uppercase font-bold italic tracking-tighter">Flux direct</span>
-                                                                        )}
-                                                                    </div>
-                                                                </div>
-                                                            </td>
-                                                            <td className={`px-6 py-5 text-right font-black text-lg tabular-nums ${payment.is_advance ? 'text-blue-700' : 'text-green-700'}`}>
-                                                                {formatNumber(payment.amount)} <span className="text-xs font-normal opacity-50">CFA</span>
-                                                            </td>
-                                                        </tr>
-                                                    ))}
-                                                    {(!paymentHistory || paymentHistory.length === 0) && (
-                                                        <tr>
-                                                            <td colSpan={6} className="px-6 py-12 text-center text-gray-400 italic">
-                                                                Aucun paiement enregistré.
-                                                            </td>
-                                                        </tr>
-                                                    )}
-                                                </tbody>
-                                            </table>
-                                        </div>
+                                    <CardContent className="p-6">
+                                        <DataTable
+                                            columns={paymentColumns}
+                                            data={paymentHistory || []}
+                                            searchKey="reference"
+                                            searchPlaceholder="Filtrer par référence..."
+                                            hidePagination={true}
+                                        />
                                     </CardContent>
                                 </Card>
                             </TabsContent>

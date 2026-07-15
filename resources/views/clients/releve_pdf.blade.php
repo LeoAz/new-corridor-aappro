@@ -414,6 +414,72 @@
             </table>
         @endif
 
+        @if(isset($paymentHistory) && count($paymentHistory) > 0)
+            <div style="page-break-before: always;"></div>
+            <h3 class="section-title">HISTORIQUE DES PAIEMENTS</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Type</th>
+                        <th>Référence</th>
+                        <th>Méthode</th>
+                        <th>Détails / Véhicules</th>
+                        <th class="text-right">Montant</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach($paymentHistory as $payment)
+                        <tr>
+                            <td>{{ $payment->date->format('d/m/Y') }}</td>
+                            <td>
+                                <span style="font-weight: bold; {{ $payment->is_advance ? 'color: #2563eb;' : 'color: #15803d;' }}">
+                                    {{ $payment->is_advance ? 'AVANCE' : 'RÈGLEMENT' }}
+                                </span>
+                            </td>
+                            <td style="font-family: monospace; font-weight: bold;">#{{ $payment->reference ?: "REG-{$payment->id}" }}</td>
+                            <td>{{ strtoupper($payment->payment_method) }}</td>
+                            <td>
+                                @if($payment->note)
+                                    <div style="font-style: italic; color: #666; margin-bottom: 4px;">"{{ $payment->note }}"</div>
+                                @endif
+
+                                @if($payment->loads->count() > 0)
+                                    @foreach($payment->loads as $load)
+                                        <span style="display: inline-block; background: #f3f4f6; padding: 2px 4px; margin-right: 4px; margin-bottom: 2px; border-radius: 2px; font-size: 8px;">
+                                            {{ $load->vehicle_registration }} ({{ number_format($load->volume, 0, ',', ' ') }}L)
+                                        </span>
+                                    @endforeach
+                                @elseif($payment->invoiceItems->count() > 0)
+                                    @php
+                                        $invoices = $payment->invoiceItems->map(fn($item) => $item->invoice_number)->unique();
+                                    @endphp
+                                    @foreach($invoices as $inv)
+                                        <span style="display: inline-block; background: #f3f4f6; padding: 2px 4px; margin-right: 4px; border-radius: 2px; font-size: 8px;">
+                                            Facture #{{ $inv }}
+                                        </span>
+                                    @endforeach
+                                @else
+                                    <span style="color: #999; font-size: 8px; font-style: italic;">FLUX DIRECT</span>
+                                @endif
+                            </td>
+                            <td class="text-right" style="font-weight: bold; font-size: 12px; {{ $payment->is_advance ? 'color: #1d4ed8;' : 'color: #15803d;' }}">
+                                {{ number_format($payment->amount, 0, ',', ' ') }} CFA
+                            </td>
+                        </tr>
+                    @endforeach
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <th colspan="5" class="text-right">TOTAL ENCAISSÉ SUR LA PÉRIODE</th>
+                        <th class="text-right" style="font-size: 14px; font-weight: bold; background: #f9f9f9;">
+                            {{ number_format($paymentHistory->sum('amount'), 0, ',', ' ') }} CFA
+                        </th>
+                    </tr>
+                </tfoot>
+            </table>
+        @endif
+
         <div class="footer">
             <p>CORRIDOR APPRO &bull; Bamako, Mali &bull; Relevé de compte officiel</p>
             <p>Document généré le {{ date('d/m/Y à H:i') }}</p>

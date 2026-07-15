@@ -152,6 +152,13 @@ class ClientTrackingController extends Controller
                 'payment_date' => $l->clientPayment?->date?->format('Y-m-d'),
             ]);
 
+        $paymentHistory = ClientPayment::where('client_id', $client->id)
+            ->when($dateFrom, fn ($q) => $q->where('date', '>=', $dateFrom))
+            ->when($dateTo, fn ($q) => $q->where('date', '<=', $dateTo))
+            ->with(['loads', 'invoiceItems.loadDetails', 'depotInvoiceItems'])
+            ->orderBy('date', 'desc')
+            ->get();
+
         // Générer le QR Code
         $qrData = "RELEVE CLIENT: {$client->nom}\nID: #{$client->id}\nSOLDE: ".number_format(abs($finalBalance), 0, ',', ' ').' CFA';
         $renderer = new ImageRenderer(
@@ -173,6 +180,7 @@ class ClientTrackingController extends Controller
             'loadsLivrer' => $loadsLivrer,
             'loadsFacturer' => $loadsFacturer,
             'loadsPaye' => $loadsPaye,
+            'paymentHistory' => $paymentHistory,
         ])->setPaper('a4', 'landscape');
 
         return $pdf->download("Releve_{$client->nom}_{$dateFrom}_au_{$dateTo}.pdf");
@@ -312,6 +320,8 @@ class ClientTrackingController extends Controller
 
         // 3. Historique des paiements avec livraisons liées
         $paymentHistory = ClientPayment::where('client_id', $client->id)
+            ->when($dateFrom, fn ($q) => $q->where('date', '>=', $dateFrom))
+            ->when($dateTo, fn ($q) => $q->where('date', '<=', $dateTo))
             ->with(['loads', 'invoiceItems.loadDetails', 'depotInvoiceItems'])
             ->orderBy('date', 'desc')
             ->get();
