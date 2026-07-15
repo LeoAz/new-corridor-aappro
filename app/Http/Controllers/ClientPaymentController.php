@@ -26,6 +26,7 @@ class ClientPaymentController extends Controller
             'depotInvoiceItems.depotInvoice',
             'loadDetails',
             'loads.invoiceItems',
+            'loads.city',
             'invoiceItems',
         ])
             ->latest()
@@ -253,7 +254,7 @@ class ClientPaymentController extends Controller
 
     public function show(ClientPayment $reglement)
     {
-        $reglement->load(['client', 'loads.city', 'loads.depot', 'invoiceItems.invoice']);
+        $reglement->load(['client', 'loads.city', 'loads.depot', 'invoiceItems.invoice', 'depotInvoiceItems.depotInvoice']);
 
         return response()->json($reglement);
     }
@@ -263,6 +264,7 @@ class ClientPaymentController extends Controller
         $reglement->load([
             'client',
             'loads.invoiceItems',
+            'loads.city',
             'invoiceItems',
             'depotInvoiceItems.depotInvoice',
         ]);

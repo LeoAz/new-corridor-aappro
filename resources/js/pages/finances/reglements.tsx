@@ -956,7 +956,7 @@ export default function Reglements({ payments, clients, paymentMethods }: Props)
                                                     <tr key={load.id} className="border-t hover:bg-muted/50 transition-colors">
                                                         <td className="px-3 py-2">{load.load_date ? format(new Date(load.load_date), 'dd/MM/yyyy') : '-'}</td>
                                                         <td className="px-3 py-2 font-medium">{load.vehicle_registration}</td>
-                                                        <td className="px-3 py-2">{load.city?.name}</td>
+                                                        <td className="px-3 py-2">{load.city?.name || load.load_location || '-'}</td>
                                                         <td className="px-3 py-2 text-right">{formatNumber(load.volume)} L</td>
                                                     </tr>
                                                 ))}

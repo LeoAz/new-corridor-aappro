@@ -215,7 +215,7 @@
                         <td>{{ $rowCount++ }}</td>
                         <td>
                             <div style="font-weight: bold;">Livraison: {{ $load->vehicle_registration }}</div>
-                            <div style="font-size: 10px; color: #666;">Produit: {{ $load->product }} | BL: {{ $load->bl_number }}</div>
+                            <div style="font-size: 10px; color: #666;">Produit: {{ $load->product }} | Ville: {{ $load->city->name ?? $load->load_location ?? 'N/A' }}</div>
                         </td>
                         <td class="text-right">
                             {{ number_format($invoiceItem->quantity_delivered ?? 0, 2, ',', ' ') }} L
