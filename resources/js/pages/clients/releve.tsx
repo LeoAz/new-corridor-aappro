@@ -292,23 +292,23 @@ export default function Releve({ client, clients, statement, filters }: Props) {
                                 />
 
                                 <div className="mt-8 space-y-4">
-                                    <div className="flex flex-col items-end border-b pb-4 border-gray-100">
-                                        <div className="flex items-center w-full max-w-[400px] justify-between text-gray-400 font-bold text-[10px] uppercase tracking-widest mb-2">
-                                            <span>Totaux de la période (Solde Inclus)</span>
+                                        <div className="flex flex-col items-end border-b pb-4 border-gray-100">
+                                            <div className="flex items-center w-full max-w-[400px] justify-between text-gray-400 font-bold text-[10px] uppercase tracking-widest mb-2">
+                                                <span>Totaux de la période (Solde Inclus)</span>
+                                            </div>
+                                            <div className="flex items-center w-full max-w-[400px] justify-between">
+                                                <span className="text-sm font-medium text-gray-500">Total Débit:</span>
+                                                <span className="text-lg font-bold tabular-nums text-red-600">
+                                                    {formatNumber(tableData.reduce((acc, op) => acc + op.debit, 0))}
+                                                </span>
+                                            </div>
+                                            <div className="flex items-center w-full max-w-[400px] justify-between">
+                                                <span className="text-sm font-medium text-gray-500">Total Crédit:</span>
+                                                <span className="text-lg font-bold tabular-nums text-emerald-600">
+                                                    {formatNumber(tableData.reduce((acc, op) => acc + op.credit, 0))}
+                                                </span>
+                                            </div>
                                         </div>
-                                        <div className="flex items-center w-full max-w-[400px] justify-between">
-                                            <span className="text-sm font-medium text-gray-500">Total Débit:</span>
-                                            <span className="text-lg font-bold tabular-nums text-red-600">
-                                                {formatNumber(operations.reduce((acc, op) => acc + op.debit, 0) + (initialBalance < 0 ? Math.abs(initialBalance) : 0))}
-                                            </span>
-                                        </div>
-                                        <div className="flex items-center w-full max-w-[400px] justify-between">
-                                            <span className="text-sm font-medium text-gray-500">Total Crédit:</span>
-                                            <span className="text-lg font-bold tabular-nums text-emerald-600">
-                                                {formatNumber(operations.reduce((acc, op) => acc + op.credit, 0) + (initialBalance > 0 ? initialBalance : 0))}
-                                            </span>
-                                        </div>
-                                    </div>
 
                                     <div className="flex flex-col items-end">
                                         <div className="w-full max-w-[400px] flex items-center justify-between">
