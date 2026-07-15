@@ -316,9 +316,15 @@ export default function SuiviClient({ client, clients, statement, loads, payment
                                                             {dateFrom ? format(new Date(dateFrom), 'dd/MM/yyyy') : '-'}
                                                         </td>
                                                         <td className="px-6 py-4 font-bold text-gray-700 uppercase text-[11px] tracking-wider">REPORT DE SOLDE</td>
-                                                        <td className="px-6 py-4 text-right text-gray-400">-</td>
                                                         <td className="px-6 py-4 text-right text-gray-800 font-medium tabular-nums">
-                                                            {statement?.initialBalance && statement.initialBalance !== 0 ? formatNumber(Math.abs(statement.initialBalance)) : '-'}
+                                                            {statement?.initialBalance && statement.initialBalance < 0 ? (
+                                                                <span className="text-red-600">{formatNumber(Math.abs(statement.initialBalance))}</span>
+                                                            ) : '-'}
+                                                        </td>
+                                                        <td className="px-6 py-4 text-right text-gray-800 font-medium tabular-nums">
+                                                            {statement?.initialBalance && statement.initialBalance > 0 ? (
+                                                                <span className="text-emerald-600">{formatNumber(statement.initialBalance)}</span>
+                                                            ) : (statement?.initialBalance === 0 ? '0' : '-')}
                                                         </td>
                                                     </tr>
                                                     {statement?.operations?.map((op, index) => (
@@ -353,22 +359,30 @@ export default function SuiviClient({ client, clients, statement, loads, payment
                                         <div className="flex flex-col items-end px-6 py-8 space-y-2">
                                             <div className="flex items-center w-full max-w-[300px] justify-between text-gray-600">
                                                 <span className="text-sm font-medium">Total Débit:</span>
-                                                <span className="text-lg font-bold tabular-nums">{formatNumber(statement?.operations?.reduce((acc, op) => acc + op.debit, 0) || 0)}</span>
+                                                <span className="text-lg font-bold tabular-nums">
+                                                    {formatNumber(
+                                                        (statement?.operations?.reduce((acc, op) => acc + op.debit, 0) || 0) +
+                                                        ((statement?.initialBalance || 0) < 0 ? Math.abs(statement?.initialBalance || 0) : 0)
+                                                    )}
+                                                </span>
                                             </div>
                                             <div className="flex items-center w-full max-w-[300px] justify-between text-gray-600">
                                                 <span className="text-sm font-medium">Total Crédit:</span>
                                                 <span className="text-lg font-bold tabular-nums">
-                                                    {formatNumber((statement?.operations?.reduce((acc, op) => acc + op.credit, 0) || 0) + (statement?.initialBalance || 0))}
+                                                    {formatNumber(
+                                                        (statement?.operations?.reduce((acc, op) => acc + op.credit, 0) || 0) +
+                                                        ((statement?.initialBalance || 0) > 0 ? statement?.initialBalance || 0 : 0)
+                                                    )}
                                                 </span>
                                             </div>
                                             <div className="w-full max-w-[400px] border-t-2 border-gray-100 pt-4 mt-2 flex items-center justify-between">
                                                 <span className="text-xl font-black text-blue-900 uppercase tracking-tight">SOLDE DU COMPTE:</span>
-                                                <span className={`text-xl font-black tabular-nums ${(statement?.finalBalance || 0) > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                                                <span className={`text-xl font-black tabular-nums ${(statement?.finalBalance || 0) < 0 ? 'text-red-600' : 'text-green-600'}`}>
                                                     {formatNumber(Math.abs(statement?.finalBalance || 0))} <span className="text-sm ml-1 font-bold">FCFA</span>
                                                 </span>
                                             </div>
                                             <p className="text-[10px] text-gray-400 italic mt-2">
-                                                * Un solde positif en rouge indique une créance, un solde négatif en vert indique une avance client.
+                                                * Un solde négatif en rouge indique que le client doit, un solde positif en vert indique une avance client.
                                             </p>
                                         </div>
                                     </CardContent>

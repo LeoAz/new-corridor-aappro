@@ -210,11 +210,19 @@
                     <td>-</td>
                     <td style="color: #999;">{{ $dateFrom ? \Carbon\Carbon::parse($dateFrom)->format('d/m/Y') : '-' }}</td>
                     <td style="font-weight: bold; text-transform: uppercase;">REPORT DE SOLDE</td>
-                    <td class="text-right">-</td>
                     <td class="text-right" style="font-weight: bold;">
-                        <span class="{{ $initialBalance < 0 ? 'text-red' : ($initialBalance > 0 ? 'text-green' : '') }}">
-                            {{ number_format(abs($initialBalance), 0, ',', ' ') }}
-                        </span>
+                        @if($initialBalance < 0)
+                            <span class="text-red">{{ number_format(abs($initialBalance), 0, ',', ' ') }}</span>
+                        @else
+                            -
+                        @endif
+                    </td>
+                    <td class="text-right" style="font-weight: bold;">
+                        @if($initialBalance > 0)
+                            <span class="text-green">{{ number_format(abs($initialBalance), 0, ',', ' ') }}</span>
+                        @else
+                            -
+                        @endif
                     </td>
                 </tr>
                 @foreach($operations as $op)
@@ -249,11 +257,11 @@
         <div class="totals-section">
             <div class="total-row">
                 <span class="total-label">Total Débit</span>
-                <span class="total-value">{{ number_format($operations->sum('debit'), 0, ',', ' ') }} CFA</span>
+                <span class="total-value">{{ number_format($operations->sum('debit') + ($initialBalance < 0 ? abs($initialBalance) : 0), 0, ',', ' ') }} CFA</span>
             </div>
             <div class="total-row">
                 <span class="total-label">Total Crédit</span>
-                <span class="total-value">{{ number_format($operations->sum('credit') + $initialBalance, 0, ',', ' ') }} CFA</span>
+                <span class="total-value">{{ number_format($operations->sum('credit') + ($initialBalance > 0 ? abs($initialBalance) : 0), 0, ',', ' ') }} CFA</span>
             </div>
             <div class="total-row grand-total">
                 <span class="total-label">SOLDE FINAL ({{ $finalBalance < 0 ? 'DÉBIT' : 'CRÉDIT' }})</span>

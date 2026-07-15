@@ -247,12 +247,12 @@ export default function Releve({ client, clients, statement, filters }: Props) {
                                                 <td className="px-6 py-4 text-right text-gray-700 font-medium tabular-nums">
                                                     {initialBalance < 0 ? (
                                                         <span className="text-red-600">{formatNumber(Math.abs(initialBalance))}</span>
-                                                    ) : '-'}
+                                                    ) : (initialBalance === 0 ? '0' : '-')}
                                                 </td>
                                                 <td className="px-6 py-4 text-right text-gray-700 font-medium tabular-nums">
                                                     {initialBalance > 0 ? (
                                                         <span className="text-emerald-600">{formatNumber(initialBalance)}</span>
-                                                    ) : (initialBalance === 0 ? '0' : '-')}
+                                                    ) : '-'}
                                                 </td>
                                             </tr>
                                             {operations.map((op, index) => (
@@ -297,6 +297,15 @@ export default function Releve({ client, clients, statement, filters }: Props) {
                                                             {finalBalance < 0 ? 'Le client doit (Débit)' : 'L\'entreprise doit (Crédit)'}
                                                         </span>
                                                     </div>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td colSpan={2} className="px-6 py-2 text-right text-[10px] text-gray-400 font-medium">TOTAUX DE LA PÉRIODE (SOLDE INCLUS)</td>
+                                                <td className="px-6 py-2 text-right text-red-600 font-bold tabular-nums">
+                                                    {formatNumber(operations.reduce((acc, op) => acc + op.debit, 0) + (initialBalance < 0 ? Math.abs(initialBalance) : 0))}
+                                                </td>
+                                                <td className="px-6 py-2 text-right text-emerald-600 font-bold tabular-nums">
+                                                    {formatNumber(operations.reduce((acc, op) => acc + op.credit, 0) + (initialBalance > 0 ? initialBalance : 0))}
                                                 </td>
                                             </tr>
                                         </tfoot>

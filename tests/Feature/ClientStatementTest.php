@@ -39,7 +39,7 @@ test('client statement show page calculates balance correctly', function () {
     $response->assertStatus(200);
     $response->assertInertia(fn ($page) => $page
         ->where('statement.initialBalance', 0)
-        ->where('statement.finalBalance', 60000)
+        ->where('statement.finalBalance', -60000)
         ->has('statement.operations', 2)
     );
 });

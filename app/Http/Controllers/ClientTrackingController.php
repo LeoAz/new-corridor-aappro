@@ -83,10 +83,11 @@ class ClientTrackingController extends Controller
             $prevDebitInvoices = Invoice::where('client_id', $client->id)->where('date', '<', $dateFrom)->sum('total_amount');
             $prevDebitDepotInvoices = DepotInvoice::where('client_id', $client->id)->where('date', '<', $dateFrom)->sum('total_amount');
             $prevCreditPayments = ClientPayment::where('client_id', $client->id)->where('date', '<', $dateFrom)->sum('amount');
-            $initialBalance += ($prevDebitInvoices + $prevDebitDepotInvoices) - $prevCreditPayments;
+            // Solde = Crédit - Débit (Positif = L'entreprise doit au client, Négatif = Le client doit)
+            $initialBalance += ($prevCreditPayments - ($prevDebitInvoices + $prevDebitDepotInvoices));
         }
 
-        $finalBalance = $initialBalance + ($operations->sum('debit') - $operations->sum('credit'));
+        $finalBalance = $initialBalance + ($operations->sum('credit') - $operations->sum('debit'));
 
         // Récupérer les historiques demandés
         $loadsEnCours = Load::where('client_id', $client->id)
@@ -97,9 +98,9 @@ class ClientTrackingController extends Controller
                 'id' => $l->id,
                 'date' => $l->load_date?->format('Y-m-d'),
                 'truck_number' => $l->vehicle_registration,
-                'compartment' => $l->compartment?->product ?? 'N/A',
+                'compartment' => $l->compartment?->product ?? ($l->product ?? 'N/A'),
                 'quantity' => $l->volume,
-                'depot' => $l->depot?->name ?? 'N/A',
+                'depot' => $l->depot?->name ?? ($l->load_location ?? 'N/A'),
                 'destination' => $l->unload_location,
             ]);
 
@@ -111,9 +112,9 @@ class ClientTrackingController extends Controller
                 'id' => $l->id,
                 'date' => $l->unload_date?->format('Y-m-d'),
                 'truck_number' => $l->vehicle_registration,
-                'compartment' => $l->compartment?->product ?? 'N/A',
+                'compartment' => $l->compartment?->product ?? ($l->product ?? 'N/A'),
                 'quantity' => $l->volume,
-                'depot' => $l->depot?->name ?? 'N/A',
+                'depot' => $l->depot?->name ?? ($l->load_location ?? 'N/A'),
                 'bl_number' => $l->bl_number ?? "BL-{$l->id}",
             ]);
 
@@ -125,9 +126,9 @@ class ClientTrackingController extends Controller
                 'id' => $l->id,
                 'date' => $l->unload_date?->format('Y-m-d'),
                 'truck_number' => $l->vehicle_registration,
-                'compartment' => $l->compartment?->product ?? 'N/A',
+                'compartment' => $l->compartment?->product ?? ($l->product ?? 'N/A'),
                 'quantity' => $l->volume,
-                'depot' => $l->depot?->name ?? 'N/A',
+                'depot' => $l->depot?->name ?? ($l->load_location ?? 'N/A'),
                 'bl_number' => $l->bl_number ?? "BL-{$l->id}",
             ]);
 
@@ -139,9 +140,9 @@ class ClientTrackingController extends Controller
                 'id' => $l->id,
                 'date' => $l->unload_date?->format('Y-m-d'),
                 'truck_number' => $l->vehicle_registration,
-                'compartment' => $l->compartment?->product ?? 'N/A',
+                'compartment' => $l->compartment?->product ?? ($l->product ?? 'N/A'),
                 'quantity' => $l->volume,
-                'depot' => $l->depot?->name ?? 'N/A',
+                'depot' => $l->depot?->name ?? ($l->load_location ?? 'N/A'),
                 'bl_number' => $l->bl_number ?? "BL-{$l->id}",
                 'payment_reference' => $l->clientPayment?->reference ?: ($l->clientPayment ? "REG-{$l->clientPayment->id}" : null),
                 'payment_date' => $l->clientPayment?->date?->format('Y-m-d'),
@@ -230,12 +231,13 @@ class ClientTrackingController extends Controller
             $prevDebitInvoices = Invoice::where('client_id', $client->id)->where('date', '<', $dateFrom)->sum('total_amount');
             $prevDebitDepotInvoices = DepotInvoice::where('client_id', $client->id)->where('date', '<', $dateFrom)->sum('total_amount');
             $prevCreditPayments = ClientPayment::where('client_id', $client->id)->where('date', '<', $dateFrom)->sum('amount');
-            $initialBalance += ($prevDebitInvoices + $prevDebitDepotInvoices) - $prevCreditPayments;
+            // Solde = Crédit - Débit (Positif = L'entreprise doit au client, Négatif = Le client doit)
+            $initialBalance += ($prevCreditPayments - ($prevDebitInvoices + $prevDebitDepotInvoices));
         }
 
         $runningBalance = $initialBalance;
         $operations = $operations->map(function ($op) use (&$runningBalance) {
-            $runningBalance += ($op['debit'] - $op['credit']);
+            $runningBalance += ($op['credit'] - $op['debit']);
             $op['balance'] = $runningBalance;
 
             return $op;
@@ -250,9 +252,9 @@ class ClientTrackingController extends Controller
                 'id' => $l->id,
                 'date' => $l->load_date?->format('Y-m-d'),
                 'truck_number' => $l->vehicle_registration,
-                'compartment' => $l->compartment?->product ?? 'N/A',
+                'compartment' => $l->compartment?->product ?? ($l->product ?? 'N/A'),
                 'quantity' => $l->volume,
-                'depot' => $l->depot?->name ?? 'N/A',
+                'depot' => $l->depot?->name ?? ($l->load_location ?? 'N/A'),
                 'destination' => $l->unload_location,
             ]);
 
@@ -264,9 +266,9 @@ class ClientTrackingController extends Controller
                 'id' => $l->id,
                 'date' => $l->unload_date?->format('Y-m-d'),
                 'truck_number' => $l->vehicle_registration,
-                'compartment' => $l->compartment?->product ?? 'N/A',
+                'compartment' => $l->compartment?->product ?? ($l->product ?? 'N/A'),
                 'quantity' => $l->volume,
-                'depot' => $l->depot?->name ?? 'N/A',
+                'depot' => $l->depot?->name ?? ($l->load_location ?? 'N/A'),
                 'bl_number' => $l->bl_number ?? "BL-{$l->id}",
             ]);
 
@@ -278,9 +280,9 @@ class ClientTrackingController extends Controller
                 'id' => $l->id,
                 'date' => $l->unload_date?->format('Y-m-d'),
                 'truck_number' => $l->vehicle_registration,
-                'compartment' => $l->compartment?->product ?? 'N/A',
+                'compartment' => $l->compartment?->product ?? ($l->product ?? 'N/A'),
                 'quantity' => $l->volume,
-                'depot' => $l->depot?->name ?? 'N/A',
+                'depot' => $l->depot?->name ?? ($l->load_location ?? 'N/A'),
                 'bl_number' => $l->bl_number ?? "BL-{$l->id}",
             ]);
 
@@ -292,9 +294,9 @@ class ClientTrackingController extends Controller
                 'id' => $l->id,
                 'date' => $l->unload_date?->format('Y-m-d'),
                 'truck_number' => $l->vehicle_registration,
-                'compartment' => $l->compartment?->product ?? 'N/A',
+                'compartment' => $l->compartment?->product ?? ($l->product ?? 'N/A'),
                 'quantity' => $l->volume,
-                'depot' => $l->depot?->name ?? 'N/A',
+                'depot' => $l->depot?->name ?? ($l->load_location ?? 'N/A'),
                 'bl_number' => $l->bl_number ?? "BL-{$l->id}",
                 'payment_reference' => $l->clientPayment?->reference ?: ($l->clientPayment ? "REG-{$l->clientPayment->id}" : null),
                 'payment_date' => $l->clientPayment?->date?->format('Y-m-d'),

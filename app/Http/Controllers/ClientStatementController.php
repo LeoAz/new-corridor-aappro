@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\LoadStatus;
 use App\Models\Client;
 use App\Models\ClientPayment;
 use App\Models\DepotInvoice;
 use App\Models\Invoice;
+use App\Models\Load;
 use BaconQrCode\Renderer\Image\SvgImageBackEnd;
 use BaconQrCode\Renderer\ImageRenderer;
 use BaconQrCode\Renderer\RendererStyle\RendererStyle;
@@ -93,6 +95,65 @@ class ClientStatementController extends Controller
 
         $finalBalance = $initialBalance + ($operations->sum('credit') - $operations->sum('debit'));
 
+        // Récupérer les historiques demandés
+        $loadsEnCours = Load::where('client_id', $client->id)
+            ->where('status', LoadStatus::EN_COURS)
+            ->with(['depot', 'compartment'])
+            ->get()
+            ->map(fn ($l) => [
+                'id' => $l->id,
+                'date' => $l->load_date?->format('Y-m-d'),
+                'truck_number' => $l->vehicle_registration,
+                'compartment' => $l->compartment?->product ?? ($l->product ?? 'N/A'),
+                'quantity' => $l->volume,
+                'depot' => $l->depot?->name ?? ($l->load_location ?? 'N/A'),
+                'destination' => $l->unload_location,
+            ]);
+
+        $loadsLivrer = Load::where('client_id', $client->id)
+            ->where('status', LoadStatus::LIVRER)
+            ->with(['depot', 'compartment'])
+            ->get()
+            ->map(fn ($l) => [
+                'id' => $l->id,
+                'date' => $l->unload_date?->format('Y-m-d'),
+                'truck_number' => $l->vehicle_registration,
+                'compartment' => $l->compartment?->product ?? ($l->product ?? 'N/A'),
+                'quantity' => $l->volume,
+                'depot' => $l->depot?->name ?? ($l->load_location ?? 'N/A'),
+                'bl_number' => $l->bl_number ?? "BL-{$l->id}",
+            ]);
+
+        $loadsFacturer = Load::where('client_id', $client->id)
+            ->where('status', LoadStatus::FACTURER)
+            ->with(['depot', 'compartment'])
+            ->get()
+            ->map(fn ($l) => [
+                'id' => $l->id,
+                'date' => $l->unload_date?->format('Y-m-d'),
+                'truck_number' => $l->vehicle_registration,
+                'compartment' => $l->compartment?->product ?? ($l->product ?? 'N/A'),
+                'quantity' => $l->volume,
+                'depot' => $l->depot?->name ?? ($l->load_location ?? 'N/A'),
+                'bl_number' => $l->bl_number ?? "BL-{$l->id}",
+            ]);
+
+        $loadsPaye = Load::where('client_id', $client->id)
+            ->where('status', LoadStatus::PAYE)
+            ->with(['depot', 'compartment', 'clientPayment'])
+            ->get()
+            ->map(fn ($l) => [
+                'id' => $l->id,
+                'date' => $l->unload_date?->format('Y-m-d'),
+                'truck_number' => $l->vehicle_registration,
+                'compartment' => $l->compartment?->product ?? ($l->product ?? 'N/A'),
+                'quantity' => $l->volume,
+                'depot' => $l->depot?->name ?? ($l->load_location ?? 'N/A'),
+                'bl_number' => $l->bl_number ?? "BL-{$l->id}",
+                'payment_reference' => $l->clientPayment?->reference ?: ($l->clientPayment ? "REG-{$l->clientPayment->id}" : null),
+                'payment_date' => $l->clientPayment?->date?->format('Y-m-d'),
+            ]);
+
         // Générer le QR Code
         $qrData = "RELEVE CLIENT: {$client->nom}\nID: #{$client->id}\nSOLDE: ".number_format(abs($finalBalance), 0, ',', ' ').' CFA';
         $renderer = new ImageRenderer(
@@ -110,11 +171,11 @@ class ClientStatementController extends Controller
             'dateFrom' => $dateFrom,
             'dateTo' => $dateTo,
             'qrCode' => $qrCode,
-            'loadsEnCours' => [],
-            'loadsLivrer' => [],
-            'loadsFacturer' => [],
-            'loadsPaye' => [],
-        ]);
+            'loadsEnCours' => $loadsEnCours,
+            'loadsLivrer' => $loadsLivrer,
+            'loadsFacturer' => $loadsFacturer,
+            'loadsPaye' => $loadsPaye,
+        ])->setPaper('a4', 'landscape');
 
         return $pdf->download("Releve_{$client->nom}_{$dateFrom}_au_{$dateTo}.pdf");
     }
