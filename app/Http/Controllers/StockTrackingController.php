@@ -110,7 +110,7 @@ class StockTrackingController extends Controller
                 return $query->where('compartment_id', $compartmentId);
             })
             ->with(['compartment'])
-            ->orderBy('purchase_date', 'asc')
+            ->orderBy('purchase_date', 'desc')
             ->get();
 
         // Historique des chargements (Sorties en cours)
@@ -121,7 +121,7 @@ class StockTrackingController extends Controller
                 return $query->where('compartment_id', $compartmentId);
             })
             ->with(['client', 'compartment'])
-            ->orderBy('load_date', 'asc')
+            ->orderBy('load_date', 'desc')
             ->get();
 
         // Historique des livraisons (Sorties confirmées)
@@ -132,7 +132,7 @@ class StockTrackingController extends Controller
                 return $query->where('compartment_id', $compartmentId);
             })
             ->with(['client', 'compartment'])
-            ->orderBy('load_date', 'asc')
+            ->orderBy('load_date', 'desc')
             ->get();
 
         $depotSales = DepotInvoiceItem::whereHas('depotInvoice', function ($query) use ($depotId, $dateFrom, $dateTo) {
@@ -143,7 +143,10 @@ class StockTrackingController extends Controller
                 return $query->where('compartment_id', $compartmentId);
             })
             ->with(['depotInvoice.client', 'compartment'])
-            ->get();
+            ->get()
+            ->sortByDesc(function ($item) {
+                return $item->depotInvoice->date;
+            });
 
         $filteredProduct = $compartmentId ? $depot->compartments->firstWhere('id', $compartmentId)?->product : null;
 

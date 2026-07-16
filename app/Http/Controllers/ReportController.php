@@ -200,11 +200,19 @@ class ReportController extends Controller
             $client = Client::find($request->client_id);
         }
 
-        $loads = $query->orderBy('unload_date', 'asc')->get();
+        $loads = $query->orderBy('unload_date', 'desc')->get();
         $totalVolume = $loads->sum('volume');
 
         $stats = $loads->groupBy('product')->map(fn ($group, $product) => [
             'product' => $product ?: 'INCONNU',
+            'count' => $group->count(),
+            'volume' => $group->sum('volume'),
+        ])->values()->toArray();
+
+        $clientStats = $loads->groupBy(function ($item) {
+            return $item->client->nom ?? 'Sans Client';
+        })->map(fn ($group, $clientName) => [
+            'client' => $clientName,
             'count' => $group->count(),
             'volume' => $group->sum('volume'),
         ])->values()->toArray();
@@ -233,6 +241,7 @@ class ReportController extends Controller
             'loads' => $loads,
             'groupedLoads' => $groupedLoads,
             'stats' => $stats,
+            'clientStats' => $clientStats,
             'totalVolume' => $totalVolume,
             'filters' => $request->all(),
             'client' => $client,

@@ -1,9 +1,9 @@
 <?php
 
+use App\Enums\LoadStatus;
 use App\Models\Client;
 use App\Models\Load;
 use App\Models\User;
-use App\Enums\LoadStatus;
 
 test('it filters delivery reports by client', function () {
     $user = User::factory()->create();

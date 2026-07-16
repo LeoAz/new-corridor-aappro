@@ -99,6 +99,36 @@
             </tbody>
         </table>
 
+        <div class="section-title">Ventes Directes (Dépôt)</div>
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 20px;">N°</th>
+                    <th>Date</th>
+                    <th>N° Facture</th>
+                    <th>Client</th>
+                    <th>Produit</th>
+                    <th class="text-right">Quantité</th>
+                </tr>
+            </thead>
+            <tbody>
+                @forelse($depotSales as $item)
+                    <tr>
+                        <td>{{ $loop->iteration }}</td>
+                        <td>{{ $item->depotInvoice->date->format('d/m/Y') }}</td>
+                        <td class="font-bold text-blue">{{ $item->depotInvoice->number }}</td>
+                        <td>{{ $item->depotInvoice->client?->nom ?? 'Client inconnu' }}</td>
+                        <td>{{ $item->compartment->product }}</td>
+                        <td class="text-right font-bold">{{ number_format($item->quantity, 0, '.', ' ') }} L</td>
+                    </tr>
+                @empty
+                    <tr>
+                        <td colspan="6" style="text-align: center; padding: 20px; color: #94a3b8;">Aucune vente directe sur cette période</td>
+                    </tr>
+                @endforelse
+            </tbody>
+        </table>
+
         <div class="section-title">Chargements (Sorties en cours)</div>
         <table>
             <thead>
@@ -158,36 +188,6 @@
                 @empty
                     <tr>
                         <td colspan="7" style="text-align: center; padding: 20px; color: #94a3b8;">Aucune livraison sur cette période</td>
-                    </tr>
-                @endforelse
-            </tbody>
-        </table>
-
-        <div class="section-title">Ventes Directes (Dépôt)</div>
-        <table>
-            <thead>
-                <tr>
-                    <th style="width: 20px;">N°</th>
-                    <th>Date</th>
-                    <th>N° Facture</th>
-                    <th>Client</th>
-                    <th>Produit</th>
-                    <th class="text-right">Quantité</th>
-                </tr>
-            </thead>
-            <tbody>
-                @forelse($depotSales as $item)
-                    <tr>
-                        <td>{{ $loop->iteration }}</td>
-                        <td>{{ $item->depotInvoice->date->format('d/m/Y') }}</td>
-                        <td class="font-bold text-blue">{{ $item->depotInvoice->number }}</td>
-                        <td>{{ $item->depotInvoice->client?->nom ?? 'Client inconnu' }}</td>
-                        <td>{{ $item->compartment->product }}</td>
-                        <td class="text-right font-bold">{{ number_format($item->quantity, 0, '.', ' ') }} L</td>
-                    </tr>
-                @empty
-                    <tr>
-                        <td colspan="6" style="text-align: center; padding: 20px; color: #94a3b8;">Aucune vente directe sur cette période</td>
                     </tr>
                 @endforelse
             </tbody>

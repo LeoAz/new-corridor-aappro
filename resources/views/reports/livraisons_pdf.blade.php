@@ -78,6 +78,75 @@
         </table>
     </div>
 
+    <div style="margin-bottom: 20px;">
+        <table style="width: 100%; border-collapse: collapse;">
+            <tr>
+                <td style="width: 50%; vertical-align: top; padding-right: 10px;">
+                    <h4 style="margin: 0 0 10px 0; color: #00695c; text-transform: uppercase; font-size: 9pt;">Récapitulatif par Client</h4>
+                    <table class="table" style="margin-bottom: 0;">
+                        <thead>
+                            <tr>
+                                <th>Client</th>
+                                <th class="text-center">Nb Camions</th>
+                                <th class="text-right">Volume Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @php $totalCamions = 0; @endphp
+                            @foreach($clientStats as $stat)
+                            @php $totalCamions += $stat['count']; @endphp
+                            <tr>
+                                <td class="font-bold">{{ $stat['client'] }}</td>
+                                <td class="text-center">{{ $stat['count'] }}</td>
+                                <td class="text-right font-bold">{{ number_format($stat['volume'], 0, '.', ' ') }} L</td>
+                            </tr>
+                            @endforeach
+                        </tbody>
+                        <tfoot>
+                            <tr style="background: #f0f0f0;">
+                                <td class="font-bold">TOTAL</td>
+                                <td class="text-center font-bold">{{ $totalCamions }}</td>
+                                <td class="text-right font-bold">{{ number_format($totalVolume, 0, '.', ' ') }} L</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </td>
+                <td style="width: 50%; vertical-align: top; padding-left: 10px;">
+                    <h4 style="margin: 0 0 10px 0; color: #00695c; text-transform: uppercase; font-size: 9pt;">Récapitulatif par Produit</h4>
+                    <table class="table" style="margin-bottom: 0;">
+                        <thead>
+                            <tr>
+                                <th>Produit</th>
+                                <th class="text-center">Nb Camions</th>
+                                <th class="text-right">Volume Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach($stats as $stat)
+                            <tr>
+                                <td class="font-bold">
+                                    <span class="badge {{ $stat['product'] === 'GASOIL' ? 'bg-blue' : ($stat['product'] === 'SUPER' ? 'bg-orange' : 'bg-purple') }}">
+                                        {{ $stat['product'] }}
+                                    </span>
+                                </td>
+                                <td class="text-center">{{ $stat['count'] }}</td>
+                                <td class="text-right font-bold">{{ number_format($stat['volume'], 0, '.', ' ') }} L</td>
+                            </tr>
+                            @endforeach
+                        </tbody>
+                        <tfoot>
+                            <tr style="background: #f0f0f0;">
+                                <td class="font-bold">TOTAL</td>
+                                <td class="text-center font-bold">{{ $loads->count() }}</td>
+                                <td class="text-right font-bold">{{ number_format($totalVolume, 0, '.', ' ') }} L</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </td>
+            </tr>
+        </table>
+    </div>
+
     @foreach($groupedLoads as $date => $clients)
         <h3 style="background: #00695c; color: white; padding: 8px; margin-top: 20px;">Date : {{ \Carbon\Carbon::parse($date)->format('d/m/Y') }}</h3>
 
