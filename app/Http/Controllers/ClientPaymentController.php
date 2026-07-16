@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Enums\LoadStatus;
+use App\Enums\PaymentMethod;
 use App\Models\ClientPayment;
 use App\Models\DepotInvoiceItem;
 use App\Models\InvoiceItem;
@@ -24,6 +25,8 @@ class ClientPaymentController extends Controller
             'note' => 'nullable|string',
         ]);
 
+        $validated['payment_method'] = PaymentMethod::fromValue($validated['payment_method']);
+
         ClientPayment::create($validated);
 
         return redirect()->back()->with('success', 'Règlement enregistré avec succès.');
@@ -39,6 +42,8 @@ class ClientPaymentController extends Controller
             'amount' => 'required|numeric|min:0',
             'note' => 'nullable|string',
         ]);
+
+        $validated['payment_method'] = PaymentMethod::fromValue($validated['payment_method']);
 
         $clientPayment->update($validated);
 
