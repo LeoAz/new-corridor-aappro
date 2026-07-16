@@ -1,11 +1,13 @@
 import { Head, router } from '@inertiajs/react';
+import { ColumnDef } from '@tanstack/react-table';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { CalendarIcon, Download, Filter, Package, Search, Truck } from 'lucide-react';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
+import { DataTable } from '@/components/ui/data-table';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -46,6 +48,48 @@ export default function ReportChargements({ loads, stats, filters }: Props) {
     const [dateTo, setDateTo] = useState<string>(filters?.date_to || '');
     const [product, setProduct] = useState<string>(filters?.product || 'all');
     const [loadLocation, setLoadLocation] = useState<string>(filters?.load_location || '');
+
+    const columns = useMemo<ColumnDef<Load>[]>(() => [
+        {
+            accessorKey: 'load_date',
+            header: 'Date',
+            cell: ({ row }) => format(new Date(row.original.load_date), 'dd/MM/yyyy'),
+        },
+        {
+            accessorKey: 'client.nom',
+            header: 'Client',
+            cell: ({ row }) => row.original.client?.nom || '-',
+        },
+        {
+            accessorKey: 'vehicle_registration',
+            header: 'Véhicule',
+            cell: ({ row }) => <span className="font-mono text-xs">{row.original.vehicle_registration}</span>,
+        },
+        {
+            accessorKey: 'load_location',
+            header: 'Lieu',
+            cell: ({ row }) => <span className="text-xs">{row.original.load_location}</span>,
+        },
+        {
+            accessorKey: 'product',
+            header: 'Produit',
+            cell: ({ row }) => (
+                <span className={cn(
+                    "rounded-full px-2 py-0.5 text-[10px] font-bold",
+                    row.original.product === 'GASOIL' ? 'bg-blue-100 text-blue-700' :
+                    row.original.product === 'SUPER' ? 'bg-orange-100 text-orange-700' :
+                    'bg-purple-100 text-purple-700'
+                )}>
+                    {row.original.product}
+                </span>
+            ),
+        },
+        {
+            accessorKey: 'volume',
+            header: () => <div className="text-right">Volume</div>,
+            cell: ({ row }) => <div className="text-right font-bold">{formatNumber(row.original.volume)} L</div>,
+        },
+    ], []);
 
     const handleFilter = () => {
         router.get(toUrl(reportsActions.default.chargements()), {
@@ -204,55 +248,17 @@ export default function ReportChargements({ loads, stats, filters }: Props) {
 
                 {/* Liste des chargements */}
                 <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
-                    <table className="w-full text-left">
-                        <thead className="bg-muted/50 text-xs font-medium uppercase text-muted-foreground">
-                            <tr>
-                                <th className="px-4 py-3">Date</th>
-                                <th className="px-4 py-3">Client</th>
-                                <th className="px-4 py-3">Véhicule</th>
-                                <th className="px-4 py-3">Lieu</th>
-                                <th className="px-4 py-3">Produit</th>
-                                <th className="px-4 py-3 text-right">Volume</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-border text-sm">
-                            {loads.length > 0 ? (
-                                loads.map((load) => (
-                                    <tr key={load.id} className="hover:bg-muted/30 transition-colors">
-                                        <td className="px-4 py-3 font-medium">{format(new Date(load.load_date), 'dd/MM/yyyy')}</td>
-                                        <td className="px-4 py-3">{load.client?.nom || '-'}</td>
-                                        <td className="px-4 py-3 font-mono text-xs">{load.vehicle_registration}</td>
-                                        <td className="px-4 py-3 text-xs">{load.load_location}</td>
-                                        <td className="px-4 py-3">
-                                            <span className={cn(
-                                                "rounded-full px-2 py-0.5 text-[10px] font-bold",
-                                                load.product === 'GASOIL' ? 'bg-blue-100 text-blue-700' :
-                                                load.product === 'SUPER' ? 'bg-orange-100 text-orange-700' :
-                                                'bg-purple-100 text-purple-700'
-                                            )}>
-                                                {load.product}
-                                            </span>
-                                        </td>
-                                        <td className="px-4 py-3 text-right font-bold">{formatNumber(load.volume)} L</td>
-                                    </tr>
-                                ))
-                            ) : (
-                                <tr>
-                                    <td colSpan={6} className="px-4 py-10 text-center text-muted-foreground">
-                                        Aucun chargement trouvé.
-                                    </td>
-                                </tr>
-                            )}
-                        </tbody>
-                        {loads.length > 0 && (
-                            <tfoot className="bg-muted/50 border-t border-border">
-                                <tr className="font-black">
-                                    <td colSpan={5} className="px-4 py-4 text-right uppercase tracking-wider text-xs">Total Général</td>
-                                    <td className="px-4 py-4 text-right text-lg">{formatNumber(stats.total_volume)} L</td>
-                                </tr>
-                            </tfoot>
-                        )}
-                    </table>
+                    <DataTable
+                        columns={columns}
+                        data={loads}
+                        hidePagination={true}
+                    />
+                    {loads.length > 0 && (
+                        <div className="bg-muted/50 border-t border-border p-4 flex justify-between items-center font-black">
+                            <span className="uppercase tracking-wider text-xs">Total Général</span>
+                            <span className="text-lg">{formatNumber(stats.total_volume)} L</span>
+                        </div>
+                    )}
                 </div>
             </div>
         </>

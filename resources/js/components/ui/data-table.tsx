@@ -93,7 +93,7 @@ export function DataTable<TData, TValue>({
             const selectedRows = table.getFilteredSelectedRowModel().rows.map((row) => row.original);
             onRowSelectionChange(selectedRows);
         }
-    }, [rowSelection, onRowSelectionChange, table]);
+    }, [rowSelection, onRowSelectionChange]);
 
     return (
         <div className="space-y-4">

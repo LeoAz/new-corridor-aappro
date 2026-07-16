@@ -1,12 +1,14 @@
 import { Head, router } from '@inertiajs/react';
+import { ColumnDef } from '@tanstack/react-table';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { Banknote, CalendarIcon, Download, Filter, Search } from 'lucide-react';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { DataTable } from '@/components/ui/data-table';
 import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn, formatNumber, toUrl } from '@/lib/utils';
@@ -52,6 +54,42 @@ export default function ReportVentesChargement({ invoices, stats, filters, clien
     const [dateTo, setDateTo] = useState<string>(filters?.date_to || '');
     const [clientId, setClientId] = useState<number | string>(filters?.client_id || 'all');
     const [isClientComboboxOpen, setIsClientComboboxOpen] = useState(false);
+
+    const columns = useMemo<ColumnDef<Invoice>[]>(() => [
+        {
+            accessorKey: 'date',
+            header: 'Date',
+            cell: ({ row }) => format(new Date(row.original.date), 'dd/MM/yyyy'),
+        },
+        {
+            accessorKey: 'number',
+            header: 'N° Facture',
+            cell: ({ row }) => <span className="font-bold">{row.original.number}</span>,
+        },
+        {
+            accessorKey: 'client.nom',
+            header: 'Client',
+            cell: ({ row }) => row.original.client?.nom || '-',
+        },
+        {
+            id: 'vehicles',
+            header: 'Véhicule(s)',
+            cell: ({ row }) => (
+                <div>
+                    {row.original.items?.map((item, idx) => (
+                        <div key={idx} className="text-xs">
+                            {item.load_details?.vehicle_registration || '-'}
+                        </div>
+                    )) || '-'}
+                </div>
+            ),
+        },
+        {
+            accessorKey: 'total_amount',
+            header: () => <div className="text-right">Montant</div>,
+            cell: ({ row }) => <div className="text-right font-black">{formatNumber(row.original.total_amount)} CFA</div>,
+        },
+    ], []);
 
     const handleFilter = () => {
         router.get(toUrl(reportsActions.default.venteChargement()), {
@@ -213,50 +251,17 @@ export default function ReportVentesChargement({ invoices, stats, filters, clien
 
                 {/* Liste des factures */}
                 <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
-                    <table className="w-full text-left">
-                        <thead className="bg-muted/50 text-xs font-medium uppercase text-muted-foreground">
-                            <tr>
-                                <th className="px-4 py-3">Date</th>
-                                <th className="px-4 py-3">N° Facture</th>
-                                <th className="px-4 py-3">Client</th>
-                                <th className="px-4 py-3">Véhicule(s)</th>
-                                <th className="px-4 py-3 text-right">Montant</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-border text-sm">
-                            {invoices.length > 0 ? (
-                                invoices.map((invoice) => (
-                                    <tr key={invoice.id} className="hover:bg-muted/30 transition-colors">
-                                        <td className="px-4 py-3 font-medium">{format(new Date(invoice.date), 'dd/MM/yyyy')}</td>
-                                        <td className="px-4 py-3 font-bold">{invoice.number}</td>
-                                        <td className="px-4 py-3">{invoice.client?.nom || '-'}</td>
-                                        <td className="px-4 py-3">
-                                            {invoice.items?.map((item, idx) => (
-                                                <div key={idx} className="text-xs">
-                                                    {item.load_details?.vehicle_registration || '-'}
-                                                </div>
-                                            )) || '-'}
-                                        </td>
-                                        <td className="px-4 py-3 text-right font-black">{formatNumber(invoice.total_amount)} CFA</td>
-                                    </tr>
-                                ))
-                            ) : (
-                                <tr>
-                                    <td colSpan={5} className="px-4 py-10 text-center text-muted-foreground">
-                                        Aucune facture trouvée.
-                                    </td>
-                                </tr>
-                            )}
-                        </tbody>
-                        {invoices.length > 0 && (
-                            <tfoot className="bg-muted/50 border-t border-border">
-                                <tr className="font-black">
-                                    <td colSpan={4} className="px-4 py-4 text-right uppercase tracking-wider text-xs">Total Général</td>
-                                    <td className="px-4 py-4 text-right text-xl text-primary">{formatNumber(stats.total_amount)} CFA</td>
-                                </tr>
-                            </tfoot>
-                        )}
-                    </table>
+                    <DataTable
+                        columns={columns}
+                        data={invoices}
+                        hidePagination={true}
+                    />
+                    {invoices.length > 0 && (
+                        <div className="bg-muted/50 border-t border-border p-4 flex justify-between items-center font-black">
+                            <span className="uppercase tracking-wider text-xs">Total Général</span>
+                            <span className="text-xl text-primary">{formatNumber(stats.total_amount)} CFA</span>
+                        </div>
+                    )}
                 </div>
             </div>
         </>

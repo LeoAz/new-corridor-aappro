@@ -1,11 +1,13 @@
 import { Head, router } from '@inertiajs/react';
+import { ColumnDef } from '@tanstack/react-table';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { CalendarIcon, Download, Filter, Search, Truck } from 'lucide-react';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
+import { DataTable } from '@/components/ui/data-table';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -50,6 +52,49 @@ export default function ReportLivraisons({ loads, stats, clients, filters }: Pro
     const [product, setProduct] = useState<string>(filters?.product || 'all');
     const [unloadLocation, setUnloadLocation] = useState<string>(filters?.unload_location || '');
     const [clientId, setClientId] = useState<string>(filters?.client_id || 'all');
+
+    const columns = useMemo<ColumnDef<Load>[]>(() => [
+        {
+            accessorKey: 'unload_date',
+            header: 'Date',
+            cell: ({ row }) => format(new Date(row.original.unload_date), 'dd/MM/yyyy'),
+        },
+        {
+            accessorKey: 'client.nom',
+            header: 'Client',
+            cell: ({ row }) => row.original.client?.nom || '-',
+        },
+        {
+            accessorKey: 'vehicle_registration',
+            header: 'Véhicule',
+            cell: ({ row }) => <span className="font-mono text-xs">{row.original.vehicle_registration}</span>,
+        },
+        {
+            accessorKey: 'unload_location',
+            header: 'Lieu',
+            cell: ({ row }) => <span className="text-xs">{row.original.unload_location}</span>,
+        },
+        {
+            accessorKey: 'status',
+            header: 'Statut',
+            cell: ({ row }) => (
+                <span className={cn(
+                    "rounded-full px-2 py-0.5 text-[10px] font-bold",
+                    row.original.status === 'FACTURER ET PAYER' ? 'bg-green-100 text-green-700' :
+                    row.original.status === 'FACTURER' ? 'bg-orange-100 text-orange-700' :
+                    row.original.status === 'LIVRER' ? 'bg-blue-100 text-blue-700' :
+                    'bg-slate-100 text-slate-700'
+                )}>
+                    {row.original.status}
+                </span>
+            ),
+        },
+        {
+            accessorKey: 'volume',
+            header: () => <div className="text-right">Volume</div>,
+            cell: ({ row }) => <div className="text-right font-bold">{formatNumber(row.original.volume)} L</div>,
+        },
+    ], []);
 
     const handleFilter = () => {
         router.get(toUrl(reportsActions.default.livraisons()), {
@@ -243,56 +288,17 @@ export default function ReportLivraisons({ loads, stats, clients, filters }: Pro
 
                 {/* Liste des livraisons */}
                 <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
-                    <table className="w-full text-left">
-                        <thead className="bg-muted/50 text-xs font-medium uppercase text-muted-foreground">
-                            <tr>
-                                <th className="px-4 py-3">Date</th>
-                                <th className="px-4 py-3">Client</th>
-                                <th className="px-4 py-3">Véhicule</th>
-                                <th className="px-4 py-3">Lieu</th>
-                                <th className="px-4 py-3">Statut</th>
-                                <th className="px-4 py-3 text-right">Volume</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-border text-sm">
-                            {loads.length > 0 ? (
-                                loads.map((load) => (
-                                    <tr key={load.id} className="hover:bg-muted/30 transition-colors">
-                                        <td className="px-4 py-3 font-medium">{format(new Date(load.unload_date), 'dd/MM/yyyy')}</td>
-                                        <td className="px-4 py-3">{load.client?.nom || '-'}</td>
-                                        <td className="px-4 py-3 font-mono text-xs">{load.vehicle_registration}</td>
-                                        <td className="px-4 py-3 text-xs">{load.unload_location}</td>
-                                        <td className="px-4 py-3">
-                                            <span className={cn(
-                                                "rounded-full px-2 py-0.5 text-[10px] font-bold",
-                                                load.status === 'FACTURER ET PAYER' ? 'bg-green-100 text-green-700' :
-                                                load.status === 'FACTURER' ? 'bg-orange-100 text-orange-700' :
-                                                load.status === 'LIVRER' ? 'bg-blue-100 text-blue-700' :
-                                                'bg-slate-100 text-slate-700'
-                                            )}>
-                                                {load.status}
-                                            </span>
-                                        </td>
-                                        <td className="px-4 py-3 text-right font-bold">{formatNumber(load.volume)} L</td>
-                                    </tr>
-                                ))
-                            ) : (
-                                <tr>
-                                    <td colSpan={6} className="px-4 py-10 text-center text-muted-foreground">
-                                        Aucune livraison trouvée.
-                                    </td>
-                                </tr>
-                            )}
-                        </tbody>
-                        {loads.length > 0 && (
-                            <tfoot className="bg-muted/50 border-t border-border">
-                                <tr className="font-black">
-                                    <td colSpan={5} className="px-4 py-4 text-right uppercase tracking-wider text-xs">Total Général</td>
-                                    <td className="px-4 py-4 text-right text-lg">{formatNumber(stats.total_volume)} L</td>
-                                </tr>
-                            </tfoot>
-                        )}
-                    </table>
+                    <DataTable
+                        columns={columns}
+                        data={loads}
+                        hidePagination={true}
+                    />
+                    {loads.length > 0 && (
+                        <div className="bg-muted/50 border-t border-border p-4 flex justify-between items-center font-black">
+                            <span className="uppercase tracking-wider text-xs">Total Général</span>
+                            <span className="text-lg">{formatNumber(stats.total_volume)} L</span>
+                        </div>
+                    )}
                 </div>
             </div>
         </>

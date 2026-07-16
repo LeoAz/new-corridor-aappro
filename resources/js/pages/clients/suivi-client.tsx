@@ -1,23 +1,37 @@
-import { Head, router } from '@inertiajs/react';
+import { Head, router, useForm, usePage } from '@inertiajs/react';
 import type { ColumnDef } from '@tanstack/react-table';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import {
+    ArrowUpRight,
+    Banknote,
     CalendarIcon,
-    Car,
     Check,
     ChevronsUpDown,
+    CreditCard,
     Download,
+    Eye,
     FileText,
     Filter,
-    History,
-    Search
+    Pencil,
+    Plus,
+    Receipt,
+    Search,
+    Trash2,
+    Truck,
+    UserRound,
+    Wallet,
 } from 'lucide-react';
-import { useState } from 'react';
+import * as React from 'react';
 
+import * as clientPaymentActions from '@/actions/App/Http/Controllers/ClientPaymentController';
+import * as tracking from '@/actions/App/Http/Controllers/ClientTrackingController';
+import { Autocomplete } from '@/components/ui/autocomplete';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
     Command,
     CommandEmpty,
@@ -27,333 +41,2714 @@ import {
     CommandList,
 } from '@/components/ui/command';
 import { DataTable } from '@/components/ui/data-table';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import {
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+} from '@/components/ui/popover';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
+import {
+    Sheet,
+    SheetContent,
+    SheetDescription,
+    SheetHeader,
+    SheetTitle,
+} from '@/components/ui/sheet';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import AppLayout from '@/layouts/app-layout';
 import { cn, formatNumber } from '@/lib/utils';
-import * as clientsActions from '@/routes/clients';
+import * as finances from '@/routes/finances';
 
-interface Operation {
-    date: string;
-    label: string;
-    reference: string;
-    debit: number;
-    credit: number;
-    balance: number;
-    type: string;
+interface Client {
+    id: number;
+    nom: string;
+    contact: string;
+    address: string;
+    initial_balance: string | number;
+}
+
+interface Compartment {
+    id: number;
+    product: string;
+    quantity: number;
+}
+
+interface Depot {
+    id: number;
+    name: string;
+    compartments: Compartment[];
 }
 
 interface Payment {
     id: number;
     date: string;
-    payment_type: string;
-    is_advance: boolean;
-    amount: number;
+    banque: string;
     payment_method: string;
-    reference: string;
+    numero: string;
+    amount: number;
     note: string;
-    loads?: any[];
-    invoice_items?: any[];
-    depot_invoice_items?: any[];
+    loads?: Load[];
 }
 
 interface Load {
     id: number;
-    date: string;
-    truck_number: string;
+    numero: number;
+    load_date: string;
+    unload_date: string;
+    bl_number: string;
+    vehicle_registration: string;
     product: string;
-    compartment: string;
-    quantity: number;
+    volume: number;
+    unit_price: number;
+    missing_quantity: number;
+    total_amount: number;
     status: string;
-    destination?: string;
-    bl_number?: string;
-    payment_reference?: string;
-    payment_date?: string;
-    depot?: string;
+    payment: string;
+    is_paid: boolean;
+    invoice_items?: {
+        id: number;
+        quantity_delivered: number;
+        unit_price: number;
+        missing_quantity: number;
+        total: number;
+    }[];
+}
+
+interface ClientInvoiceItem {
+    id: number;
+    load_id?: number;
+    compartment_id?: number;
+    bl_number?: string | null;
+    product: string;
+    quantity: number;
+    missing_quantity: number;
+    unit_price: number;
+    total: number;
+    vehicle_registration?: string | null;
+}
+
+interface ClientInvoice {
+    id: number;
+    number: string;
+    client_id: number;
+    depot_id?: number;
+    date: string | null;
+    total_amount: number;
+    total_missing?: number;
+    items: ClientInvoiceItem[];
+}
+
+interface InvoiceLine {
+    id: string;
+    invoice_id: number;
+    number: string;
+    date: string | null;
+    product: string;
+    quantity: number;
+    missing_quantity: number;
+    unit_price: number;
+    total: number;
+    invoice_total: number;
+    type: 'chargement' | 'depot';
+}
+
+interface Stats {
+    livrer: number;
+    facturer: number;
+    facturer_payer: number;
 }
 
 interface Props {
-    client?: any;
-    clients: any[];
-    statement?: {
-        operations: Operation[];
-        initialBalance: number;
-        finalBalance: number;
-    };
-    loads?: {
-        en_cours: Load[];
-        livrer: Load[];
-        facturer: Load[];
-        paye: Load[];
-    };
-    paymentHistory?: Payment[];
-    filters: {
-        date_from: string | null;
-        date_to: string | null;
-    };
+    clients: Client[];
+    selectedClient: Client | null;
+    stats: Stats;
+    payments: Payment[];
+    loads: Load[];
+    initial_balance: number;
+    total_payments: number;
+    current_balance: number;
+    depots: Depot[];
 }
 
-export default function SuiviClient({ client, clients, statement, loads, paymentHistory, filters }: Props) {
-    const [dateFrom, setDateFrom] = useState<string>(filters?.date_from || '');
-    const [dateTo, setDateTo] = useState<string>(filters?.date_to || '');
-    const [isClientComboboxOpen, setIsClientComboboxOpen] = useState(false);
+interface PageProps extends Props {
+    [key: string]: unknown;
+    auth: any;
+    flash: any;
+    open_invoices?: boolean;
+}
 
-    const statementColumns: ColumnDef<Operation>[] = [
-        {
-            accessorKey: 'date',
-            header: 'Date',
-            cell: ({ row }) => format(new Date(row.original.date), 'dd/MM/yyyy'),
-        },
-        {
-            accessorKey: 'label',
-            header: 'Opération',
-            cell: ({ row }) => (
-                <div className="flex flex-col">
-                    <span className={cn("font-medium", row.original.type === 'initial' && "font-bold uppercase text-[11px] tracking-wider")}>
-                        {row.original.label}
-                    </span>
-                    {row.original.reference && (
-                        <span className="text-[10px] text-muted-foreground uppercase">Réf: #{row.original.reference}</span>
-                    )}
-                </div>
-            ),
-        },
-        {
-            accessorKey: 'debit',
-            header: () => <div className="text-right">Débit</div>,
-            cell: ({ row }) => (
-                <div className="text-right font-medium text-red-600">
-                    {row.original.debit > 0 ? formatNumber(row.original.debit) : (row.original.debit === 0 && row.original.type === 'initial' ? '0' : '-')}
-                </div>
-            ),
-        },
-        {
-            accessorKey: 'credit',
-            header: () => <div className="text-right">Crédit</div>,
-            cell: ({ row }) => (
-                <div className="text-right font-medium text-emerald-600">
-                    {row.original.credit > 0 ? formatNumber(row.original.credit) : '-'}
-                </div>
-            ),
-        },
-    ];
+export default function SuiviClient({
+    clients,
+    selectedClient,
+    stats,
+    payments,
+    loads,
+    initial_balance,
+    total_payments,
+    current_balance,
+    depots = [],
+}: Props) {
+    const { props } = usePage<PageProps>();
+    const openInvoicesParam = props.open_invoices;
 
-    const loadColumns: ColumnDef<Load>[] = [
-        {
-            accessorKey: 'date',
-            header: 'Date',
-            cell: ({ row }) => row.original.date ? format(new Date(row.original.date), 'dd/MM/yyyy') : '-',
-        },
-        {
-            accessorKey: 'truck_number',
-            header: 'Véhicule',
-            cell: ({ row }) => <span className="font-bold text-blue-600">{row.original.truck_number}</span>,
-        },
-        {
-            accessorKey: 'product',
-            header: 'Produit',
-            cell: ({ row }) => <span className="font-medium">{row.original.compartment || row.original.product || '-'}</span>,
-        },
-        {
-            accessorKey: 'quantity',
-            header: () => <div className="text-right">Quantité</div>,
-            cell: ({ row }) => (
-                <div className="text-right font-bold">
-                    {formatNumber(row.original.quantity)} <span className="text-[10px] font-normal text-muted-foreground ml-1">L</span>
-                </div>
-            ),
-        },
-        {
-            accessorKey: 'depot',
-            header: 'Dépôt',
-            cell: ({ row }) => row.original.depot || '-',
-        },
-        {
-            id: 'reference',
-            header: 'Réf / BL',
-            cell: ({ row }) => row.original.bl_number || row.original.destination || '-',
-        },
-    ];
+    const [startDate, setStartDate] = React.useState<string>('');
+    const [endDate, setEndDate] = React.useState<string>('');
+    const [isSheetOpen, setIsSheetOpen] = React.useState(false);
 
-    const paidLoadColumns: ColumnDef<Load>[] = [
-        ...loadColumns,
-        {
-            accessorKey: 'payment_reference',
-            header: 'Règlement',
-            cell: ({ row }) => (
-                <div className="flex flex-col">
-                    {row.original.payment_reference ? (
-                        <>
-                            <span className="text-blue-600 font-bold text-[10px]">#{row.original.payment_reference}</span>
-                            {row.original.payment_date && (
-                                <span className="text-[9px] text-muted-foreground">le {format(new Date(row.original.payment_date), 'dd/MM/yyyy')}</span>
-                            )}
-                        </>
-                    ) : '-'}
-                </div>
-            ),
-        },
-    ];
+    const [isPaymentModalOpen, setIsPaymentModalOpen] = React.useState(false);
+    const [isPaymentComboboxOpen, setIsPaymentComboboxOpen] =
+        React.useState(false);
+    const [isCreatePaymentModalOpen, setIsCreatePaymentModalOpen] =
+        React.useState(false);
+    const [isEditPaymentModalOpen, setIsEditPaymentModalOpen] =
+        React.useState(false);
+    const [isPaymentDetailsOpen, setIsPaymentDetailsOpen] =
+        React.useState(false);
+    const [isEditPaymentLoadOpen, setIsEditPaymentLoadOpen] =
+        React.useState(false);
+    const [paymentToDelete, setPaymentToDelete] =
+        React.useState<Payment | null>(null);
+    const [selectedPayment, setSelectedPayment] =
+        React.useState<Payment | null>(null);
+    const [editingPaymentLoad, setEditingPaymentLoad] =
+        React.useState<Load | null>(null);
+    const [invoiceToDelete, setInvoiceToDelete] =
+        React.useState<InvoiceLine | null>(null);
+    const [editingClientInvoice, setEditingClientInvoice] =
+        React.useState<ClientInvoice | null>(null);
+    const [editingClientInvoiceType, setEditingClientInvoiceType] =
+        React.useState<InvoiceLine['type'] | null>(null);
+    const [isEditClientInvoiceOpen, setIsEditClientInvoiceOpen] =
+        React.useState(false);
+    const [isCreateDepotInvoiceOpen, setIsCreateDepotInvoiceOpen] =
+        React.useState(false);
+    const [selectedLoads, setSelectedLoads] = React.useState<Load[]>([]);
+    const [search, setSearch] = React.useState('');
+    const [productFilter, setProductFilter] = React.useState('all');
+    const [statusFilter, setStatusFilter] = React.useState('all');
+    const [clientInvoices, setClientInvoices] = React.useState<{
+        load_invoices: ClientInvoice[];
+        depot_invoices: ClientInvoice[];
+    }>({
+        load_invoices: [],
+        depot_invoices: [],
+    });
 
-    const paymentColumns: ColumnDef<Payment>[] = [
-        {
-            accessorKey: 'date',
-            header: 'Date',
-            cell: ({ row }) => row.original.date ? format(new Date(row.original.date), 'dd/MM/yyyy') : '-',
-        },
-        {
-            accessorKey: 'payment_type',
-            header: 'Type',
-            cell: ({ row }) => (
-                <span className={`inline-flex items-center rounded px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider border ${
-                    row.original.is_advance
-                        ? 'bg-blue-50 text-blue-600 border-blue-100'
-                        : 'bg-green-50 text-green-600 border-green-100'
-                }`}>
-                    {row.original.is_advance ? 'Avance' : 'Règlement'}
-                </span>
-            ),
-        },
-        {
-            accessorKey: 'reference',
-            header: 'Référence',
-            cell: ({ row }) => (
-                <span className="font-bold text-gray-600 text-sm font-mono">
-                    #{row.original.reference || `ID-${row.original.id}`}
-                </span>
-            ),
-        },
-        {
-            accessorKey: 'payment_method',
-            header: 'Méthode',
-            cell: ({ row }) => (
-                <span className="text-gray-500 font-medium uppercase text-xs">
-                    {row.original.payment_method}
-                </span>
-            ),
-        },
-        {
-            id: 'details',
-            header: 'Détails / Véhicules',
-            cell: ({ row }) => (
-                <div className="space-y-1.5">
-                    {row.original.note && <p className="text-xs text-gray-400 italic mb-2.5">&ldquo;{row.original.note}&rdquo;</p>}
-                    <div className="flex flex-wrap gap-2">
-                        {(row.original.loads && row.original.loads.length > 0) ? (
-                            row.original.loads.map((load: any) => (
-                                <span key={load.id} className="inline-flex items-center gap-1.5 bg-gray-100 px-2 py-1 rounded text-[10px] font-bold text-gray-600 border border-gray-200 uppercase">
-                                    <Car className="h-3 w-3" /> {load.vehicle_registration} ({formatNumber(load.volume)}L)
-                                </span>
-                            ))
-                        ) : (row.original.invoice_items && row.original.invoice_items.length > 0) ? (
-                            row.original.invoice_items.map((item: any) => (
-                                <span key={item.id} className="inline-flex items-center gap-1.5 bg-gray-100 px-2 py-1 rounded text-[10px] font-bold text-gray-600 border border-gray-200 uppercase">
-                                    Facture #{item.invoice_number}
-                                </span>
-                            ))
-                        ) : (
-                            <span className="text-[10px] text-gray-400 uppercase font-bold italic tracking-tighter">Flux direct</span>
-                        )}
-                    </div>
-                </div>
-            ),
-        },
-        {
-            accessorKey: 'amount',
-            header: () => <div className="text-right">Montant</div>,
-            cell: ({ row }) => (
-                <div className={`text-right font-black text-lg tabular-nums ${row.original.is_advance ? 'text-blue-700' : 'text-green-700'}`}>
-                    {formatNumber(row.original.amount)} <span className="text-xs font-normal opacity-50">CFA</span>
-                </div>
-            ),
-        },
-    ];
+    const totalInvoiced = loads.reduce(
+        (total, load) => total + load.total_amount,
+        0,
+    );
+    const unpaidLoads = loads.filter((load) => !load.is_paid).length;
 
-    const handleFilter = () => {
-        if (!client) {
-            return;
-        }
+    const paymentForm = useForm({
+        payment_id: '',
+        load_ids: [] as number[],
+        missings: {} as Record<number, number>,
+    });
 
-        router.get(clientsActions.default.suiviClient.show(client.id).url, {
-            date_from: dateFrom,
-            date_to: dateTo,
-        }, { preserveState: true });
-    };
+    const createPaymentForm = useForm({
+        client_id: selectedClient?.id || '',
+        date: format(new Date(), 'yyyy-MM-dd'),
+        payment_method: 'VERSEMENT',
+        banque: '',
+        numero: '',
+        amount: 0,
+        note: '',
+    });
 
-    const handleClientChange = (clientId: string) => {
-        router.get(clientsActions.default.suiviClient.show(clientId).url, {
-            date_from: dateFrom,
-            date_to: dateTo,
+    const editPaymentForm = useForm({
+        date: '',
+        payment_method: '',
+        banque: '',
+        numero: '',
+        amount: 0,
+        note: '',
+    });
+
+    const editPaymentLoadForm = useForm({
+        payment_id: '',
+        load_id: '',
+        missing_quantity: 0,
+    });
+
+    const editLoadInvoiceForm = useForm({
+        client_id: '',
+        date: '',
+        items: [] as {
+            id: number;
+            load_id: number;
+            bl_number: string;
+            quantity_delivered: number;
+            unit_price: number;
+            missing_quantity: number;
+            total: number;
+            vehicle_registration?: string | null;
+            product: string;
+        }[],
+        total_amount: 0,
+        total_missing: 0,
+    });
+
+    const editDepotInvoiceForm = useForm({
+        client_id: '',
+        depot_id: '',
+        date: '',
+        items: [] as {
+            id: number;
+            compartment_id: string;
+            quantity: number;
+            unit_price: number;
+            total: number;
+            product: string;
+        }[],
+        total_amount: 0,
+    });
+
+    const createDepotInvoiceForm = useForm({
+        client_id: selectedClient?.id?.toString() || '',
+        depot_id: '',
+        date: format(new Date(), 'yyyy-MM-dd'),
+        items: [
+            {
+                compartment_id: '',
+                quantity: 0,
+                unit_price: 0,
+                total: 0,
+                product: '',
+            },
+        ],
+        total_amount: 0,
+    });
+
+    const formatCurrency = (value: number) =>
+        `${formatNumber(value || 0)} FCFA`;
+    const formatVolume = (value: number) => `${formatNumber(value || 0)} L`;
+    const formatDate = (value: string | null) =>
+        value ? format(new Date(value), 'dd/MM/yyyy', { locale: fr }) : '-';
+    const selectedEditDepot = React.useMemo(
+        () =>
+            depots.find(
+                (depot) =>
+                    depot.id.toString() === editDepotInvoiceForm.data.depot_id,
+            ),
+        [depots, editDepotInvoiceForm.data.depot_id],
+    );
+    const selectedCreateDepot = React.useMemo(
+        () =>
+            depots.find(
+                (depot) =>
+                    depot.id.toString() ===
+                    createDepotInvoiceForm.data.depot_id,
+            ),
+        [depots, createDepotInvoiceForm.data.depot_id],
+    );
+
+    const buildInvoiceLines = (
+        invoices: ClientInvoice[],
+        type: InvoiceLine['type'],
+    ): InvoiceLine[] => {
+        return invoices.flatMap((invoice) => {
+            if (invoice.items.length === 0) {
+                return [
+                    {
+                        id: `${type}-${invoice.id}`,
+                        invoice_id: invoice.id,
+                        number: invoice.number,
+                        date: invoice.date,
+                        product: '-',
+                        quantity: 0,
+                        missing_quantity: 0,
+                        unit_price: 0,
+                        total: invoice.total_amount,
+                        invoice_total: invoice.total_amount,
+                        type,
+                    },
+                ];
+            }
+
+            return invoice.items.map((item) => ({
+                id: `${type}-${invoice.id}-${item.id}`,
+                invoice_id: invoice.id,
+                number: invoice.number,
+                date: invoice.date,
+                product: item.product,
+                quantity: item.quantity,
+                missing_quantity: item.missing_quantity,
+                unit_price: item.unit_price,
+                total: item.total,
+                invoice_total: invoice.total_amount,
+                type,
+            }));
         });
     };
 
-    const statementData: Operation[] = [
-        {
-            date: dateFrom || client?.created_at || new Date().toISOString(),
-            label: 'SOLDE INITIAL / REPORT',
-            reference: '',
-            debit: (statement?.initialBalance || 0) < 0 ? Math.abs(statement?.initialBalance || 0) : 0,
-            credit: (statement?.initialBalance || 0) > 0 ? statement?.initialBalance || 0 : 0,
-            balance: statement?.initialBalance || 0,
-            type: 'initial',
-        },
-        ...(statement?.operations || [])
-    ];
+    const loadInvoiceLines = React.useMemo(
+        () => buildInvoiceLines(clientInvoices.load_invoices, 'chargement'),
+        [clientInvoices.load_invoices],
+    );
+    const depotInvoiceLines = React.useMemo(
+        () => buildInvoiceLines(clientInvoices.depot_invoices, 'depot'),
+        [clientInvoices.depot_invoices],
+    );
+
+    const findClientInvoice = (invoice: InvoiceLine): ClientInvoice | null => {
+        const invoices =
+            invoice.type === 'chargement'
+                ? clientInvoices.load_invoices
+                : clientInvoices.depot_invoices;
+
+        return (
+            invoices.find(
+                (clientInvoice) => clientInvoice.id === invoice.invoice_id,
+            ) || null
+        );
+    };
+
+    const recalculateLoadInvoiceForm = (
+        items: typeof editLoadInvoiceForm.data.items,
+    ) => {
+        editLoadInvoiceForm.setData((current) => ({
+            ...current,
+            items,
+            total_missing: items.reduce(
+                (total, item) =>
+                    total + (parseFloat(String(item.missing_quantity)) || 0),
+                0,
+            ),
+            total_amount: items.reduce(
+                (total, item) => total + (parseFloat(String(item.total)) || 0),
+                0,
+            ),
+        }));
+    };
+
+    const recalculateDepotInvoiceForm = (
+        items: typeof editDepotInvoiceForm.data.items,
+    ) => {
+        editDepotInvoiceForm.setData((current) => ({
+            ...current,
+            items,
+            total_amount: items.reduce(
+                (total, item) => total + (parseFloat(String(item.total)) || 0),
+                0,
+            ),
+        }));
+    };
+
+    const openEditClientInvoice = (invoiceLine: InvoiceLine) => {
+        const invoice = findClientInvoice(invoiceLine);
+
+        if (!invoice) {
+            return;
+        }
+
+        setEditingClientInvoice(invoice);
+        setEditingClientInvoiceType(invoiceLine.type);
+
+        if (invoiceLine.type === 'chargement') {
+            editLoadInvoiceForm.setData({
+                client_id: invoice.client_id.toString(),
+                date: invoice.date || format(new Date(), 'yyyy-MM-dd'),
+                items: invoice.items.map((item) => ({
+                    id: item.id,
+                    load_id: item.load_id || 0,
+                    bl_number: item.bl_number || '',
+                    quantity_delivered: item.quantity,
+                    unit_price: item.unit_price,
+                    missing_quantity: item.missing_quantity,
+                    total: item.total,
+                    vehicle_registration: item.vehicle_registration,
+                    product: item.product,
+                })),
+                total_amount: invoice.total_amount,
+                total_missing: invoice.total_missing || 0,
+            });
+        } else {
+            editDepotInvoiceForm.setData({
+                client_id: invoice.client_id.toString(),
+                depot_id: invoice.depot_id?.toString() || '',
+                date: invoice.date || format(new Date(), 'yyyy-MM-dd'),
+                items: invoice.items.map((item) => ({
+                    id: item.id,
+                    compartment_id: item.compartment_id?.toString() || '',
+                    quantity: item.quantity,
+                    unit_price: item.unit_price,
+                    total: item.total,
+                    product: item.product,
+                })),
+                total_amount: invoice.total_amount,
+            });
+        }
+
+        setIsEditClientInvoiceOpen(true);
+    };
+
+    const updateLoadInvoiceItem = (
+        index: number,
+        field: 'quantity_delivered' | 'unit_price' | 'missing_quantity',
+        value: string,
+    ) => {
+        const items = [...editLoadInvoiceForm.data.items];
+        const numericValue = parseFloat(value) || 0;
+
+        items[index] = {
+            ...items[index],
+            [field]: numericValue,
+        };
+
+        items[index].total =
+            (items[index].quantity_delivered - items[index].missing_quantity) *
+            items[index].unit_price;
+
+        recalculateLoadInvoiceForm(items);
+    };
+
+    const updateDepotInvoiceItem = (
+        index: number,
+        field: 'compartment_id' | 'quantity' | 'unit_price',
+        value: string,
+    ) => {
+        const items = [...editDepotInvoiceForm.data.items];
+        const currentDepot = depots.find(
+            (depot) =>
+                depot.id.toString() === editDepotInvoiceForm.data.depot_id,
+        );
+        const compartment = currentDepot?.compartments.find(
+            (item) => item.id.toString() === value,
+        );
+
+        items[index] = {
+            ...items[index],
+            [field]:
+                field === 'compartment_id' ? value : parseFloat(value) || 0,
+        };
+
+        if (field === 'compartment_id') {
+            items[index].product = compartment?.product || '';
+        }
+
+        items[index].total = items[index].quantity * items[index].unit_price;
+
+        recalculateDepotInvoiceForm(items);
+    };
+
+    const recalculateCreateDepotInvoiceForm = (
+        items: typeof createDepotInvoiceForm.data.items,
+    ) => {
+        createDepotInvoiceForm.setData((current) => ({
+            ...current,
+            items,
+            total_amount: items.reduce(
+                (total, item) => total + (parseFloat(String(item.total)) || 0),
+                0,
+            ),
+        }));
+    };
+
+    const updateCreateDepotInvoiceItem = (
+        index: number,
+        field: 'compartment_id' | 'quantity' | 'unit_price',
+        value: string,
+    ) => {
+        const items = [...createDepotInvoiceForm.data.items];
+        const currentDepot = depots.find(
+            (depot) =>
+                depot.id.toString() === createDepotInvoiceForm.data.depot_id,
+        );
+        const compartment = currentDepot?.compartments.find(
+            (item) => item.id.toString() === value,
+        );
+
+        items[index] = {
+            ...items[index],
+            [field]:
+                field === 'compartment_id' ? value : parseFloat(value) || 0,
+        };
+
+        if (field === 'compartment_id') {
+            items[index].product = compartment?.product || '';
+        }
+
+        items[index].total = items[index].quantity * items[index].unit_price;
+
+        recalculateCreateDepotInvoiceForm(items);
+    };
+
+    const addCreateDepotInvoiceItem = () => {
+        createDepotInvoiceForm.setData((current) => ({
+            ...current,
+            items: [
+                ...current.items,
+                {
+                    compartment_id: '',
+                    quantity: 0,
+                    unit_price: 0,
+                    total: 0,
+                    product: '',
+                },
+            ],
+        }));
+    };
+
+    const removeCreateDepotInvoiceItem = (index: number) => {
+        const items = createDepotInvoiceForm.data.items.filter(
+            (_, itemIndex) => itemIndex !== index,
+        );
+
+        recalculateCreateDepotInvoiceForm(items);
+    };
+
+    const closeCreateDepotInvoice = () => {
+        setIsCreateDepotInvoiceOpen(false);
+        createDepotInvoiceForm.reset();
+    };
+
+    const submitCreateDepotInvoice = (e: React.FormEvent) => {
+        e.preventDefault();
+
+        createDepotInvoiceForm.post(
+            finances.default.factureDepots.store().url,
+            {
+                preserveScroll: true,
+                preserveState: true,
+                onSuccess: () => {
+                    closeCreateDepotInvoice();
+                    fetchInvoices();
+                },
+            },
+        );
+    };
+
+    const closeEditClientInvoice = () => {
+        setIsEditClientInvoiceOpen(false);
+        setEditingClientInvoice(null);
+        setEditingClientInvoiceType(null);
+        editLoadInvoiceForm.reset();
+        editDepotInvoiceForm.reset();
+    };
+
+    const submitEditClientInvoice = (e: React.FormEvent) => {
+        e.preventDefault();
+
+        if (!editingClientInvoice || !editingClientInvoiceType) {
+            return;
+        }
+
+        if (editingClientInvoiceType === 'chargement') {
+            editLoadInvoiceForm.put(
+                finances.default.factureChargement.update(
+                    editingClientInvoice.id,
+                ).url,
+                {
+                    preserveScroll: true,
+                    preserveState: true,
+                    onSuccess: () => {
+                        closeEditClientInvoice();
+                        fetchInvoices();
+                    },
+                },
+            );
+
+            return;
+        }
+
+        editDepotInvoiceForm.put(
+            finances.default.factureDepots.update(editingClientInvoice.id).url,
+            {
+                preserveScroll: true,
+                preserveState: true,
+                onSuccess: () => {
+                    closeEditClientInvoice();
+                    fetchInvoices();
+                },
+            },
+        );
+    };
+
+    const visitInvoice = (invoice: InvoiceLine, action: 'show' | 'edit') => {
+        if (action === 'edit') {
+            openEditClientInvoice(invoice);
+
+            return;
+        }
+
+        const queryParams = selectedClient
+            ? {
+                  client_id: selectedClient.id,
+                  redirect_back: 'suivi-client',
+              }
+            : {};
+
+        if (invoice.type === 'chargement') {
+            const url =
+                action === 'show'
+                    ? finances.default.factureChargement.show(
+                          invoice.invoice_id,
+                      ).url
+                    : finances.default.factureChargement.edit(
+                          invoice.invoice_id,
+                          {
+                              query: {
+                                  ...queryParams,
+                                  lock_client: 1,
+                              },
+                          },
+                      ).url;
+
+            router.visit(url);
+
+            return;
+        }
+
+        const url =
+            action === 'show'
+                ? finances.default.factureDepots.show(invoice.invoice_id).url
+                : finances.default.factureDepots.edit(invoice.invoice_id, {
+                      query: queryParams,
+                  }).url;
+
+        router.visit(url);
+    };
+
+    const downloadInvoice = (invoice: InvoiceLine) => {
+        const url =
+            invoice.type === 'chargement'
+                ? finances.default.factureChargement.download(
+                      invoice.invoice_id,
+                  ).url
+                : finances.default.factureDepots.download(invoice.invoice_id)
+                      .url;
+
+        window.open(url, '_blank', 'noopener,noreferrer');
+    };
+
+    const confirmInvoiceDeletion = () => {
+        if (!invoiceToDelete) {
+            return;
+        }
+
+        const url =
+            invoiceToDelete.type === 'chargement'
+                ? finances.default.factureChargement.destroy(
+                      invoiceToDelete.invoice_id,
+                      {
+                          query: {
+                              redirect_back: 'suivi-client',
+                          },
+                      },
+                  ).url
+                : finances.default.factureDepots.destroy(
+                      invoiceToDelete.invoice_id,
+                      {
+                          query: {
+                              redirect_back: 'suivi-client',
+                          },
+                      },
+                  ).url;
+
+        router.delete(url, {
+            preserveScroll: true,
+            onSuccess: () => {
+                const invoiceType = invoiceToDelete.type;
+                const invoiceId = invoiceToDelete.invoice_id;
+
+                setClientInvoices((current) => {
+                    if (invoiceType === 'chargement') {
+                        return {
+                            ...current,
+                            load_invoices: current.load_invoices.filter(
+                                (invoice) => invoice.id !== invoiceId,
+                            ),
+                        };
+                    }
+
+                    return {
+                        ...current,
+                        depot_invoices: current.depot_invoices.filter(
+                            (invoice) => invoice.id !== invoiceId,
+                        ),
+                    };
+                });
+                setInvoiceToDelete(null);
+            },
+        });
+    };
+
+    const handleClientChange = (clientId: string) => {
+        router.get(
+            tracking.index.url({
+                query: {
+                    client_id: clientId,
+                    start_date: startDate,
+                    end_date: endDate,
+                },
+            }),
+            {},
+            { preserveState: true },
+        );
+    };
+
+    const handleFilter = () => {
+        router.get(
+            tracking.index.url({
+                query: {
+                    client_id: selectedClient?.id,
+                    start_date: startDate,
+                    end_date: endDate,
+                },
+            }),
+            {},
+            { preserveState: true },
+        );
+    };
+
+    const handleExportPdf = () => {
+        if (!selectedClient) {
+            return;
+        }
+
+        window.location.href = tracking.exportPdf({
+            query: {
+                client_id: selectedClient.id,
+                start_date: startDate,
+                end_date: endDate,
+            },
+        }).url;
+    };
+
+    async function fetchInvoices() {
+        if (!selectedClient) {
+            return;
+        }
+
+        try {
+            const response = await fetch(
+                tracking.getInvoices.url(selectedClient.id),
+            );
+            const data = await response.json();
+            setClientInvoices(data);
+            setIsSheetOpen(true);
+        } catch (error) {
+            console.error('Error fetching invoices:', error);
+        }
+    }
+
+    React.useEffect(() => {
+        if (openInvoicesParam && selectedClient) {
+            fetchInvoices();
+        }
+    }, [openInvoicesParam, selectedClient]);
+
+    const createLoadInvoice = () => {
+        if (!selectedClient) {
+            return;
+        }
+
+        router.visit(
+            finances.default.factureChargement.index({
+                query: {
+                    client_id: selectedClient.id,
+                    create: 1,
+                    lock_client: 1,
+                    redirect_back: 'suivi-client',
+                },
+            }).url,
+        );
+    };
+
+    const createDepotInvoice = () => {
+        if (!selectedClient) {
+            return;
+        }
+
+        createDepotInvoiceForm.setData({
+            client_id: selectedClient.id.toString(),
+            depot_id: '',
+            date: format(new Date(), 'yyyy-MM-dd'),
+            items: [
+                {
+                    compartment_id: '',
+                    quantity: 0,
+                    unit_price: 0,
+                    total: 0,
+                    product: '',
+                },
+            ],
+            total_amount: 0,
+        });
+        setIsCreateDepotInvoiceOpen(true);
+    };
+
+    const openPaymentModal = () => {
+        if (selectedLoads.length === 0) {
+            return;
+        }
+
+        const initialMissings: Record<number, number> = {};
+        selectedLoads.forEach((load) => {
+            initialMissings[load.id] = load.missing_quantity;
+        });
+
+        paymentForm.setData({
+            payment_id: '',
+            load_ids: selectedLoads.map((l) => l.id),
+            missings: initialMissings,
+        });
+        setIsPaymentModalOpen(true);
+    };
+
+    const submitPayment = (e: React.FormEvent) => {
+        e.preventDefault();
+        paymentForm.post(tracking.processPayment().url, {
+            onSuccess: () => {
+                setIsPaymentModalOpen(false);
+                setSelectedLoads([]);
+                paymentForm.reset();
+            },
+        });
+    };
+
+    const openCreatePaymentModal = () => {
+        createPaymentForm.setData({
+            client_id: selectedClient?.id || '',
+            date: format(new Date(), 'yyyy-MM-dd'),
+            payment_method: 'VERSEMENT',
+            banque: '',
+            numero: '',
+            amount: 0,
+            note: '',
+        });
+        setIsCreatePaymentModalOpen(true);
+    };
+
+    const submitCreatePayment = (e: React.FormEvent) => {
+        e.preventDefault();
+        createPaymentForm.post(clientPaymentActions.store().url, {
+            onSuccess: () => {
+                setIsCreatePaymentModalOpen(false);
+                createPaymentForm.reset();
+            },
+        });
+    };
+
+    const openEditPayment = (payment: Payment) => {
+        setSelectedPayment(payment);
+        editPaymentForm.setData({
+            date: format(new Date(payment.date), 'yyyy-MM-dd'),
+            payment_method: payment.payment_method,
+            banque: payment.banque || '',
+            numero: payment.numero,
+            amount: payment.amount,
+            note: payment.note || '',
+        });
+        setIsEditPaymentModalOpen(true);
+    };
+
+    const submitEditPayment = (e: React.FormEvent) => {
+        e.preventDefault();
+
+        if (!selectedPayment) {
+            return;
+        }
+
+        editPaymentForm.patch(
+            clientPaymentActions.update(selectedPayment.id).url,
+            {
+                onSuccess: () => {
+                    setIsEditPaymentModalOpen(false);
+                    setSelectedPayment(null);
+                },
+            },
+        );
+    };
+
+    const confirmDeletePayment = () => {
+        if (!paymentToDelete) {
+            return;
+        }
+
+        router.delete(clientPaymentActions.destroy(paymentToDelete.id).url, {
+            preserveScroll: true,
+            onSuccess: () => {
+                setPaymentToDelete(null);
+            },
+        });
+    };
+
+    const handleUnlinkLoad = (loadId: number) => {
+        if (
+            !confirm(
+                'Voulez-vous vraiment retirer cette livraison du règlement ?',
+            )
+        ) {
+            return;
+        }
+
+        router.post(
+            tracking.unlinkLoad().url,
+            { load_id: loadId },
+            {
+                preserveScroll: true,
+                onSuccess: () => {
+                    // Mettre à jour localement selectedPayment si nécessaire
+                    if (selectedPayment) {
+                        const updatedLoads =
+                            selectedPayment.loads?.filter(
+                                (l) => l.id !== loadId,
+                            ) || [];
+                        setSelectedPayment({
+                            ...selectedPayment,
+                            loads: updatedLoads,
+                        });
+                    }
+                },
+            },
+        );
+    };
+
+    const openEditPaymentLoad = (load: Load) => {
+        if (!selectedPayment) {
+            return;
+        }
+
+        const invoiceItem = load.invoice_items?.[0];
+
+        setEditingPaymentLoad(load);
+        editPaymentLoadForm.setData({
+            payment_id: selectedPayment.id.toString(),
+            load_id: load.id.toString(),
+            missing_quantity: invoiceItem?.missing_quantity || 0,
+        });
+        setIsEditPaymentLoadOpen(true);
+    };
+
+    const submitEditPaymentLoad = (e: React.FormEvent) => {
+        e.preventDefault();
+
+        if (!selectedPayment || !editingPaymentLoad) {
+            return;
+        }
+
+        editPaymentLoadForm.post(tracking.updatePaymentLoad().url, {
+            preserveScroll: true,
+            onSuccess: () => {
+                const missingQuantity =
+                    editPaymentLoadForm.data.missing_quantity || 0;
+
+                setSelectedPayment({
+                    ...selectedPayment,
+                    loads:
+                        selectedPayment.loads?.map((load) => {
+                            if (load.id !== editingPaymentLoad.id) {
+                                return load;
+                            }
+
+                            const invoiceItem = load.invoice_items?.[0];
+
+                            if (!invoiceItem) {
+                                return {
+                                    ...load,
+                                    missing_quantity: missingQuantity,
+                                };
+                            }
+
+                            const totalMatches =
+                                Math.abs(
+                                    invoiceItem.total -
+                                        invoiceItem.quantity_delivered *
+                                            invoiceItem.unit_price,
+                                ) < 0.01;
+                            const quantityBeforeMissing =
+                                invoiceItem.missing_quantity > 0 && totalMatches
+                                    ? invoiceItem.quantity_delivered +
+                                      invoiceItem.missing_quantity
+                                    : invoiceItem.quantity_delivered;
+                            const quantityAfterMissing = Math.max(
+                                quantityBeforeMissing - missingQuantity,
+                                0,
+                            );
+                            const updatedInvoiceItem = {
+                                ...invoiceItem,
+                                quantity_delivered: quantityAfterMissing,
+                                missing_quantity: missingQuantity,
+                                total:
+                                    quantityAfterMissing *
+                                    invoiceItem.unit_price,
+                            };
+
+                            return {
+                                ...load,
+                                missing_quantity: missingQuantity,
+                                total_amount: updatedInvoiceItem.total,
+                                invoice_items: [
+                                    updatedInvoiceItem,
+                                    ...(load.invoice_items?.slice(1) || []),
+                                ],
+                            };
+                        }) || [],
+                });
+                setIsEditPaymentLoadOpen(false);
+                setEditingPaymentLoad(null);
+                editPaymentLoadForm.reset();
+            },
+        });
+    };
+
+    const paymentColumns: ColumnDef<Payment>[] = React.useMemo(
+        () => [
+            {
+                accessorKey: 'date',
+                header: 'Date',
+                cell: ({ row }) => formatDate(row.original.date),
+            },
+            { accessorKey: 'banque', header: 'Banque' },
+            { accessorKey: 'payment_method', header: 'Type' },
+            { accessorKey: 'numero', header: 'N°' },
+            {
+                accessorKey: 'amount',
+                header: () => <div className="text-right">Montant</div>,
+                cell: ({ row }) => (
+                    <div className="text-right font-medium">
+                        {formatCurrency(row.original.amount)}
+                    </div>
+                ),
+            },
+            { accessorKey: 'note', header: 'Notes' },
+            {
+                id: 'actions',
+                header: () => <div className="text-right">Actions</div>,
+                cell: ({ row }) => {
+                    const payment = row.original;
+
+                    return (
+                        <div className="flex justify-end gap-1">
+                            <Button
+                                variant="ghost"
+                                size="icon-sm"
+                                onClick={() => {
+                                    setSelectedPayment(payment);
+                                    setIsPaymentDetailsOpen(true);
+                                }}
+                                title="Détails"
+                            >
+                                <Eye className="h-4 w-4" />
+                            </Button>
+                            <Button
+                                variant="ghost"
+                                size="icon-sm"
+                                onClick={() => openEditPayment(payment)}
+                                title="Modifier"
+                            >
+                                <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                                variant="ghost"
+                                size="icon-sm"
+                                onClick={() => setPaymentToDelete(payment)}
+                                className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                                title="Supprimer"
+                            >
+                                <Trash2 className="h-4 w-4" />
+                            </Button>
+                        </div>
+                    );
+                },
+            },
+        ],
+        [clientInvoices, selectedClient],
+    );
+
+    const invoiceColumns: ColumnDef<InvoiceLine>[] = React.useMemo(
+        () => [
+            {
+                accessorKey: 'number',
+                header: 'N°',
+                cell: ({ row }) => (
+                    <div className="min-w-36">
+                        <div className="font-semibold text-foreground">
+                            {row.original.number}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                            {row.original.type === 'chargement'
+                                ? 'Chargement'
+                                : 'Dépôt'}
+                        </div>
+                    </div>
+                ),
+            },
+            {
+                accessorKey: 'date',
+                header: 'Date',
+                cell: ({ row }) => formatDate(row.original.date),
+            },
+            {
+                accessorKey: 'product',
+                header: 'Produit',
+                cell: ({ row }) => (
+                    <span className="font-medium">{row.original.product}</span>
+                ),
+            },
+            {
+                accessorKey: 'quantity',
+                header: () => <div className="text-right">Quantité</div>,
+                cell: ({ row }) => (
+                    <div className="text-right">
+                        {formatVolume(row.original.quantity)}
+                    </div>
+                ),
+            },
+            {
+                accessorKey: 'missing_quantity',
+                header: () => <div className="text-right">Manquant</div>,
+                cell: ({ row }) => (
+                    <div className="text-right">
+                        {formatVolume(row.original.missing_quantity)}
+                    </div>
+                ),
+            },
+            {
+                accessorKey: 'unit_price',
+                header: () => <div className="text-right">P.U</div>,
+                cell: ({ row }) => (
+                    <div className="text-right">
+                        {formatCurrency(row.original.unit_price)}
+                    </div>
+                ),
+            },
+            {
+                accessorKey: 'total',
+                header: () => <div className="text-right">TOTAL</div>,
+                cell: ({ row }) => (
+                    <div className="text-right font-semibold text-primary">
+                        {formatCurrency(row.original.total)}
+                    </div>
+                ),
+            },
+            {
+                id: 'actions',
+                header: () => <div className="text-right">Actions</div>,
+                cell: ({ row }) => {
+                    const invoice = row.original;
+
+                    return (
+                        <div className="flex justify-end gap-1">
+                            <Button
+                                variant="ghost"
+                                size="icon-sm"
+                                onClick={() => visitInvoice(invoice, 'show')}
+                                title="Consulter"
+                            >
+                                <Eye className="h-4 w-4" />
+                            </Button>
+                            <Button
+                                variant="ghost"
+                                size="icon-sm"
+                                onClick={() => visitInvoice(invoice, 'edit')}
+                                title="Modifier"
+                            >
+                                <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                                variant="ghost"
+                                size="icon-sm"
+                                onClick={() => downloadInvoice(invoice)}
+                                title="Télécharger le PDF"
+                            >
+                                <Download className="h-4 w-4" />
+                            </Button>
+                            <Button
+                                variant="ghost"
+                                size="icon-sm"
+                                className="text-destructive"
+                                onClick={() => setInvoiceToDelete(invoice)}
+                                title="Supprimer"
+                            >
+                                <Trash2 className="h-4 w-4" />
+                            </Button>
+                        </div>
+                    );
+                },
+            },
+        ],
+        [clientInvoices, selectedClient],
+    );
+
+    const products = React.useMemo(() => {
+        const uniqueProducts = Array.from(new Set(loads.map((l) => l.product)));
+
+        return uniqueProducts.sort();
+    }, [loads]);
+
+    const filteredLoads = React.useMemo(() => {
+        return loads.filter((load) => {
+            const matchesSearch =
+                (load.bl_number || '')
+                    .toLowerCase()
+                    .includes(search.toLowerCase()) ||
+                (load.vehicle_registration || '')
+                    .toLowerCase()
+                    .includes(search.toLowerCase());
+
+            const matchesProduct =
+                productFilter === 'all' || load.product === productFilter;
+
+            const matchesStatus =
+                statusFilter === 'all' || load.status === statusFilter;
+
+            return matchesSearch && matchesProduct && matchesStatus;
+        });
+    }, [loads, search, productFilter, statusFilter]);
+
+    const handleRowSelectionChange = React.useCallback((rows: Load[]) => {
+        setSelectedLoads(rows);
+    }, []);
+
+    const loadColumns: ColumnDef<Load>[] = React.useMemo(
+        () => [
+            {
+                id: 'select',
+                header: ({ table }) => (
+                    <Checkbox
+                        checked={
+                            table.getIsAllPageRowsSelected() ||
+                            (table.getIsSomePageRowsSelected() &&
+                                'indeterminate')
+                        }
+                        onCheckedChange={(value) =>
+                            table.toggleAllPageRowsSelected(!!value)
+                        }
+                        aria-label="Tout sélectionner"
+                    />
+                ),
+                cell: ({ row }) => (
+                    <Checkbox
+                        checked={row.getIsSelected()}
+                        onCheckedChange={(value) => row.toggleSelected(!!value)}
+                        aria-label="Sélectionner la ligne"
+                        disabled={row.original.is_paid}
+                    />
+                ),
+                enableSorting: false,
+                enableHiding: false,
+            },
+            { accessorKey: 'numero', header: 'N°' },
+            {
+                accessorKey: 'load_date',
+                header: 'Date Charg.',
+                cell: ({ row }) => formatDate(row.original.load_date),
+            },
+            {
+                accessorKey: 'unload_date',
+                header: 'Date Livr.',
+                cell: ({ row }) => formatDate(row.original.unload_date),
+            },
+            { accessorKey: 'bl_number', header: 'N° BL' },
+            { accessorKey: 'vehicle_registration', header: 'Camion' },
+            { accessorKey: 'product', header: 'Produit' },
+            { accessorKey: 'volume', header: 'Qté' },
+            {
+                accessorKey: 'unit_price',
+                header: 'P.U',
+                cell: ({ row }) => (
+                    <span>
+                        {new Intl.NumberFormat('fr-FR').format(
+                            row.original.unit_price,
+                        )}
+                    </span>
+                ),
+            },
+            { accessorKey: 'missing_quantity', header: 'Manquant' },
+            {
+                accessorKey: 'total_amount',
+                header: 'Montant',
+                cell: ({ row }) => (
+                    <span>
+                        {new Intl.NumberFormat('fr-FR').format(
+                            row.original.total_amount,
+                        )}
+                    </span>
+                ),
+            },
+            {
+                accessorKey: 'status',
+                header: 'Statut',
+                cell: ({ row }) => {
+                    const status = row.original.status;
+                    let variant:
+                        'outline' | 'default' | 'secondary' | 'destructive' =
+                        'outline';
+
+                    if (status === 'FACTURER ET PAYER') {
+                        variant = 'default';
+                    }
+
+                    if (status === 'FACTURER') {
+                        variant = 'secondary';
+                    }
+
+                    return <Badge variant={variant}>{status}</Badge>;
+                },
+            },
+            { accessorKey: 'payment', header: 'Règlement' },
+        ],
+        [],
+    );
 
     return (
         <>
-            <Head title={`Suivi Client - ${client?.nom || 'Choisir un client'}`} />
+            <Head title="Suivi client" />
 
-            <div className="flex h-full flex-1 flex-col gap-4 p-4">
-                <div className="flex items-center justify-between">
-                    <h1 className="text-2xl font-bold text-foreground">
-                        Suivi client
-                    </h1>
+            <div className="flex h-full flex-1 flex-col gap-5 p-4">
+                <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+                    <div className="space-y-1">
+                        <h1 className="text-2xl font-bold text-foreground">
+                            SUIVI CLIENT
+                            {selectedClient ? ` - ${selectedClient.nom}` : ''}
+                        </h1>
+                        <p className="text-sm text-muted-foreground">
+                            Vue consolidée des livraisons, règlements, factures
+                            et solde client.
+                        </p>
+                    </div>
+
+                    <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+                        <div className="w-full lg:w-72">
+                            <Autocomplete
+                                options={clients.map((c) => ({
+                                    value: c.id.toString(),
+                                    label: c.nom,
+                                }))}
+                                value={selectedClient?.id?.toString() || ''}
+                                onValueChange={handleClientChange}
+                                placeholder="Sélectionner un client..."
+                            />
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-2">
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                    <Button
+                                        variant="outline"
+                                        className={cn(
+                                            'w-40 justify-start text-left font-normal',
+                                            !startDate &&
+                                                'text-muted-foreground',
+                                        )}
+                                    >
+                                        <CalendarIcon className="mr-2 h-4 w-4" />
+                                        {startDate ? (
+                                            format(
+                                                new Date(startDate),
+                                                'dd MMM yyyy',
+                                                { locale: fr },
+                                            )
+                                        ) : (
+                                            <span>Date début</span>
+                                        )}
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent
+                                    className="w-auto p-0"
+                                    align="start"
+                                >
+                                    <Calendar
+                                        mode="single"
+                                        selected={
+                                            startDate
+                                                ? new Date(startDate)
+                                                : undefined
+                                        }
+                                        onSelect={(date) =>
+                                            setStartDate(
+                                                date
+                                                    ? format(date, 'yyyy-MM-dd')
+                                                    : '',
+                                            )
+                                        }
+                                    />
+                                </PopoverContent>
+                            </Popover>
+                            <span className="text-sm text-muted-foreground">
+                                au
+                            </span>
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                    <Button
+                                        variant="outline"
+                                        className={cn(
+                                            'w-40 justify-start text-left font-normal',
+                                            !endDate && 'text-muted-foreground',
+                                        )}
+                                    >
+                                        <CalendarIcon className="mr-2 h-4 w-4" />
+                                        {endDate ? (
+                                            format(
+                                                new Date(endDate),
+                                                'dd MMM yyyy',
+                                                { locale: fr },
+                                            )
+                                        ) : (
+                                            <span>Date fin</span>
+                                        )}
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent
+                                    className="w-auto p-0"
+                                    align="start"
+                                >
+                                    <Calendar
+                                        mode="single"
+                                        selected={
+                                            endDate
+                                                ? new Date(endDate)
+                                                : undefined
+                                        }
+                                        onSelect={(date) =>
+                                            setEndDate(
+                                                date
+                                                    ? format(date, 'yyyy-MM-dd')
+                                                    : '',
+                                            )
+                                        }
+                                    />
+                                </PopoverContent>
+                            </Popover>
+                            <Button variant="outline" onClick={handleFilter}>
+                                <Filter className="mr-2 h-4 w-4" />
+                                Filtrer
+                            </Button>
+
+                            <Button
+                                variant="outline"
+                                onClick={handleExportPdf}
+                                disabled={!selectedClient}
+                            >
+                                <Download className="mr-2 h-4 w-4" />
+                                Exporter PDF
+                            </Button>
+                        </div>
+                    </div>
                 </div>
 
-                <div className="grid gap-4 md:grid-cols-4">
-                    <Card className="md:col-span-1">
-                        <CardHeader className="pb-3">
-                            <CardTitle className="text-sm font-medium">Sélection Client</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <Popover open={isClientComboboxOpen} onOpenChange={setIsClientComboboxOpen}>
+                {!selectedClient ? (
+                    <div className="flex min-h-[420px] flex-1 items-center justify-center rounded-lg border border-dashed bg-muted/20">
+                        <div className="flex max-w-md flex-col items-center gap-3 text-center">
+                            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-background ring-1 ring-border">
+                                <UserRound className="h-5 w-5 text-muted-foreground" />
+                            </div>
+                            <div className="space-y-1">
+                                <h3 className="text-xl font-semibold tracking-tight">
+                                    Sélectionnez un client
+                                </h3>
+                                <p className="text-sm text-muted-foreground">
+                                    Les soldes, règlements, livraisons et
+                                    factures seront chargés dans une vue unique.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="space-y-5">
+                        <div className="grid gap-4 lg:grid-cols-[0.7fr_2.3fr]">
+                            <Card>
+                                <CardHeader className="pb-3">
+                                    <CardTitle className="flex items-center gap-2 text-base">
+                                        <UserRound className="h-4 w-4 text-primary" />
+                                        {selectedClient.nom}
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent className="grid gap-3 text-sm">
+                                    <div className="flex items-center justify-between gap-3">
+                                        <span className="text-muted-foreground">
+                                            Contact
+                                        </span>
+                                        <span className="font-medium">
+                                            {selectedClient.contact || '-'}
+                                        </span>
+                                    </div>
+                                    <div className="flex items-center justify-between gap-3">
+                                        <span className="text-muted-foreground">
+                                            Adresse
+                                        </span>
+                                        <span className="max-w-64 truncate text-right font-medium">
+                                            {selectedClient.address || '-'}
+                                        </span>
+                                    </div>
+                                    <Button
+                                        className="mt-2 w-full"
+                                        variant="secondary"
+                                        onClick={fetchInvoices}
+                                    >
+                                        <FileText className="mr-2 h-4 w-4" />
+                                        Afficher les factures
+                                        <ArrowUpRight className="ml-auto h-4 w-4" />
+                                    </Button>
+                                </CardContent>
+                            </Card>
+
+                            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                                <Card className="border-primary/20 bg-primary/5">
+                                    <CardHeader className="flex flex-row items-center justify-between pb-2">
+                                        <CardTitle className="text-sm font-medium text-muted-foreground">
+                                            Solde initial
+                                        </CardTitle>
+                                        <Wallet className="h-4 w-4 text-primary" />
+                                    </CardHeader>
+                                    <CardContent>
+                                        <div className="text-xl font-bold">
+                                            {formatCurrency(initial_balance)}
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                                <Card
+                                    className={cn(
+                                        current_balance > 0
+                                            ? 'border-destructive/20 bg-destructive/5'
+                                            : 'border-emerald-500/20 bg-emerald-500/5',
+                                    )}
+                                >
+                                    <CardHeader className="flex flex-row items-center justify-between pb-2">
+                                        <CardTitle className="text-sm font-medium text-muted-foreground">
+                                            Solde actuel
+                                        </CardTitle>
+                                        <CreditCard
+                                            className={cn(
+                                                'h-4 w-4',
+                                                current_balance > 0
+                                                    ? 'text-destructive'
+                                                    : 'text-emerald-600',
+                                            )}
+                                        />
+                                    </CardHeader>
+                                    <CardContent>
+                                        <div
+                                            className={cn(
+                                                'text-xl font-bold',
+                                                current_balance > 0
+                                                    ? 'text-destructive'
+                                                    : 'text-emerald-600',
+                                            )}
+                                        >
+                                            {formatCurrency(current_balance)}
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                                <Card>
+                                    <CardHeader className="flex flex-row items-center justify-between pb-2">
+                                        <CardTitle className="text-sm font-medium text-muted-foreground">
+                                            Total facturé
+                                        </CardTitle>
+                                        <Receipt className="h-4 w-4 text-amber-600" />
+                                    </CardHeader>
+                                    <CardContent>
+                                        <div className="text-xl font-bold">
+                                            {formatCurrency(totalInvoiced)}
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                                <Card>
+                                    <CardHeader className="flex flex-row items-center justify-between pb-2">
+                                        <CardTitle className="text-sm font-medium text-muted-foreground">
+                                            Règlements
+                                        </CardTitle>
+                                        <Banknote className="h-4 w-4 text-emerald-600" />
+                                    </CardHeader>
+                                    <CardContent>
+                                        <div className="text-xl font-bold">
+                                            {formatCurrency(total_payments)}
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            </div>
+                        </div>
+
+                        <div className="grid gap-4 md:grid-cols-3">
+                            <Card>
+                                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                                    <CardTitle className="text-sm font-medium text-muted-foreground">
+                                        Livraisons livrées
+                                    </CardTitle>
+                                    <Truck className="h-4 w-4 text-sky-600" />
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="text-2xl font-bold">
+                                        {stats.livrer}
+                                    </div>
+                                </CardContent>
+                            </Card>
+                            <Card>
+                                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                                    <CardTitle className="text-sm font-medium text-muted-foreground">
+                                        Facturées à payer
+                                    </CardTitle>
+                                    <Receipt className="h-4 w-4 text-amber-600" />
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="text-2xl font-bold">
+                                        {stats.facturer}
+                                    </div>
+                                    <p className="text-xs text-muted-foreground">
+                                        {unpaidLoads} sélectionnable(s) pour
+                                        paiement
+                                    </p>
+                                </CardContent>
+                            </Card>
+                            <Card>
+                                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                                    <CardTitle className="text-sm font-medium text-muted-foreground">
+                                        Facturées et payées
+                                    </CardTitle>
+                                    <CreditCard className="h-4 w-4 text-emerald-600" />
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="text-2xl font-bold">
+                                        {stats.facturer_payer}
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </div>
+
+                        <div className="space-y-5">
+                            <div className="space-y-3">
+                                <div className="flex items-center justify-between gap-3">
+                                    <div>
+                                        <h2 className="text-lg font-semibold">
+                                            Règlements
+                                        </h2>
+                                        <p className="text-sm text-muted-foreground">
+                                            Paiements enregistrés sur la période
+                                            sélectionnée.
+                                        </p>
+                                    </div>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={openCreatePaymentModal}
+                                    >
+                                        <Plus className="mr-2 h-4 w-4" />
+                                        Nouveau règlement
+                                    </Button>
+                                </div>
+                                <DataTable
+                                    columns={paymentColumns}
+                                    data={payments}
+                                    hidePagination
+                                />
+                            </div>
+
+                            <div className="space-y-3">
+                                <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                                    <div>
+                                        <h2 className="text-lg font-semibold">
+                                            Livraisons facturées
+                                        </h2>
+                                        <p className="text-sm text-muted-foreground">
+                                            Sélectionnez uniquement les lignes
+                                            non payées à rattacher à un
+                                            règlement.
+                                        </p>
+                                    </div>
+
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <div className="relative w-full max-w-sm sm:w-64">
+                                            <Search className="absolute top-2.5 left-2.5 h-4 w-4 text-muted-foreground" />
+                                            <Input
+                                                placeholder="BL, Camion..."
+                                                value={search}
+                                                onChange={(e) =>
+                                                    setSearch(e.target.value)
+                                                }
+                                                className="pl-8"
+                                            />
+                                        </div>
+
+                                        <Select
+                                            value={productFilter}
+                                            onValueChange={setProductFilter}
+                                        >
+                                            <SelectTrigger className="w-full sm:w-40">
+                                                <SelectValue placeholder="Produit" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="all">
+                                                    Tous les produits
+                                                </SelectItem>
+                                                {products.map((p) => (
+                                                    <SelectItem key={p} value={p}>
+                                                        {p}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+
+                                        <Select
+                                            value={statusFilter}
+                                            onValueChange={setStatusFilter}
+                                        >
+                                            <SelectTrigger className="w-full sm:w-48">
+                                                <SelectValue placeholder="Statut" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="all">
+                                                    Tous les statuts
+                                                </SelectItem>
+                                                <SelectItem value="FACTURER">
+                                                    FACTURER
+                                                </SelectItem>
+                                                <SelectItem value="FACTURER ET PAYER">
+                                                    FACTURER ET PAYER
+                                                </SelectItem>
+                                            </SelectContent>
+                                        </Select>
+
+                                        <Button
+                                            disabled={selectedLoads.length === 0}
+                                            onClick={openPaymentModal}
+                                        >
+                                            <CreditCard className="mr-2 h-4 w-4" />
+                                            Payer ({selectedLoads.length})
+                                        </Button>
+                                    </div>
+                                </div>
+                                <DataTable
+                                    columns={loadColumns}
+                                    data={filteredLoads}
+                                    hidePagination
+                                    onRowSelectionChange={
+                                        handleRowSelectionChange
+                                    }
+                                />
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            {/* Sheet pour les factures */}
+            <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+                <SheetContent className="w-full overflow-y-auto min-[1800px]:max-w-[85rem] min-[2000px]:max-w-[95rem] sm:max-w-md md:max-w-lg lg:max-w-2xl xl:max-w-5xl 2xl:max-w-7xl">
+                    <SheetHeader className="border-b">
+                        <SheetTitle>
+                            Factures de {selectedClient?.nom}
+                        </SheetTitle>
+                        <SheetDescription>
+                            Consultez, modifiez, supprimez ou téléchargez
+                            directement les factures du client.
+                        </SheetDescription>
+                    </SheetHeader>
+                    <div className="grid gap-3 px-4 sm:grid-cols-3">
+                        <div className="rounded-lg border bg-card p-4">
+                            <p className="text-sm text-muted-foreground">
+                                Factures chargement
+                            </p>
+                            <p className="text-2xl font-bold">
+                                {clientInvoices.load_invoices.length}
+                            </p>
+                        </div>
+                        <div className="rounded-lg border bg-card p-4">
+                            <p className="text-sm text-muted-foreground">
+                                Factures dépôt
+                            </p>
+                            <p className="text-2xl font-bold">
+                                {clientInvoices.depot_invoices.length}
+                            </p>
+                        </div>
+                        <div className="rounded-lg border bg-card p-4">
+                            <p className="text-sm text-muted-foreground">
+                                Total factures
+                            </p>
+                            <p className="text-2xl font-bold">
+                                {formatCurrency(
+                                    [
+                                        ...clientInvoices.load_invoices,
+                                        ...clientInvoices.depot_invoices,
+                                    ].reduce(
+                                        (total, invoice) =>
+                                            total + invoice.total_amount,
+                                        0,
+                                    ),
+                                )}
+                            </p>
+                        </div>
+                    </div>
+                    <Tabs defaultValue="chargement" className="px-4 pb-4">
+                        <TabsList className="grid w-full grid-cols-2">
+                            <TabsTrigger value="chargement">
+                                Factures Chargement
+                            </TabsTrigger>
+                            <TabsTrigger value="depot">
+                                Factures Dépôt
+                            </TabsTrigger>
+                        </TabsList>
+                        <TabsContent
+                            value="chargement"
+                            className="mt-4 space-y-3"
+                        >
+                            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                                <div>
+                                    <h3 className="font-semibold">
+                                        Factures de chargement
+                                    </h3>
+                                    <p className="text-sm text-muted-foreground">
+                                        La suppression remet les livraisons
+                                        liées au statut LIVRER.
+                                    </p>
+                                </div>
+                                <Button onClick={createLoadInvoice}>
+                                    <Plus className="mr-2 h-4 w-4" />
+                                    Nouvelle facture
+                                </Button>
+                            </div>
+                            <DataTable
+                                columns={invoiceColumns}
+                                data={loadInvoiceLines}
+                                hidePagination
+                            />
+                        </TabsContent>
+                        <TabsContent value="depot" className="mt-4 space-y-3">
+                            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                                <div>
+                                    <h3 className="font-semibold">
+                                        Factures dépôt
+                                    </h3>
+                                    <p className="text-sm text-muted-foreground">
+                                        La suppression restitue les quantités
+                                        aux compartiments du dépôt.
+                                    </p>
+                                </div>
+                                <Button onClick={createDepotInvoice}>
+                                    <Plus className="mr-2 h-4 w-4" />
+                                    Nouvelle facture
+                                </Button>
+                            </div>
+                            <DataTable
+                                columns={invoiceColumns}
+                                data={depotInvoiceLines}
+                                hidePagination
+                            />
+                        </TabsContent>
+                    </Tabs>
+                </SheetContent>
+            </Sheet>
+
+            <Dialog
+                open={isCreateDepotInvoiceOpen}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        closeCreateDepotInvoice();
+                    }
+                }}
+            >
+                <DialogContent className="max-h-[90vh] w-[calc(100vw-2rem)] overflow-y-auto border border-border shadow-none sm:max-w-[90rem] xl:max-w-[96rem]">
+                    <DialogHeader>
+                        <DialogTitle>Nouvelle facture dépôt</DialogTitle>
+                        <DialogDescription>
+                            Créer une facture dépôt sans quitter le suivi
+                            client.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <form
+                        onSubmit={submitCreateDepotInvoice}
+                        className="space-y-4 p-6 pt-0"
+                    >
+                        <div className="grid gap-4 md:grid-cols-3">
+                            <div className="space-y-2">
+                                <Label>Client</Label>
+                                <div className="flex h-9 items-center rounded-md border bg-muted/50 px-3 text-sm font-medium">
+                                    {selectedClient?.nom || '-'}
+                                </div>
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Dépôt</Label>
+                                <Select
+                                    value={createDepotInvoiceForm.data.depot_id}
+                                    onValueChange={(value) =>
+                                        createDepotInvoiceForm.setData(
+                                            (current) => ({
+                                                ...current,
+                                                depot_id: value,
+                                                items: current.items.map(
+                                                    (item) => ({
+                                                        ...item,
+                                                        compartment_id: '',
+                                                        product: '',
+                                                    }),
+                                                ),
+                                            }),
+                                        )
+                                    }
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Sélectionner un dépôt" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {depots.map((depot) => (
+                                            <SelectItem
+                                                key={depot.id}
+                                                value={depot.id.toString()}
+                                            >
+                                                {depot.name}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                {createDepotInvoiceForm.errors.depot_id && (
+                                    <p className="text-sm text-destructive">
+                                        {createDepotInvoiceForm.errors.depot_id}
+                                    </p>
+                                )}
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="create-depot-invoice-date">
+                                    Date
+                                </Label>
+                                <Input
+                                    id="create-depot-invoice-date"
+                                    type="date"
+                                    value={createDepotInvoiceForm.data.date}
+                                    onChange={(e) =>
+                                        createDepotInvoiceForm.setData(
+                                            'date',
+                                            e.target.value,
+                                        )
+                                    }
+                                />
+                                {createDepotInvoiceForm.errors.date && (
+                                    <p className="text-sm text-destructive">
+                                        {createDepotInvoiceForm.errors.date}
+                                    </p>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="max-h-[420px] overflow-auto rounded-md border">
+                            <table className="w-full text-sm">
+                                <thead className="sticky top-0 bg-muted">
+                                    <tr>
+                                        <th className="px-4 py-2 text-left">
+                                            Compartiment / Produit
+                                        </th>
+                                        <th className="w-36 px-4 py-2 text-right">
+                                            Quantité
+                                        </th>
+                                        <th className="w-36 px-4 py-2 text-right">
+                                            P.U
+                                        </th>
+                                        <th className="w-40 px-4 py-2 text-right">
+                                            Total
+                                        </th>
+                                        <th className="w-10 px-4 py-2 text-center"></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {createDepotInvoiceForm.data.items.map(
+                                        (item, index) => (
+                                            <tr
+                                                key={index}
+                                                className="border-t"
+                                            >
+                                                <td className="px-4 py-2">
+                                                    <Select
+                                                        value={
+                                                            item.compartment_id
+                                                        }
+                                                        onValueChange={(
+                                                            value,
+                                                        ) =>
+                                                            updateCreateDepotInvoiceItem(
+                                                                index,
+                                                                'compartment_id',
+                                                                value,
+                                                            )
+                                                        }
+                                                    >
+                                                        <SelectTrigger className="h-8">
+                                                            <SelectValue placeholder="Produit" />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            {selectedCreateDepot?.compartments.map(
+                                                                (
+                                                                    compartment,
+                                                                ) => (
+                                                                    <SelectItem
+                                                                        key={
+                                                                            compartment.id
+                                                                        }
+                                                                        value={compartment.id.toString()}
+                                                                    >
+                                                                        {
+                                                                            compartment.product
+                                                                        }{' '}
+                                                                        (
+                                                                        {formatNumber(
+                                                                            compartment.quantity,
+                                                                        )}{' '}
+                                                                        L)
+                                                                    </SelectItem>
+                                                                ),
+                                                            )}
+                                                        </SelectContent>
+                                                    </Select>
+                                                </td>
+                                                <td className="px-4 py-2">
+                                                    <Input
+                                                        type="number"
+                                                        step="0.01"
+                                                        value={item.quantity}
+                                                        onChange={(e) =>
+                                                            updateCreateDepotInvoiceItem(
+                                                                index,
+                                                                'quantity',
+                                                                e.target.value,
+                                                            )
+                                                        }
+                                                        className="h-8 text-right"
+                                                    />
+                                                </td>
+                                                <td className="px-4 py-2">
+                                                    <Input
+                                                        type="number"
+                                                        step="0.01"
+                                                        value={item.unit_price}
+                                                        onChange={(e) =>
+                                                            updateCreateDepotInvoiceItem(
+                                                                index,
+                                                                'unit_price',
+                                                                e.target.value,
+                                                            )
+                                                        }
+                                                        className="h-8 text-right"
+                                                    />
+                                                </td>
+                                                <td className="px-4 py-2 text-right font-semibold">
+                                                    {formatCurrency(item.total)}
+                                                </td>
+                                                <td className="px-4 py-2 text-center">
+                                                    <Button
+                                                        type="button"
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="h-8 w-8 text-destructive"
+                                                        disabled={
+                                                            createDepotInvoiceForm
+                                                                .data.items
+                                                                .length === 1
+                                                        }
+                                                        onClick={() =>
+                                                            removeCreateDepotInvoiceItem(
+                                                                index,
+                                                            )
+                                                        }
+                                                    >
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </Button>
+                                                </td>
+                                            </tr>
+                                        ),
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div className="flex items-center justify-between border-t pt-4">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={addCreateDepotInvoiceItem}
+                            >
+                                <Plus className="mr-2 h-4 w-4" />
+                                Ajouter un produit
+                            </Button>
+                            <div className="flex gap-4 text-xl font-black">
+                                <span>Montant total:</span>
+                                <span className="text-primary">
+                                    {formatCurrency(
+                                        createDepotInvoiceForm.data
+                                            .total_amount,
+                                    )}
+                                </span>
+                            </div>
+                        </div>
+
+                        <DialogFooter>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={closeCreateDepotInvoice}
+                            >
+                                Annuler
+                            </Button>
+                            <Button
+                                type="submit"
+                                disabled={createDepotInvoiceForm.processing}
+                            >
+                                Générer la facture
+                            </Button>
+                        </DialogFooter>
+                    </form>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog
+                open={isEditClientInvoiceOpen}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        closeEditClientInvoice();
+                    }
+                }}
+            >
+                <DialogContent className="max-h-[90vh] w-[calc(100vw-2rem)] overflow-y-auto border border-border shadow-none sm:max-w-[90rem] xl:max-w-[96rem]">
+                    <DialogHeader>
+                        <DialogTitle>
+                            Modifier la facture {editingClientInvoice?.number}
+                        </DialogTitle>
+                        <DialogDescription>
+                            Les modifications restent dans le suivi client et le
+                            sheet des factures sera rafraîchi après
+                            enregistrement.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <form
+                        onSubmit={submitEditClientInvoice}
+                        className="space-y-4 p-6 pt-0"
+                    >
+                        {editingClientInvoiceType === 'chargement' ? (
+                            <>
+                                <div className="grid gap-4 md:grid-cols-2">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="edit-load-invoice-date">
+                                            Date
+                                        </Label>
+                                        <Input
+                                            id="edit-load-invoice-date"
+                                            type="date"
+                                            value={
+                                                editLoadInvoiceForm.data.date
+                                            }
+                                            onChange={(e) =>
+                                                editLoadInvoiceForm.setData(
+                                                    'date',
+                                                    e.target.value,
+                                                )
+                                            }
+                                        />
+                                        {editLoadInvoiceForm.errors.date && (
+                                            <p className="text-sm text-destructive">
+                                                {
+                                                    editLoadInvoiceForm.errors
+                                                        .date
+                                                }
+                                            </p>
+                                        )}
+                                    </div>
+                                </div>
+
+                                <div className="max-h-[420px] overflow-auto rounded-md border">
+                                    <table className="w-full text-sm">
+                                        <thead className="sticky top-0 bg-muted">
+                                            <tr>
+                                                <th className="px-4 py-2 text-left">
+                                                    Véhicule
+                                                </th>
+                                                <th className="px-4 py-2 text-left">
+                                                    Produit
+                                                </th>
+                                                <th className="w-36 px-4 py-2 text-right">
+                                                    Quantité
+                                                </th>
+                                                <th className="w-36 px-4 py-2 text-right">
+                                                    P.U
+                                                </th>
+                                                <th className="w-36 px-4 py-2 text-right">
+                                                    Manquant
+                                                </th>
+                                                <th className="w-40 px-4 py-2 text-right">
+                                                    Total
+                                                </th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {editLoadInvoiceForm.data.items.map(
+                                                (item, index) => (
+                                                    <tr
+                                                        key={item.id}
+                                                        className="border-t"
+                                                    >
+                                                        <td className="px-4 py-2">
+                                                            {item.vehicle_registration ||
+                                                                '-'}
+                                                        </td>
+                                                        <td className="px-4 py-2">
+                                                            {item.product}
+                                                        </td>
+                                                        <td className="px-4 py-2">
+                                                            <Input
+                                                                type="number"
+                                                                step="0.01"
+                                                                value={
+                                                                    item.quantity_delivered
+                                                                }
+                                                                onChange={(e) =>
+                                                                    updateLoadInvoiceItem(
+                                                                        index,
+                                                                        'quantity_delivered',
+                                                                        e.target
+                                                                            .value,
+                                                                    )
+                                                                }
+                                                                className="h-8 text-right"
+                                                            />
+                                                        </td>
+                                                        <td className="px-4 py-2">
+                                                            <Input
+                                                                type="number"
+                                                                step="0.01"
+                                                                value={
+                                                                    item.unit_price
+                                                                }
+                                                                onChange={(e) =>
+                                                                    updateLoadInvoiceItem(
+                                                                        index,
+                                                                        'unit_price',
+                                                                        e.target
+                                                                            .value,
+                                                                    )
+                                                                }
+                                                                className="h-8 text-right"
+                                                            />
+                                                        </td>
+                                                        <td className="px-4 py-2">
+                                                            <Input
+                                                                type="number"
+                                                                step="0.01"
+                                                                value={
+                                                                    item.missing_quantity
+                                                                }
+                                                                onChange={(e) =>
+                                                                    updateLoadInvoiceItem(
+                                                                        index,
+                                                                        'missing_quantity',
+                                                                        e.target
+                                                                            .value,
+                                                                    )
+                                                                }
+                                                                className="h-8 text-right"
+                                                            />
+                                                        </td>
+                                                        <td className="px-4 py-2 text-right font-semibold">
+                                                            {formatCurrency(
+                                                                item.total,
+                                                            )}
+                                                        </td>
+                                                    </tr>
+                                                ),
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                <div className="flex flex-col items-end gap-1 border-t pt-4">
+                                    <div className="flex gap-4 font-bold">
+                                        <span>Total manquant:</span>
+                                        <span className="text-primary">
+                                            {formatVolume(
+                                                editLoadInvoiceForm.data
+                                                    .total_missing,
+                                            )}
+                                        </span>
+                                    </div>
+                                    <div className="flex gap-4 text-xl font-black">
+                                        <span>Montant total:</span>
+                                        <span className="text-primary">
+                                            {formatCurrency(
+                                                editLoadInvoiceForm.data
+                                                    .total_amount,
+                                            )}
+                                        </span>
+                                    </div>
+                                </div>
+                            </>
+                        ) : (
+                            <>
+                                <div className="grid gap-4 md:grid-cols-2">
+                                    <div className="space-y-2">
+                                        <Label>Dépôt</Label>
+                                        <Select
+                                            value={
+                                                editDepotInvoiceForm.data
+                                                    .depot_id
+                                            }
+                                            onValueChange={(value) =>
+                                                editDepotInvoiceForm.setData(
+                                                    (current) => ({
+                                                        ...current,
+                                                        depot_id: value,
+                                                        items: current.items.map(
+                                                            (item) => ({
+                                                                ...item,
+                                                                compartment_id:
+                                                                    '',
+                                                                product: '',
+                                                            }),
+                                                        ),
+                                                    }),
+                                                )
+                                            }
+                                        >
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="Sélectionner un dépôt" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {depots.map((depot) => (
+                                                    <SelectItem
+                                                        key={depot.id}
+                                                        value={depot.id.toString()}
+                                                    >
+                                                        {depot.name}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                        {editDepotInvoiceForm.errors
+                                            .depot_id && (
+                                            <p className="text-sm text-destructive">
+                                                {
+                                                    editDepotInvoiceForm.errors
+                                                        .depot_id
+                                                }
+                                            </p>
+                                        )}
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="edit-depot-invoice-date">
+                                            Date
+                                        </Label>
+                                        <Input
+                                            id="edit-depot-invoice-date"
+                                            type="date"
+                                            value={
+                                                editDepotInvoiceForm.data.date
+                                            }
+                                            onChange={(e) =>
+                                                editDepotInvoiceForm.setData(
+                                                    'date',
+                                                    e.target.value,
+                                                )
+                                            }
+                                        />
+                                        {editDepotInvoiceForm.errors.date && (
+                                            <p className="text-sm text-destructive">
+                                                {
+                                                    editDepotInvoiceForm.errors
+                                                        .date
+                                                }
+                                            </p>
+                                        )}
+                                    </div>
+                                </div>
+
+                                <div className="max-h-[420px] overflow-auto rounded-md border">
+                                    <table className="w-full text-sm">
+                                        <thead className="sticky top-0 bg-muted">
+                                            <tr>
+                                                <th className="px-4 py-2 text-left">
+                                                    Compartiment / Produit
+                                                </th>
+                                                <th className="w-36 px-4 py-2 text-right">
+                                                    Quantité
+                                                </th>
+                                                <th className="w-36 px-4 py-2 text-right">
+                                                    P.U
+                                                </th>
+                                                <th className="w-40 px-4 py-2 text-right">
+                                                    Total
+                                                </th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {editDepotInvoiceForm.data.items.map(
+                                                (item, index) => (
+                                                    <tr
+                                                        key={item.id}
+                                                        className="border-t"
+                                                    >
+                                                        <td className="px-4 py-2">
+                                                            <Select
+                                                                value={
+                                                                    item.compartment_id
+                                                                }
+                                                                onValueChange={(
+                                                                    value,
+                                                                ) =>
+                                                                    updateDepotInvoiceItem(
+                                                                        index,
+                                                                        'compartment_id',
+                                                                        value,
+                                                                    )
+                                                                }
+                                                            >
+                                                                <SelectTrigger className="h-8">
+                                                                    <SelectValue placeholder="Produit" />
+                                                                </SelectTrigger>
+                                                                <SelectContent>
+                                                                    {selectedEditDepot?.compartments.map(
+                                                                        (
+                                                                            compartment,
+                                                                        ) => (
+                                                                            <SelectItem
+                                                                                key={
+                                                                                    compartment.id
+                                                                                }
+                                                                                value={compartment.id.toString()}
+                                                                            >
+                                                                                {
+                                                                                    compartment.product
+                                                                                }{' '}
+                                                                                (
+                                                                                {formatNumber(
+                                                                                    compartment.quantity,
+                                                                                )}{' '}
+                                                                                L)
+                                                                            </SelectItem>
+                                                                        ),
+                                                                    )}
+                                                                </SelectContent>
+                                                            </Select>
+                                                        </td>
+                                                        <td className="px-4 py-2">
+                                                            <Input
+                                                                type="number"
+                                                                step="0.01"
+                                                                value={
+                                                                    item.quantity
+                                                                }
+                                                                onChange={(e) =>
+                                                                    updateDepotInvoiceItem(
+                                                                        index,
+                                                                        'quantity',
+                                                                        e.target
+                                                                            .value,
+                                                                    )
+                                                                }
+                                                                className="h-8 text-right"
+                                                            />
+                                                        </td>
+                                                        <td className="px-4 py-2">
+                                                            <Input
+                                                                type="number"
+                                                                step="0.01"
+                                                                value={
+                                                                    item.unit_price
+                                                                }
+                                                                onChange={(e) =>
+                                                                    updateDepotInvoiceItem(
+                                                                        index,
+                                                                        'unit_price',
+                                                                        e.target
+                                                                            .value,
+                                                                    )
+                                                                }
+                                                                className="h-8 text-right"
+                                                            />
+                                                        </td>
+                                                        <td className="px-4 py-2 text-right font-semibold">
+                                                            {formatCurrency(
+                                                                item.total,
+                                                            )}
+                                                        </td>
+                                                    </tr>
+                                                ),
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                <div className="flex justify-end border-t pt-4">
+                                    <div className="flex gap-4 text-xl font-black">
+                                        <span>Montant total:</span>
+                                        <span className="text-primary">
+                                            {formatCurrency(
+                                                editDepotInvoiceForm.data
+                                                    .total_amount,
+                                            )}
+                                        </span>
+                                    </div>
+                                </div>
+                            </>
+                        )}
+
+                        <DialogFooter>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={closeEditClientInvoice}
+                            >
+                                Annuler
+                            </Button>
+                            <Button
+                                type="submit"
+                                disabled={
+                                    editLoadInvoiceForm.processing ||
+                                    editDepotInvoiceForm.processing
+                                }
+                            >
+                                Enregistrer les modifications
+                            </Button>
+                        </DialogFooter>
+                    </form>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog
+                open={Boolean(invoiceToDelete)}
+                onOpenChange={(open) => !open && setInvoiceToDelete(null)}
+            >
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Confirmer la suppression</DialogTitle>
+                        <DialogDescription>
+                            {invoiceToDelete?.type === 'chargement'
+                                ? 'Cette facture sera supprimée et les livraisons liées repasseront au statut LIVRER.'
+                                : 'Cette facture dépôt sera supprimée et les quantités seront restituées au stock.'}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <Button
+                            variant="outline"
+                            onClick={() => setInvoiceToDelete(null)}
+                        >
+                            Annuler
+                        </Button>
+                        <Button
+                            variant="destructive"
+                            onClick={confirmInvoiceDeletion}
+                        >
+                            Supprimer
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Modale de Paiement */}
+            <Dialog
+                open={isPaymentModalOpen}
+                onOpenChange={setIsPaymentModalOpen}
+            >
+                <DialogContent className="sm:max-w-2xl">
+                    <DialogHeader>
+                        <DialogTitle>Enregistrer le paiement</DialogTitle>
+                        <DialogDescription>
+                            Sélectionnez le règlement et saisissez les manquants
+                            éventuels pour chaque livraison.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <form onSubmit={submitPayment} className="space-y-6">
+                        <div className="space-y-2 text-right">
+                            <Button
+                                type="button"
+                                variant="link"
+                                size="sm"
+                                onClick={() => {
+                                    setIsPaymentModalOpen(false);
+                                    openCreatePaymentModal();
+                                }}
+                            >
+                                <Plus className="mr-1 h-3 w-3" />
+                                Créer un nouveau règlement
+                            </Button>
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="payment_id">
+                                Sélectionner le règlement
+                            </Label>
+                            <Popover
+                                open={isPaymentComboboxOpen}
+                                onOpenChange={setIsPaymentComboboxOpen}
+                            >
                                 <PopoverTrigger asChild>
                                     <Button
                                         variant="outline"
                                         role="combobox"
-                                        aria-expanded={isClientComboboxOpen}
-                                        className="w-full justify-between"
+                                        aria-expanded={isPaymentComboboxOpen}
+                                        className="w-full justify-between font-normal"
                                     >
-                                        {client
-                                            ? clients.find((c) => c.id === client.id)?.nom
-                                            : "Choisir un client..."}
+                                        {paymentForm.data.payment_id
+                                            ? (() => {
+                                                  const p = payments.find(
+                                                      (pay) =>
+                                                          pay.id.toString() ===
+                                                          paymentForm.data
+                                                              .payment_id,
+                                                  );
+
+                                                  return p
+                                                      ? `${formatDate(p.date)} - ${p.numero} - ${new Intl.NumberFormat('fr-FR').format(p.amount)} FCFA (${p.payment_method})`
+                                                      : 'Choisir un règlement...';
+                                              })()
+                                            : 'Choisir un règlement...'}
                                         <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                     </Button>
                                 </PopoverTrigger>
-                                <PopoverContent className="w-[300px] p-0">
+                                <PopoverContent
+                                    className="w-[500px] p-0"
+                                    align="start"
+                                >
                                     <Command>
-                                        <CommandInput placeholder="Rechercher un client..." />
+                                        <CommandInput placeholder="Rechercher un règlement (date, numéro, montant)..." />
                                         <CommandList>
-                                            <CommandEmpty>Aucun client trouvé.</CommandEmpty>
+                                            <CommandEmpty>
+                                                Aucun règlement trouvé.
+                                            </CommandEmpty>
                                             <CommandGroup>
-                                                {clients.map((c) => (
+                                                {payments.map((p) => (
                                                     <CommandItem
-                                                        key={c.id}
-                                                        value={c.nom}
+                                                        key={p.id}
+                                                        value={`${p.date} ${p.numero} ${p.amount} ${p.payment_method}`}
                                                         onSelect={() => {
-                                                            handleClientChange(c.id.toString());
-                                                            setIsClientComboboxOpen(false);
+                                                            paymentForm.setData(
+                                                                'payment_id',
+                                                                p.id.toString(),
+                                                            );
+                                                            setIsPaymentComboboxOpen(
+                                                                false,
+                                                            );
                                                         }}
                                                     >
                                                         <Check
                                                             className={cn(
-                                                                "mr-2 h-4 w-4",
-                                                                client?.id === c.id ? "opacity-100" : "opacity-0"
+                                                                'mr-2 h-4 w-4',
+                                                                paymentForm.data
+                                                                    .payment_id ===
+                                                                    p.id.toString()
+                                                                    ? 'opacity-100'
+                                                                    : 'opacity-0',
                                                             )}
                                                         />
-                                                        {c.nom}
+                                                        {formatDate(p.date)} -{' '}
+                                                        {p.numero} -{' '}
+                                                        {new Intl.NumberFormat(
+                                                            'fr-FR',
+                                                        ).format(p.amount)}{' '}
+                                                        FCFA ({p.payment_method}
+                                                        )
                                                     </CommandItem>
                                                 ))}
                                             </CommandGroup>
@@ -361,280 +2756,717 @@ export default function SuiviClient({ client, clients, statement, loads, payment
                                     </Command>
                                 </PopoverContent>
                             </Popover>
-                        </CardContent>
-                    </Card>
+                            {paymentForm.errors.payment_id && (
+                                <p className="text-sm text-destructive">
+                                    {paymentForm.errors.payment_id}
+                                </p>
+                            )}
+                        </div>
 
-                    <Card className="md:col-span-3">
-                        <CardHeader className="pb-3">
-                            <CardTitle className="text-sm font-medium flex items-center">
-                                <Filter className="mr-2 h-4 w-4" /> Filtres par période
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent className="flex items-end gap-4">
-                            <div className="grid w-full max-w-sm items-center gap-1.5">
-                                <Label htmlFor="date_from">Du</Label>
-                                <Popover>
-                                    <PopoverTrigger asChild>
-                                        <Button
-                                            variant="outline"
-                                            className={cn(
-                                                "w-full justify-start text-left font-normal",
-                                                !dateFrom && "text-muted-foreground"
-                                            )}
-                                        >
-                                            <CalendarIcon className="mr-2 h-4 w-4" />
-                                            {dateFrom ? format(new Date(dateFrom), "PPP", { locale: fr }) : <span>Choisir une date</span>}
-                                        </Button>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-auto p-0">
-                                        <Calendar
-                                            mode="single"
-                                            selected={dateFrom ? new Date(dateFrom) : undefined}
-                                            onSelect={(date) => setDateFrom(date ? format(date, "yyyy-MM-dd") : "")}
-                                            initialFocus
-                                            locale={fr}
-                                        />
-                                    </PopoverContent>
-                                </Popover>
+                        <div className="space-y-4">
+                            <h4 className="text-sm font-semibold tracking-wider text-muted-foreground uppercase">
+                                Détails des livraisons
+                            </h4>
+                            <div className="max-h-64 overflow-y-auto rounded-md border">
+                                <table className="w-full text-sm">
+                                    <thead>
+                                        <tr className="sticky top-0 border-b bg-muted/50">
+                                            <th className="p-2 text-left">
+                                                N° BL
+                                            </th>
+                                            <th className="p-2 text-left">
+                                                Produit
+                                            </th>
+                                            <th className="p-2 text-right">
+                                                Qté Livrée
+                                            </th>
+                                            <th className="w-32 p-2 text-center">
+                                                Manquant
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {selectedLoads.map((load) => (
+                                            <tr
+                                                key={load.id}
+                                                className="border-b"
+                                            >
+                                                <td className="p-2">
+                                                    {load.bl_number}
+                                                </td>
+                                                <td className="p-2">
+                                                    {load.product}
+                                                </td>
+                                                <td className="p-2 text-right">
+                                                    {load.volume}
+                                                </td>
+                                                <td className="p-2">
+                                                    <Input
+                                                        type="number"
+                                                        step="0.01"
+                                                        value={
+                                                            paymentForm.data
+                                                                .missings[
+                                                                load.id
+                                                            ] || 0
+                                                        }
+                                                        onChange={(e) => {
+                                                            const newMissings =
+                                                                {
+                                                                    ...paymentForm
+                                                                        .data
+                                                                        .missings,
+                                                                };
+                                                            newMissings[
+                                                                load.id
+                                                            ] =
+                                                                parseFloat(
+                                                                    e.target
+                                                                        .value,
+                                                                ) || 0;
+                                                            paymentForm.setData(
+                                                                'missings',
+                                                                newMissings,
+                                                            );
+                                                        }}
+                                                        className="h-8 text-center"
+                                                    />
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
                             </div>
-                            <div className="grid w-full max-w-sm items-center gap-1.5">
-                                <Label htmlFor="date_to">Au</Label>
-                                <Popover>
-                                    <PopoverTrigger asChild>
-                                        <Button
-                                            variant="outline"
-                                            className={cn(
-                                                "w-full justify-start text-left font-normal",
-                                                !dateTo && "text-muted-foreground"
-                                            )}
-                                        >
-                                            <CalendarIcon className="mr-2 h-4 w-4" />
-                                            {dateTo ? format(new Date(dateTo), "PPP", { locale: fr }) : <span>Choisir une date</span>}
-                                        </Button>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-auto p-0">
-                                        <Calendar
-                                            mode="single"
-                                            selected={dateTo ? new Date(dateTo) : undefined}
-                                            onSelect={(date) => setDateTo(date ? format(date, "yyyy-MM-dd") : "")}
-                                            initialFocus
-                                            locale={fr}
-                                        />
-                                    </PopoverContent>
-                                </Popover>
-                            </div>
-                            <Button onClick={handleFilter} className="bg-blue-600 text-white hover:bg-blue-700">
-                                <Search className="mr-2 h-4 w-4" /> Actualiser
+                        </div>
+
+                        <DialogFooter>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => setIsPaymentModalOpen(false)}
+                            >
+                                Annuler
                             </Button>
-                        </CardContent>
-                    </Card>
-                </div>
-
-                {client ? (
-                    <div className="flex flex-col gap-6">
-                        <Tabs defaultValue="statement" className="w-full">
-                            <TabsList className="w-full justify-start border-b rounded-none h-auto p-0 bg-transparent gap-6">
-                                <TabsTrigger
-                                    value="statement"
-                                    className="data-[state=active]:border-blue-600 data-[state=active]:text-blue-600 border-b-2 border-transparent rounded-none bg-transparent px-4 py-2 text-sm font-medium transition-colors hover:text-foreground"
+                            <Button
+                                type="submit"
+                                disabled={
+                                    paymentForm.processing ||
+                                    !paymentForm.data.payment_id
+                                }
+                            >
+                                {paymentForm.processing
+                                    ? 'Traitement...'
+                                    : 'Valider le paiement'}
+                            </Button>
+                        </DialogFooter>
+                    </form>
+                </DialogContent>
+            </Dialog>
+            {/* Modale de création de règlement direct */}
+            <Dialog
+                open={isCreatePaymentModalOpen}
+                onOpenChange={setIsCreatePaymentModalOpen}
+            >
+                <DialogContent className="sm:max-w-lg">
+                    <DialogHeader>
+                        <DialogTitle>Nouveau règlement</DialogTitle>
+                        <DialogDescription>
+                            Enregistrer un nouveau paiement pour{' '}
+                            {selectedClient?.nom}.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <form onSubmit={submitCreatePayment} className="space-y-4">
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="date">Date</Label>
+                                <Input
+                                    id="date"
+                                    type="date"
+                                    value={createPaymentForm.data.date}
+                                    onChange={(e) =>
+                                        createPaymentForm.setData(
+                                            'date',
+                                            e.target.value,
+                                        )
+                                    }
+                                    required
+                                />
+                                {createPaymentForm.errors.date && (
+                                    <p className="text-xs text-destructive">
+                                        {createPaymentForm.errors.date}
+                                    </p>
+                                )}
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="payment_method">Type</Label>
+                                <Select
+                                    value={
+                                        createPaymentForm.data.payment_method
+                                    }
+                                    onValueChange={(val) =>
+                                        createPaymentForm.setData(
+                                            'payment_method',
+                                            val,
+                                        )
+                                    }
                                 >
-                                    <FileText className="h-4 w-4 mr-2" />
-                                    Relevé de compte
-                                </TabsTrigger>
-                                <TabsTrigger
-                                    value="loads"
-                                    className="data-[state=active]:border-blue-600 data-[state=active]:text-blue-600 border-b-2 border-transparent rounded-none bg-transparent px-4 py-2 text-sm font-medium transition-colors hover:text-foreground"
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Type..." />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="VERSEMENT">
+                                            VERSEMENT
+                                        </SelectItem>
+                                        <SelectItem value="CHEQUE">
+                                            CHEQUE
+                                        </SelectItem>
+                                        <SelectItem value="VIREMENT">
+                                            VIREMENT
+                                        </SelectItem>
+                                        <SelectItem value="ESPECE">
+                                            ESPECE
+                                        </SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="banque">Banque</Label>
+                                <Input
+                                    id="banque"
+                                    value={createPaymentForm.data.banque}
+                                    onChange={(e) =>
+                                        createPaymentForm.setData(
+                                            'banque',
+                                            e.target.value,
+                                        )
+                                    }
+                                    placeholder="Ex: SIB, BOA..."
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="numero">N° Pièce / Réf</Label>
+                                <Input
+                                    id="numero"
+                                    value={createPaymentForm.data.numero}
+                                    onChange={(e) =>
+                                        createPaymentForm.setData(
+                                            'numero',
+                                            e.target.value,
+                                        )
+                                    }
+                                    placeholder="N° chèque, virement..."
+                                    required
+                                />
+                                {createPaymentForm.errors.numero && (
+                                    <p className="text-xs text-destructive">
+                                        {createPaymentForm.errors.numero}
+                                    </p>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label htmlFor="amount">Montant (FCFA)</Label>
+                            <Input
+                                id="amount"
+                                type="number"
+                                value={createPaymentForm.data.amount}
+                                onChange={(e) =>
+                                    createPaymentForm.setData(
+                                        'amount',
+                                        Number(e.target.value),
+                                    )
+                                }
+                                required
+                            />
+                            {createPaymentForm.errors.amount && (
+                                <p className="text-xs text-destructive">
+                                    {createPaymentForm.errors.amount}
+                                </p>
+                            )}
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label htmlFor="note">Notes</Label>
+                            <Input
+                                id="note"
+                                value={createPaymentForm.data.note}
+                                onChange={(e) =>
+                                    createPaymentForm.setData(
+                                        'note',
+                                        e.target.value,
+                                    )
+                                }
+                                placeholder="Informations complémentaires..."
+                            />
+                        </div>
+
+                        <DialogFooter>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() =>
+                                    setIsCreatePaymentModalOpen(false)
+                                }
+                            >
+                                Annuler
+                            </Button>
+                            <Button
+                                type="submit"
+                                disabled={createPaymentForm.processing}
+                            >
+                                Enregistrer
+                            </Button>
+                        </DialogFooter>
+                    </form>
+                </DialogContent>
+            </Dialog>
+
+            {/* Modale de modification de règlement */}
+            <Dialog
+                open={isEditPaymentModalOpen}
+                onOpenChange={setIsEditPaymentModalOpen}
+            >
+                <DialogContent className="sm:max-w-lg">
+                    <DialogHeader>
+                        <DialogTitle>Modifier le règlement</DialogTitle>
+                        <DialogDescription>
+                            Modifiez les informations du règlement.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <form onSubmit={submitEditPayment} className="space-y-4">
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="edit-date">Date</Label>
+                                <Input
+                                    id="edit-date"
+                                    type="date"
+                                    value={editPaymentForm.data.date}
+                                    onChange={(e) =>
+                                        editPaymentForm.setData(
+                                            'date',
+                                            e.target.value,
+                                        )
+                                    }
+                                    required
+                                />
+                                {editPaymentForm.errors.date && (
+                                    <p className="text-xs text-destructive">
+                                        {editPaymentForm.errors.date}
+                                    </p>
+                                )}
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="edit-payment_method">
+                                    Type
+                                </Label>
+                                <Select
+                                    value={editPaymentForm.data.payment_method}
+                                    onValueChange={(val) =>
+                                        editPaymentForm.setData(
+                                            'payment_method',
+                                            val,
+                                        )
+                                    }
                                 >
-                                    <Car className="h-4 w-4 mr-2" />
-                                    Historique Chargements
-                                </TabsTrigger>
-                                <TabsTrigger
-                                    value="deliveries"
-                                    className="data-[state=active]:border-blue-600 data-[state=active]:text-blue-600 border-b-2 border-transparent rounded-none bg-transparent px-4 py-2 text-sm font-medium transition-colors hover:text-foreground"
-                                >
-                                    <Car className="h-4 w-4 mr-2" />
-                                    Historique Livraisons
-                                </TabsTrigger>
-                                <TabsTrigger
-                                    value="paid-deliveries"
-                                    className="data-[state=active]:border-blue-600 data-[state=active]:text-blue-600 border-b-2 border-transparent rounded-none bg-transparent px-4 py-2 text-sm font-medium transition-colors hover:text-foreground"
-                                >
-                                    <Check className="h-4 w-4 mr-2" />
-                                    Livraisons Payées
-                                </TabsTrigger>
-                                <TabsTrigger
-                                    value="payments"
-                                    className="data-[state=active]:border-blue-600 data-[state=active]:text-blue-600 border-b-2 border-transparent rounded-none bg-transparent px-4 py-2 text-sm font-medium transition-colors hover:text-foreground"
-                                >
-                                    <History className="h-4 w-4 mr-2" />
-                                    Historique paiements
-                                </TabsTrigger>
-                            </TabsList>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Type..." />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="VERSEMENT">
+                                            VERSEMENT
+                                        </SelectItem>
+                                        <SelectItem value="CHEQUE">
+                                            CHEQUE
+                                        </SelectItem>
+                                        <SelectItem value="VIREMENT">
+                                            VIREMENT
+                                        </SelectItem>
+                                        <SelectItem value="ESPECE">
+                                            ESPECE
+                                        </SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </div>
 
-                            {/* 1. RELEVÉ DE COMPTE */}
-                            <TabsContent value="statement" className="mt-6 space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
-                                <Card className="border-none shadow-none bg-white overflow-hidden">
-                                    <div className="px-6 py-4 flex items-center justify-between border-b border-gray-100">
-                                        <h3 className="font-bold text-gray-800 uppercase tracking-tight">Relevé de compte détaillé</h3>
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={() => {
-                                                const url = new URL(clientsActions.default.suiviClient.download(client.id).url, window.location.origin);
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="edit-banque">Banque</Label>
+                                <Input
+                                    id="edit-banque"
+                                    value={editPaymentForm.data.banque}
+                                    onChange={(e) =>
+                                        editPaymentForm.setData(
+                                            'banque',
+                                            e.target.value,
+                                        )
+                                    }
+                                    placeholder="Ex: SIB, BOA..."
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="edit-numero">
+                                    N° Pièce / Réf
+                                </Label>
+                                <Input
+                                    id="edit-numero"
+                                    value={editPaymentForm.data.numero}
+                                    onChange={(e) =>
+                                        editPaymentForm.setData(
+                                            'numero',
+                                            e.target.value,
+                                        )
+                                    }
+                                    placeholder="N° chèque, virement..."
+                                    required
+                                />
+                                {editPaymentForm.errors.numero && (
+                                    <p className="text-xs text-destructive">
+                                        {editPaymentForm.errors.numero}
+                                    </p>
+                                )}
+                            </div>
+                        </div>
 
-                                                if (dateFrom) {
-                                                    url.searchParams.append('date_from', dateFrom);
-                                                }
+                        <div className="space-y-2">
+                            <Label htmlFor="edit-amount">Montant (FCFA)</Label>
+                            <Input
+                                id="edit-amount"
+                                type="number"
+                                value={editPaymentForm.data.amount}
+                                onChange={(e) =>
+                                    editPaymentForm.setData(
+                                        'amount',
+                                        Number(e.target.value),
+                                    )
+                                }
+                                required
+                            />
+                            {editPaymentForm.errors.amount && (
+                                <p className="text-xs text-destructive">
+                                    {editPaymentForm.errors.amount}
+                                </p>
+                            )}
+                        </div>
 
-                                                if (dateTo) {
-                                                    url.searchParams.append('date_to', dateTo);
-                                                }
+                        <div className="space-y-2">
+                            <Label htmlFor="edit-note">Notes</Label>
+                            <Input
+                                id="edit-note"
+                                value={editPaymentForm.data.note}
+                                onChange={(e) =>
+                                    editPaymentForm.setData(
+                                        'note',
+                                        e.target.value,
+                                    )
+                                }
+                                placeholder="Informations complémentaires..."
+                            />
+                        </div>
 
-                                                window.location.href = url.toString();
-                                            }}
-                                            className="print:hidden h-8 text-xs font-medium border-gray-200 hover:bg-gray-50"
-                                        >
-                                            <Download className="mr-2 h-3.5 w-3.5" /> Exporter PDF
-                                        </Button>
-                                    </div>
-                                    <CardContent className="p-6">
-                                        <DataTable
-                                            columns={statementColumns}
-                                            data={statementData}
-                                            searchKey="label"
-                                            searchPlaceholder="Filtrer par opération..."
-                                            hidePagination={true}
-                                        />
+                        <DialogFooter>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => setIsEditPaymentModalOpen(false)}
+                            >
+                                Annuler
+                            </Button>
+                            <Button
+                                type="submit"
+                                disabled={editPaymentForm.processing}
+                            >
+                                Mettre à jour
+                            </Button>
+                        </DialogFooter>
+                    </form>
+                </DialogContent>
+            </Dialog>
 
-                                        <div className="flex flex-col items-end mt-8 space-y-2">
-                                            <div className="flex items-center w-full max-w-[400px] justify-between text-gray-400 font-bold text-[10px] uppercase tracking-widest mb-2">
-                                                <span>Totaux de la période (Solde Inclus)</span>
-                                            </div>
-                                            <div className="flex items-center w-full max-w-[400px] justify-between text-gray-600">
-                                                <span className="text-sm font-medium">Total Débit:</span>
-                                                <span className="text-lg font-bold tabular-nums text-red-600">
-                                                    {formatNumber(statementData.reduce((acc, op) => acc + Number(op.debit || 0), 0))}
-                                                </span>
-                                            </div>
-                                            <div className="flex items-center w-full max-w-[400px] justify-between text-gray-600">
-                                                <span className="text-sm font-medium">Total Crédit:</span>
-                                                <span className="text-lg font-bold tabular-nums text-emerald-600">
-                                                    {formatNumber(statementData.reduce((acc, op) => acc + Number(op.credit || 0), 0))}
-                                                </span>
-                                            </div>
-                                            <div className="w-full max-w-[400px] border-t-2 border-gray-100 pt-4 mt-2 flex items-center justify-between">
-                                                <span className="text-xl font-black text-blue-900 uppercase tracking-tight">SOLDE DU COMPTE:</span>
-                                                <span className={`text-xl font-black tabular-nums ${(statement?.finalBalance || 0) < 0 ? 'text-red-600' : 'text-green-600'}`}>
-                                                    {formatNumber(Math.abs(statement?.finalBalance || 0))} <span className="text-sm ml-1 font-bold">FCFA</span>
-                                                </span>
-                                            </div>
-                                            <p className="text-[10px] text-gray-400 italic mt-2">
-                                                * Un solde négatif en rouge indique que le client doit, un solde positif en vert indique une avance client.
-                                            </p>
-                                        </div>
-                                    </CardContent>
-                                </Card>
-                            </TabsContent>
+            {/* Modale de détails du règlement */}
+            <Dialog
+                open={isPaymentDetailsOpen}
+                onOpenChange={setIsPaymentDetailsOpen}
+            >
+                <DialogContent className="max-w-7xl">
+                    <DialogHeader>
+                        <DialogTitle>Détails du règlement</DialogTitle>
+                        <DialogDescription>
+                            Liste des livraisons liées au règlement{' '}
+                            {selectedPayment?.numero}.
+                        </DialogDescription>
+                    </DialogHeader>
 
-                            {/* 2. HISTORIQUE CHARGEMENTS */}
-                            <TabsContent value="loads" className="mt-6 space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
-                                <Card className="border-none shadow-none bg-white overflow-hidden">
-                                    <div className="px-6 py-4 flex items-center justify-between border-b border-gray-100">
-                                        <h3 className="font-bold text-gray-800 uppercase tracking-tight">Historique des chargements</h3>
-                                        <div className="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider">
-                                            {loads?.en_cours.length || 0} Chargements en cours
-                                        </div>
-                                    </div>
-                                    <CardContent className="p-6">
-                                        <DataTable
-                                            columns={loadColumns}
-                                            data={loads?.en_cours || []}
-                                            searchKey="truck_number"
-                                            searchPlaceholder="Filtrer par véhicule..."
-                                            hidePagination={true}
-                                        />
-                                    </CardContent>
-                                </Card>
-                            </TabsContent>
+                    {selectedPayment && (
+                        <div className="space-y-6">
+                            <div className="grid grid-cols-3 gap-4">
+                                <div className="space-y-1">
+                                    <p className="text-xs font-semibold text-muted-foreground uppercase">
+                                        Date
+                                    </p>
+                                    <p className="font-medium">
+                                        {formatDate(selectedPayment.date)}
+                                    </p>
+                                </div>
+                                <div className="space-y-1">
+                                    <p className="text-xs font-semibold text-muted-foreground uppercase">
+                                        Mode / Banque
+                                    </p>
+                                    <p className="font-medium">
+                                        {selectedPayment.payment_method}{' '}
+                                        {selectedPayment.banque &&
+                                            `(${selectedPayment.banque})`}
+                                    </p>
+                                </div>
+                                <div className="space-y-1">
+                                    <p className="text-xs font-semibold text-muted-foreground uppercase">
+                                        Montant total
+                                    </p>
+                                    <p className="font-bold text-primary">
+                                        {formatCurrency(selectedPayment.amount)}
+                                    </p>
+                                </div>
+                            </div>
 
-                            {/* 3. HISTORIQUE LIVRAISONS */}
-                            <TabsContent value="deliveries" className="mt-6 space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
-                                <Card className="border-none shadow-none bg-white overflow-hidden">
-                                    <div className="px-6 py-4 flex items-center justify-between border-b border-gray-100">
-                                        <h3 className="font-bold text-gray-800 uppercase tracking-tight">Historique des livraisons</h3>
-                                        <div className="bg-orange-100 text-orange-700 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider">
-                                            {(loads?.livrer.length || 0) + (loads?.facturer.length || 0)} Livraisons
-                                        </div>
-                                    </div>
-                                    <CardContent className="p-6">
-                                        <DataTable
-                                            columns={loadColumns}
-                                            data={[...(loads?.livrer || []), ...(loads?.facturer || [])]}
-                                            searchKey="truck_number"
-                                            searchPlaceholder="Filtrer par véhicule..."
-                                            hidePagination={true}
-                                        />
-                                    </CardContent>
-                                </Card>
-                            </TabsContent>
+                            <div className="rounded-md border">
+                                <DataTable
+                                    columns={[
+                                        {
+                                            accessorKey: 'unload_date',
+                                            header: 'Date Déchargement',
+                                            cell: ({ row }) =>
+                                                formatDate(
+                                                    row.original.unload_date,
+                                                ),
+                                        },
+                                        {
+                                            accessorKey: 'vehicle_registration',
+                                            header: 'Véhicule',
+                                        },
+                                        {
+                                            accessorKey: 'product',
+                                            header: 'Produit',
+                                        },
+                                        {
+                                            accessorKey: 'volume',
+                                            header: 'Volume',
+                                            cell: ({ row }) =>
+                                                formatVolume(
+                                                    row.original.volume,
+                                                ),
+                                        },
+                                        {
+                                            id: 'missing',
+                                            header: 'Manquant',
+                                            cell: ({ row }) => {
+                                                const invoiceItem =
+                                                    row.original
+                                                        .invoice_items?.[0];
 
-                            {/* 4. LIVRAISONS PAYÉES */}
-                            <TabsContent value="paid-deliveries" className="mt-6 space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
-                                <Card className="border-none shadow-none bg-white overflow-hidden">
-                                    <div className="px-6 py-4 flex items-center justify-between border-b border-gray-100">
-                                        <h3 className="font-bold text-gray-800 uppercase tracking-tight">Livraisons réglées</h3>
-                                        <div className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider">
-                                            {loads?.paye.length || 0} Livraisons payées
-                                        </div>
-                                    </div>
-                                    <CardContent className="p-6">
-                                        <DataTable
-                                            columns={paidLoadColumns}
-                                            data={loads?.paye || []}
-                                            searchKey="truck_number"
-                                            searchPlaceholder="Filtrer par véhicule..."
-                                            hidePagination={true}
-                                        />
-                                    </CardContent>
-                                </Card>
-                            </TabsContent>
+                                                return formatVolume(
+                                                    invoiceItem?.missing_quantity ||
+                                                        0,
+                                                );
+                                            },
+                                        },
+                                        {
+                                            id: 'total',
+                                            header: 'Montant',
+                                            cell: ({ row }) => {
+                                                const invoiceItem =
+                                                    row.original
+                                                        .invoice_items?.[0];
 
-                            {/* 5. HISTORIQUE PAIEMENTS */}
-                            <TabsContent value="payments" className="mt-6 space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
-                                <Card className="border-none shadow-none bg-white overflow-hidden">
-                                    <div className="px-6 py-4 flex items-center justify-between border-b border-gray-100">
-                                        <div>
-                                            <h3 className="font-bold text-gray-800 uppercase tracking-tight">Historique des flux financiers</h3>
-                                            <p className="text-[10px] text-gray-400 mt-0.5 uppercase tracking-widest font-bold">Total encaissé sur la période : {formatNumber(paymentHistory?.reduce((acc, p) => acc + p.amount, 0) || 0)} CFA</p>
-                                        </div>
-                                    </div>
-                                    <CardContent className="p-6">
-                                        <DataTable
-                                            columns={paymentColumns}
-                                            data={paymentHistory || []}
-                                            searchKey="reference"
-                                            searchPlaceholder="Filtrer par référence..."
-                                            hidePagination={true}
-                                        />
-                                    </CardContent>
-                                </Card>
-                            </TabsContent>
-                        </Tabs>
-                    </div>
-                ) : (
-                    <div className="flex flex-col items-center justify-center py-20 bg-muted/20 rounded-xl border-2 border-dashed">
-                        <FileText className="h-16 w-16 text-muted-foreground/30 mb-4" />
-                        <h2 className="text-xl font-semibold text-muted-foreground">Sélectionnez un client pour afficher son suivi</h2>
-                        <p className="text-sm text-muted-foreground mt-2">Utilisez le menu à gauche pour choisir un client dans la liste.</p>
-                    </div>
-                )}
-            </div>
+                                                return formatCurrency(
+                                                    invoiceItem?.total || 0,
+                                                );
+                                            },
+                                        },
+                                        {
+                                            id: 'actions',
+                                            header: 'Action',
+                                            cell: ({ row }) => (
+                                                <div className="flex justify-end gap-1">
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        onClick={() =>
+                                                            openEditPaymentLoad(
+                                                                row.original,
+                                                            )
+                                                        }
+                                                    >
+                                                        <Pencil className="mr-1 h-3 w-3" />
+                                                        Modifier
+                                                    </Button>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                                                        onClick={() =>
+                                                            handleUnlinkLoad(
+                                                                row.original.id,
+                                                            )
+                                                        }
+                                                    >
+                                                        Retirer
+                                                    </Button>
+                                                </div>
+                                            ),
+                                        },
+                                    ]}
+                                    data={selectedPayment.loads || []}
+                                    hidePagination={true}
+                                />
+                            </div>
+                        </div>
+                    )}
+
+                    <DialogFooter>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => setIsPaymentDetailsOpen(false)}
+                        >
+                            Fermer
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Modale de modification d'une livraison liée au règlement */}
+            <Dialog
+                open={isEditPaymentLoadOpen}
+                onOpenChange={setIsEditPaymentLoadOpen}
+            >
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Modifier la livraison réglée</DialogTitle>
+                        <DialogDescription>
+                            Mettre à jour le manquant de la livraison{' '}
+                            {editingPaymentLoad?.vehicle_registration}.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <form
+                        onSubmit={submitEditPaymentLoad}
+                        className="space-y-4"
+                    >
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-1">
+                                <p className="text-xs font-semibold text-muted-foreground uppercase">
+                                    Produit
+                                </p>
+                                <p className="font-medium">
+                                    {editingPaymentLoad?.product || '-'}
+                                </p>
+                            </div>
+                            <div className="space-y-1">
+                                <p className="text-xs font-semibold text-muted-foreground uppercase">
+                                    Volume
+                                </p>
+                                <p className="font-medium">
+                                    {formatVolume(
+                                        editingPaymentLoad?.volume || 0,
+                                    )}
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label htmlFor="payment-load-missing">
+                                Manquant
+                            </Label>
+                            <Input
+                                id="payment-load-missing"
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={
+                                    editPaymentLoadForm.data.missing_quantity
+                                }
+                                onChange={(e) =>
+                                    editPaymentLoadForm.setData(
+                                        'missing_quantity',
+                                        parseFloat(e.target.value) || 0,
+                                    )
+                                }
+                            />
+                            {editPaymentLoadForm.errors.missing_quantity && (
+                                <p className="text-sm text-destructive">
+                                    {
+                                        editPaymentLoadForm.errors
+                                            .missing_quantity
+                                    }
+                                </p>
+                            )}
+                        </div>
+
+                        <DialogFooter>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => setIsEditPaymentLoadOpen(false)}
+                            >
+                                Annuler
+                            </Button>
+                            <Button
+                                type="submit"
+                                disabled={editPaymentLoadForm.processing}
+                            >
+                                Enregistrer
+                            </Button>
+                        </DialogFooter>
+                    </form>
+                </DialogContent>
+            </Dialog>
+
+            {/* Confirmation de suppression du règlement */}
+            <Dialog
+                open={!!paymentToDelete}
+                onOpenChange={(open) => !open && setPaymentToDelete(null)}
+            >
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Confirmer la suppression</DialogTitle>
+                        <DialogDescription>
+                            Êtes-vous sûr de vouloir supprimer ce règlement ?
+                            <br />
+                            <strong>Cette action est irréversible.</strong> Les
+                            livraisons liées repasseront au statut 'À FACTURER'.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <Button
+                            variant="outline"
+                            onClick={() => setPaymentToDelete(null)}
+                        >
+                            Annuler
+                        </Button>
+                        <Button
+                            variant="destructive"
+                            onClick={confirmDeletePayment}
+                        >
+                            Supprimer
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </>
     );
 }
 
-SuiviClient.layout = (page: any) => (
-    <AppLayout breadcrumbs={[{ title: 'Clients', href: '/clients/suivi-client' }, { title: 'Suivi client', href: '/clients/suivi-client' }]}>
-        {page}
-    </AppLayout>
-);
+SuiviClient.layout = {
+    breadcrumbs: [
+        { title: 'Clients', href: '#' },
+        {
+            title: 'Suivi client',
+            href: '/clients/suivi-client',
+        },
+    ],
+};

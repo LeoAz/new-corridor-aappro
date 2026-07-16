@@ -5,346 +5,309 @@ namespace App\Http\Controllers;
 use App\Enums\LoadStatus;
 use App\Models\Client;
 use App\Models\ClientPayment;
-use App\Models\DepotInvoice;
-use App\Models\Invoice;
+use App\Models\Depot;
+use App\Models\InvoiceItem;
 use App\Models\Load;
-use BaconQrCode\Renderer\Image\SvgImageBackEnd;
-use BaconQrCode\Renderer\ImageRenderer;
-use BaconQrCode\Renderer\RendererStyle\RendererStyle;
-use BaconQrCode\Writer;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
+use Inertia\Response;
 
 class ClientTrackingController extends Controller
 {
-    public function index()
+    public function index(Request $request): Response
     {
-        return Inertia::render('clients/suivi-client', [
-            'clients' => Client::all(['id', 'nom']),
-            'filters' => [
-                'date_from' => null,
-                'date_to' => null,
+        $clients = Client::orderBy('nom')->get();
+        $clientId = $request->input('client_id') ?? $clients->first()?->id;
+        $startDate = $request->input('start_date');
+        $endDate = $request->input('end_date');
+
+        $data = [
+            'clients' => $clients,
+            'selectedClient' => null,
+            'stats' => [
+                'livrer' => 0,
+                'facturer' => 0,
+                'facturer_payer' => 0,
             ],
-        ]);
-    }
+            'payments' => [],
+            'loads' => [],
+            'initial_balance' => 0,
+            'total_payments' => 0,
+            'current_balance' => 0,
+            'depots' => Depot::with('compartments')->orderBy('name')->get(),
+        ];
 
-    public function downloadPdf(Request $request, Client $client)
-    {
-        $dateFrom = $request->input('date_from');
-        $dateTo = $request->input('date_to');
+        if ($clientId) {
+            $client = Client::find($clientId);
+            if ($client) {
+                $data['selectedClient'] = $client;
+                $data['initial_balance'] = (float) $client->initial_balance;
 
-        // Récupérer les données (Logique identique à show())
-        $invoices = Invoice::where('client_id', $client->id)
-            ->when($dateFrom, fn ($q) => $q->where('date', '>=', $dateFrom))
-            ->when($dateTo, fn ($q) => $q->where('date', '<=', $dateTo))
-            ->get()
-            ->map(fn ($i) => [
-                'date' => $i->date,
-                'label' => "Facture Chargement #{$i->number}",
-                'reference' => $i->number,
-                'debit' => $i->total_amount,
-                'credit' => 0,
-            ]);
+                // Stats
+                $data['stats']['livrer'] = Load::where('client_id', $clientId)->where('status', LoadStatus::LIVRER)->count();
+                $data['stats']['facturer'] = Load::where('client_id', $clientId)->where('status', LoadStatus::FACTURER)->count();
+                $data['stats']['facturer_payer'] = Load::where('client_id', $clientId)->where('status', LoadStatus::PAYE)->count();
 
-        $depotInvoices = DepotInvoice::where('client_id', $client->id)
-            ->when($dateFrom, fn ($q) => $q->where('date', '>=', $dateFrom))
-            ->when($dateTo, fn ($q) => $q->where('date', '<=', $dateTo))
-            ->get()
-            ->map(fn ($i) => [
-                'date' => $i->date,
-                'label' => "Facture Dépôt #{$i->number}",
-                'reference' => $i->number,
-                'debit' => $i->total_amount,
-                'credit' => 0,
-            ]);
+                // Règlements
+                $paymentsQuery = ClientPayment::where('client_id', $clientId);
+                if ($startDate) {
+                    $paymentsQuery->where('date', '>=', $startDate);
+                }
+                if ($endDate) {
+                    $paymentsQuery->where('date', '<=', $endDate);
+                }
+                $data['payments'] = $paymentsQuery->with('loads.invoiceItems')->orderBy('date', 'desc')->get();
+                $data['total_payments'] = (float) $data['payments']->sum('amount');
 
-        $payments = ClientPayment::where('client_id', $client->id)
-            ->when($dateFrom, fn ($q) => $q->where('date', '>=', $dateFrom))
-            ->when($dateTo, fn ($q) => $q->where('date', '<=', $dateTo))
-            ->get()
-            ->map(fn ($p) => [
-                'date' => $p->date->format('Y-m-d'),
-                'label' => $p->is_advance ? 'Avance reçue' : 'Règlement reçu',
-                'reference' => $p->reference ?: "REG-{$p->id}",
-                'debit' => 0,
-                'credit' => $p->amount,
-            ]);
+                // Livraisons (uniquement FACTURER et FACTURER ET PAYER selon l'énoncé pour le listing principal)
+                // Note: L'énoncé dit "on aura aussi la liste des livraisons avec le statut (FACTURER ET FACTURER ET PAYER)"
+                // Mais il dit aussi "Seul les livraisons "FACTURER" seront selectionnable pour etre payé"
+                $loadsQuery = Load::where('client_id', $clientId)
+                    ->whereIn('status', [LoadStatus::FACTURER, LoadStatus::PAYE])
+                    ->with(['invoiceItems', 'clientPayment']);
 
-        $operations = collect()
-            ->concat($invoices)
-            ->concat($depotInvoices)
-            ->concat($payments)
-            ->sortBy('date')
-            ->values();
+                if ($startDate) {
+                    $loadsQuery->whereDate('unload_date', '>=', $startDate);
+                }
+                if ($endDate) {
+                    $loadsQuery->whereDate('unload_date', '<=', $endDate);
+                }
 
-        $initialBalance = $client->initial_balance;
-        if ($dateFrom) {
-            $prevDebitInvoices = Invoice::where('client_id', $client->id)->where('date', '<', $dateFrom)->sum('total_amount');
-            $prevDebitDepotInvoices = DepotInvoice::where('client_id', $client->id)->where('date', '<', $dateFrom)->sum('total_amount');
-            $prevCreditPayments = ClientPayment::where('client_id', $client->id)->where('date', '<', $dateFrom)->sum('amount');
-            // Solde = Crédit - Débit (Positif = L'entreprise doit au client, Négatif = Le client doit)
-            $initialBalance += ($prevCreditPayments - ($prevDebitInvoices + $prevDebitDepotInvoices));
+                $loads = $loadsQuery->orderBy('unload_date', 'desc')->get();
+
+                $data['loads'] = $loads->map(function ($load) {
+                    $invoiceItem = $load->invoiceItems->first();
+
+                    return [
+                        'id' => $load->id,
+                        'numero' => $load->id,
+                        'load_date' => $load->load_date?->format('Y-m-d'),
+                        'unload_date' => $load->unload_date?->format('Y-m-d'),
+                        'bl_number' => $invoiceItem?->bl_number ?? '',
+                        'vehicle_registration' => $load->vehicle_registration,
+                        'product' => $load->product,
+                        'volume' => $load->volume,
+                        'unit_price' => $invoiceItem?->unit_price ?? 0,
+                        'missing_quantity' => $invoiceItem?->missing_quantity ?? 0,
+                        'total_amount' => $invoiceItem?->total ?? 0,
+                        'status' => $load->status->value,
+                        'payment' => $load->clientPayment?->numero ?? '-',
+                        'is_paid' => $load->status === LoadStatus::PAYE,
+                    ];
+                });
+
+                // Calcul du solde client (basé sur le relevé de compte)
+                // Solde = Solde Initial + Total Facturé - Total Payé
+                $totalInvoiced = InvoiceItem::whereHas('loadDetails', function ($q) use ($clientId) {
+                    $q->where('client_id', $clientId);
+                })->sum('total');
+
+                $data['current_balance'] = $data['initial_balance'] + (float) $totalInvoiced - (float) ClientPayment::where('client_id', $clientId)->sum('amount');
+            }
         }
 
-        $finalBalance = $initialBalance + ($operations->sum('credit') - $operations->sum('debit'));
+        return Inertia::render('clients/suivi-client', $data);
+    }
 
-        // Récupérer les historiques demandés
-        $loadsEnCours = Load::where('client_id', $client->id)
-            ->where('status', LoadStatus::EN_COURS)
-            ->with(['depot', 'compartment'])
-            ->get()
-            ->map(fn ($l) => [
-                'id' => $l->id,
-                'date' => $l->load_date?->format('Y-m-d'),
-                'truck_number' => $l->vehicle_registration,
-                'compartment' => $l->compartment?->product,
-                'product' => $l->product,
-                'quantity' => $l->volume,
-                'depot' => $l->depot?->name ?? ($l->load_location ?? 'N/A'),
-                'destination' => $l->unload_location,
-            ]);
+    public function exportPdf(Request $request)
+    {
+        $clientId = $request->input('client_id');
+        $startDate = $request->input('start_date');
+        $endDate = $request->input('end_date');
 
-        $loadsLivrer = Load::where('client_id', $client->id)
+        if (! $clientId) {
+            return back()->with('error', 'Veuillez sélectionner un client.');
+        }
+
+        $client = Client::findOrFail($clientId);
+
+        // Indicateurs financiers
+        $initialBalance = (float) $client->initial_balance;
+
+        $totalInvoiced = InvoiceItem::whereHas('loadDetails', function ($q) use ($clientId) {
+            $q->where('client_id', $clientId);
+        })->sum('total');
+
+        $totalPaid = ClientPayment::where('client_id', $clientId)->sum('amount');
+
+        $currentBalance = $initialBalance + (float) $totalInvoiced - (float) $totalPaid;
+
+        // Total non facturé (Livraisons au statut LIVRER)
+        // Note: Le montant n'est pas encore défini par une facture, mais on peut l'estimer ou juste compter.
+        // On va aussi calculer le montant théorique si possible
+        $notInvoicedLoads = Load::where('client_id', $clientId)
             ->where('status', LoadStatus::LIVRER)
-            ->with(['depot', 'compartment'])
-            ->get()
-            ->map(fn ($l) => [
-                'id' => $l->id,
-                'date' => $l->unload_date?->format('Y-m-d'),
-                'truck_number' => $l->vehicle_registration,
-                'compartment' => $l->compartment?->product,
-                'product' => $l->product,
-                'quantity' => $l->volume,
-                'depot' => $l->depot?->name ?? ($l->load_location ?? 'N/A'),
-                'bl_number' => $l->bl_number ?? "BL-{$l->id}",
-            ]);
-
-        $loadsFacturer = Load::where('client_id', $client->id)
-            ->where('status', LoadStatus::FACTURER)
-            ->with(['depot', 'compartment'])
-            ->get()
-            ->map(fn ($l) => [
-                'id' => $l->id,
-                'date' => $l->unload_date?->format('Y-m-d'),
-                'truck_number' => $l->vehicle_registration,
-                'compartment' => $l->compartment?->product,
-                'product' => $l->product,
-                'quantity' => $l->volume,
-                'depot' => $l->depot?->name ?? ($l->load_location ?? 'N/A'),
-                'bl_number' => $l->bl_number ?? "BL-{$l->id}",
-            ]);
-
-        $loadsPaye = Load::where('client_id', $client->id)
-            ->where('status', LoadStatus::PAYE)
-            ->with(['depot', 'compartment', 'clientPayment'])
-            ->get()
-            ->map(fn ($l) => [
-                'id' => $l->id,
-                'date' => $l->unload_date?->format('Y-m-d'),
-                'truck_number' => $l->vehicle_registration,
-                'compartment' => $l->compartment?->product,
-                'product' => $l->product,
-                'quantity' => $l->volume,
-                'depot' => $l->depot?->name ?? ($l->load_location ?? 'N/A'),
-                'bl_number' => $l->bl_number ?? "BL-{$l->id}",
-                'payment_reference' => $l->clientPayment?->reference ?: ($l->clientPayment ? "REG-{$l->clientPayment->id}" : null),
-                'payment_date' => $l->clientPayment?->date?->format('Y-m-d'),
-            ]);
-
-        $paymentHistory = ClientPayment::where('client_id', $client->id)
-            ->when($dateFrom, fn ($q) => $q->where('date', '>=', $dateFrom))
-            ->when($dateTo, fn ($q) => $q->where('date', '<=', $dateTo))
-            ->with(['loads', 'invoiceItems.loadDetails', 'depotInvoiceItems'])
-            ->orderBy('date', 'desc')
             ->get();
 
-        // Générer le QR Code
-        $qrData = "RELEVE CLIENT: {$client->nom}\nID: #{$client->id}\nSOLDE: ".number_format(abs($finalBalance), 0, ',', ' ').' CFA';
-        $renderer = new ImageRenderer(
-            new RendererStyle(200),
-            new SvgImageBackEnd
-        );
-        $writer = new Writer($renderer);
-        $qrCode = $writer->writeString($qrData);
-
-        $pdf = Pdf::loadView('clients.releve_pdf', [
-            'client' => $client,
-            'operations' => $operations,
-            'initialBalance' => $initialBalance,
-            'finalBalance' => $finalBalance,
-            'dateFrom' => $dateFrom,
-            'dateTo' => $dateTo,
-            'qrCode' => $qrCode,
-            'loadsEnCours' => $loadsEnCours,
-            'loadsLivrer' => $loadsLivrer,
-            'loadsFacturer' => $loadsFacturer,
-            'loadsPaye' => $loadsPaye,
-            'paymentHistory' => $paymentHistory,
-        ])->setPaper('a4', 'landscape');
-
-        return $pdf->download("Releve_{$client->nom}_{$dateFrom}_au_{$dateTo}.pdf");
-    }
-
-    public function show(Request $request, Client $client)
-    {
-        $dateFrom = $request->input('date_from');
-        $dateTo = $request->input('date_to');
-
-        // 1. Relevé de compte (Récupéré de ClientStatementController)
-        $invoices = Invoice::where('client_id', $client->id)
-            ->when($dateFrom, fn ($q) => $q->where('date', '>=', $dateFrom))
-            ->when($dateTo, fn ($q) => $q->where('date', '<=', $dateTo))
-            ->get()
-            ->map(fn ($i) => [
-                'date' => $i->date,
-                'label' => "Facture Chargement #{$i->number}",
-                'reference' => $i->number,
-                'debit' => $i->total_amount,
-                'credit' => 0,
-                'type' => 'facture_chargement',
-            ]);
-
-        $depotInvoices = DepotInvoice::where('client_id', $client->id)
-            ->when($dateFrom, fn ($q) => $q->where('date', '>=', $dateFrom))
-            ->when($dateTo, fn ($q) => $q->where('date', '<=', $dateTo))
-            ->get()
-            ->map(fn ($i) => [
-                'date' => $i->date,
-                'label' => "Facture Dépôt #{$i->number}",
-                'reference' => $i->number,
-                'debit' => $i->total_amount,
-                'credit' => 0,
-                'type' => 'facture_depot',
-            ]);
-
-        $payments = ClientPayment::where('client_id', $client->id)
-            ->when($dateFrom, fn ($q) => $q->where('date', '>=', $dateFrom))
-            ->when($dateTo, fn ($q) => $q->where('date', '<=', $dateTo))
-            ->get()
-            ->map(fn ($p) => [
-                'date' => $p->date->format('Y-m-d'),
-                'label' => $p->is_advance ? 'Avance reçue' : 'Règlement reçu',
-                'reference' => $p->reference ?: "REG-{$p->id}",
-                'debit' => 0,
-                'credit' => $p->amount,
-                'type' => 'paiement',
-            ]);
-
-        $operations = collect()
-            ->concat($invoices)
-            ->concat($depotInvoices)
-            ->concat($payments)
-            ->sortBy('date')
-            ->values();
-
-        $initialBalance = $client->initial_balance;
-        if ($dateFrom) {
-            $prevDebitInvoices = Invoice::where('client_id', $client->id)->where('date', '<', $dateFrom)->sum('total_amount');
-            $prevDebitDepotInvoices = DepotInvoice::where('client_id', $client->id)->where('date', '<', $dateFrom)->sum('total_amount');
-            $prevCreditPayments = ClientPayment::where('client_id', $client->id)->where('date', '<', $dateFrom)->sum('amount');
-            // Solde = Crédit - Débit (Positif = L'entreprise doit au client, Négatif = Le client doit)
-            $initialBalance += ($prevCreditPayments - ($prevDebitInvoices + $prevDebitDepotInvoices));
-        }
-
-        $runningBalance = $initialBalance;
-        $operations = $operations->map(function ($op) use (&$runningBalance) {
-            $runningBalance += ($op['credit'] - $op['debit']);
-            $op['balance'] = $runningBalance;
-
-            return $op;
+        $totalNotInvoiced = $notInvoicedLoads->sum(function ($load) {
+            return $load->volume * ($load->unit_price ?? 0); // Si unit_price existe sur Load
         });
 
-        // 2. Historique des livraisons par statut
-        $loadsEnCours = Load::where('client_id', $client->id)
-            ->where('status', LoadStatus::EN_COURS)
-            ->with(['depot', 'compartment'])
-            ->get()
-            ->map(fn ($l) => [
-                'id' => $l->id,
-                'date' => $l->load_date?->format('Y-m-d'),
-                'truck_number' => $l->vehicle_registration,
-                'compartment' => $l->compartment?->product,
-                'product' => $l->product,
-                'quantity' => $l->volume,
-                'depot' => $l->depot?->name ?? ($l->load_location ?? 'N/A'),
-                'destination' => $l->unload_location,
-            ]);
+        // Listes des livraisons
+        $loadsQuery = Load::where('client_id', $clientId)
+            ->with(['invoiceItems', 'clientPayment']);
 
-        $loadsLivrer = Load::where('client_id', $client->id)
-            ->where('status', LoadStatus::LIVRER)
-            ->with(['depot', 'compartment'])
-            ->get()
-            ->map(fn ($l) => [
-                'id' => $l->id,
-                'date' => $l->unload_date?->format('Y-m-d'),
-                'truck_number' => $l->vehicle_registration,
-                'compartment' => $l->compartment?->product,
-                'product' => $l->product,
-                'quantity' => $l->volume,
-                'depot' => $l->depot?->name ?? ($l->load_location ?? 'N/A'),
-                'bl_number' => $l->bl_number ?? "BL-{$l->id}",
-            ]);
+        if ($startDate) {
+            $loadsQuery->whereDate('unload_date', '>=', $startDate);
+        }
+        if ($endDate) {
+            $loadsQuery->whereDate('unload_date', '<=', $endDate);
+        }
 
-        $loadsFacturer = Load::where('client_id', $client->id)
-            ->where('status', LoadStatus::FACTURER)
-            ->with(['depot', 'compartment'])
-            ->get()
-            ->map(fn ($l) => [
-                'id' => $l->id,
-                'date' => $l->unload_date?->format('Y-m-d'),
-                'truck_number' => $l->vehicle_registration,
-                'compartment' => $l->compartment?->product,
-                'product' => $l->product,
-                'quantity' => $l->volume,
-                'depot' => $l->depot?->name ?? ($l->load_location ?? 'N/A'),
-                'bl_number' => $l->bl_number ?? "BL-{$l->id}",
-            ]);
+        $allLoads = $loadsQuery->orderBy('unload_date', 'desc')->get();
 
-        $loadsPaye = Load::where('client_id', $client->id)
-            ->where('status', LoadStatus::PAYE)
-            ->with(['depot', 'compartment', 'clientPayment'])
-            ->get()
-            ->map(fn ($l) => [
-                'id' => $l->id,
-                'date' => $l->unload_date?->format('Y-m-d'),
-                'truck_number' => $l->vehicle_registration,
-                'compartment' => $l->compartment?->product,
-                'product' => $l->product,
-                'quantity' => $l->volume,
-                'depot' => $l->depot?->name ?? ($l->load_location ?? 'N/A'),
-                'bl_number' => $l->bl_number ?? "BL-{$l->id}",
-                'payment_reference' => $l->clientPayment?->reference ?: ($l->clientPayment ? "REG-{$l->clientPayment->id}" : null),
-                'payment_date' => $l->clientPayment?->date?->format('Y-m-d'),
-            ]);
+        $loadsFacturer = $allLoads->where('status', LoadStatus::FACTURER);
+        $loadsFacturerPayer = $allLoads->where('status', LoadStatus::PAYE);
+        $loadsLivrer = $allLoads->where('status', LoadStatus::LIVRER);
 
-        // 3. Historique des paiements avec livraisons liées
-        $paymentHistory = ClientPayment::where('client_id', $client->id)
-            ->when($dateFrom, fn ($q) => $q->where('date', '>=', $dateFrom))
-            ->when($dateTo, fn ($q) => $q->where('date', '<=', $dateTo))
-            ->with(['loads', 'invoiceItems.loadDetails', 'depotInvoiceItems'])
-            ->orderBy('date', 'desc')
-            ->get();
-
-        return Inertia::render('clients/suivi-client', [
+        $pdf = Pdf::loadView('reports.suivi-client-pdf', [
             'client' => $client,
-            'clients' => Client::all(['id', 'nom']),
-            'statement' => [
-                'operations' => $operations,
-                'initialBalance' => $initialBalance,
-                'finalBalance' => $runningBalance,
+            'startDate' => $startDate,
+            'endDate' => $endDate,
+            'stats' => [
+                'initial_balance' => $initialBalance,
+                'total_invoiced' => $totalInvoiced,
+                'total_paid' => $totalPaid,
+                'current_balance' => $currentBalance,
+                'total_not_invoiced' => $totalNotInvoiced,
             ],
-            'loads' => [
-                'en_cours' => $loadsEnCours,
-                'livrer' => $loadsLivrer,
-                'facturer' => $loadsFacturer,
-                'paye' => $loadsPaye,
-            ],
-            'paymentHistory' => $paymentHistory,
-            'filters' => [
-                'date_from' => $dateFrom,
-                'date_to' => $dateTo,
-            ],
+            'loadsFacturer' => $loadsFacturer,
+            'loadsFacturerPayer' => $loadsFacturerPayer,
+            'loadsLivrer' => $loadsLivrer,
+        ]);
+
+        return $pdf->download("suivi-client-{$client->nom}.pdf");
+    }
+
+    public function processPayment(Request $request)
+    {
+        $request->validate([
+            'payment_id' => 'required|exists:client_payments,id',
+            'load_ids' => 'required|array',
+            'load_ids.*' => 'exists:loads,id',
+            'missings' => 'required|array',
+            'missings.*' => 'nullable|numeric|min:0',
+        ]);
+
+        $payment = ClientPayment::findOrFail($request->payment_id);
+        $loadIds = $request->load_ids;
+        $missings = $request->missings; // [load_id => missing_quantity]
+
+        DB::transaction(function () use ($loadIds, $missings, $payment) {
+            foreach ($loadIds as $loadId) {
+                $load = Load::findOrFail($loadId);
+                $invoiceItem = InvoiceItem::where('load_id', $loadId)->first();
+
+                if ($invoiceItem) {
+                    $invoiceItem->applyPaymentMissingQuantity((float) ($missings[$loadId] ?? 0), $payment);
+                }
+
+                $load->status = LoadStatus::PAYE;
+                $load->client_payment_id = $payment->id;
+                $load->save();
+            }
+        });
+
+        return back()->with('success', 'Paiement enregistré avec succès.');
+    }
+
+    public function unlinkLoad(Request $request)
+    {
+        $request->validate([
+            'load_id' => 'required|exists:loads,id',
+        ]);
+
+        DB::transaction(function () use ($request) {
+            $load = Load::findOrFail($request->load_id);
+            $invoiceItem = InvoiceItem::where('load_id', $load->id)->first();
+
+            if ($invoiceItem) {
+                $invoiceItem->restorePaymentMissingQuantity();
+            }
+
+            // Remettre la livraison en statut FACTURER
+            $load->status = LoadStatus::FACTURER;
+            $load->client_payment_id = null;
+            $load->save();
+        });
+
+        return back()->with('success', 'La livraison a été retirée du règlement et son statut a été remis à FACTURER.');
+    }
+
+    public function updatePaymentLoad(Request $request)
+    {
+        $validated = $request->validate([
+            'payment_id' => 'required|exists:client_payments,id',
+            'load_id' => 'required|exists:loads,id',
+            'missing_quantity' => 'required|numeric|min:0',
+        ]);
+
+        DB::transaction(function () use ($validated) {
+            $payment = ClientPayment::findOrFail($validated['payment_id']);
+            $load = Load::where('id', $validated['load_id'])
+                ->where('client_payment_id', $payment->id)
+                ->firstOrFail();
+
+            $invoiceItem = InvoiceItem::where('load_id', $load->id)
+                ->where('client_payment_id', $payment->id)
+                ->firstOrFail();
+
+            $invoiceItem->applyPaymentMissingQuantity((float) $validated['missing_quantity'], $payment);
+        });
+
+        return back()->with('success', 'La livraison liée au règlement a été mise à jour.');
+    }
+
+    public function getInvoices(Client $client)
+    {
+        return response()->json([
+            'load_invoices' => $client->invoices()
+                ->with(['items.loadDetails'])
+                ->orderBy('date', 'desc')
+                ->get()
+                ->map(fn ($invoice) => [
+                    'id' => $invoice->id,
+                    'number' => $invoice->number,
+                    'client_id' => $invoice->client_id,
+                    'date' => $invoice->date ? Carbon::parse($invoice->date)->format('Y-m-d') : null,
+                    'total_amount' => (float) $invoice->total_amount,
+                    'total_missing' => (float) $invoice->total_missing,
+                    'items' => $invoice->items->map(fn ($item) => [
+                        'id' => $item->id,
+                        'load_id' => $item->load_id,
+                        'bl_number' => $item->bl_number,
+                        'product' => $item->loadDetails?->product ?? 'N/A',
+                        'quantity' => (float) $item->quantity_delivered,
+                        'missing_quantity' => (float) $item->missing_quantity,
+                        'unit_price' => (float) $item->unit_price,
+                        'total' => (float) $item->total,
+                        'vehicle_registration' => $item->loadDetails?->vehicle_registration,
+                    ]),
+                ]),
+            'depot_invoices' => $client->depotInvoices()
+                ->with(['items.compartment'])
+                ->orderBy('date', 'desc')
+                ->get()
+                ->map(fn ($invoice) => [
+                    'id' => $invoice->id,
+                    'number' => $invoice->number,
+                    'client_id' => $invoice->client_id,
+                    'depot_id' => $invoice->depot_id,
+                    'date' => $invoice->date?->format('Y-m-d'),
+                    'total_amount' => (float) $invoice->total_amount,
+                    'items' => $invoice->items->map(fn ($item) => [
+                        'id' => $item->id,
+                        'compartment_id' => $item->compartment_id,
+                        'product' => $item->compartment?->product ?? $invoice->product ?? 'N/A',
+                        'quantity' => (float) $item->quantity,
+                        'missing_quantity' => 0,
+                        'unit_price' => (float) $item->unit_price,
+                        'total' => (float) $item->total,
+                    ]),
+                ]),
         ]);
     }
 }

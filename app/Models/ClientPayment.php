@@ -14,47 +14,22 @@ class ClientPayment extends Model
 
     protected $fillable = [
         'client_id',
-        'load_id',
-        'depot_invoice_id',
-        'payment_type',
-        'is_advance',
         'amount',
         'payment_method',
         'date',
-        'reference',
+        'banque',
+        'numero',
         'note',
-        'parent_id',
     ];
 
     protected $casts = [
         'date' => 'date',
-        'is_advance' => 'boolean',
         'payment_method' => PaymentMethod::class,
     ];
 
     public function client(): BelongsTo
     {
         return $this->belongsTo(Client::class);
-    }
-
-    public function loadDetails(): BelongsTo
-    {
-        return $this->belongsTo(Load::class, 'load_id');
-    }
-
-    public function depotInvoice(): BelongsTo
-    {
-        return $this->belongsTo(DepotInvoice::class);
-    }
-
-    public function parent(): BelongsTo
-    {
-        return $this->belongsTo(ClientPayment::class, 'parent_id');
-    }
-
-    public function children(): HasMany
-    {
-        return $this->hasMany(ClientPayment::class, 'parent_id');
     }
 
     public function loads(): HasMany

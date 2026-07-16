@@ -6,6 +6,11 @@ use App\Models\Depot;
 use App\Models\DepotInvoice;
 use App\Models\DepotInvoiceItem;
 use App\Models\User;
+use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
+
+beforeEach(function () {
+    $this->withoutMiddleware(PreventRequestForgery::class);
+});
 
 test('peut afficher la liste des factures dépôt', function () {
     $user = User::factory()->create();
@@ -52,6 +57,38 @@ test('peut créer une facture dépôt et décrémenter le stock', function () {
     $this->assertEquals(9000, $compartment->refresh()->quantity);
 });
 
+test('la création de facture dépôt peut revenir au suivi client avec le sheet des factures ouvert', function () {
+    $user = User::factory()->create();
+    $client = Client::factory()->create();
+    $depot = Depot::factory()->create();
+    $compartment = Compartment::factory()->create([
+        'depot_id' => $depot->id,
+        'quantity' => 10000,
+    ]);
+
+    $response = $this->actingAs($user)->post(route('finances.facture-depots.store', [
+        'redirect_back' => 'suivi-client',
+    ]), [
+        'client_id' => $client->id,
+        'depot_id' => $depot->id,
+        'date' => now()->format('Y-m-d'),
+        'items' => [
+            [
+                'compartment_id' => $compartment->id,
+                'quantity' => 1000,
+                'unit_price' => 700,
+                'total' => 700000,
+            ],
+        ],
+        'total_amount' => 700000,
+    ]);
+
+    $response->assertRedirect(route('clients.suivi-client.index', [
+        'client_id' => $client->id,
+        'open_invoices' => 1,
+    ]));
+});
+
 test('peut consulter une facture dépôt', function () {
     $user = User::factory()->create();
     $invoice = DepotInvoice::factory()->create();
@@ -69,6 +106,22 @@ test('peut télécharger le PDF de la facture dépôt', function () {
 
     $response->assertStatus(200);
     $response->assertHeader('content-type', 'application/pdf');
+});
+
+test('peut ouvrir la route de modification de facture dépôt', function () {
+    $user = User::factory()->create();
+    $invoice = DepotInvoice::factory()->create();
+
+    $response = $this->actingAs($user)->get(route('finances.facture-depots.edit', $invoice));
+
+    $response->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->component('finances/factures-depot')
+            ->where('editingInvoiceId', $invoice->id)
+            ->has('invoices')
+            ->has('clients')
+            ->has('depots')
+        );
 });
 
 test('la suppression de facture restaure le stock', function () {

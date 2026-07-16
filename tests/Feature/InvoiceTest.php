@@ -6,6 +6,11 @@ use App\Models\Invoice;
 use App\Models\InvoiceItem;
 use App\Models\Load;
 use App\Models\User;
+use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
+
+beforeEach(function () {
+    $this->withoutMiddleware(PreventRequestForgery::class);
+});
 
 test('a user can create an invoice from deliveries', function () {
     $user = User::factory()->create();
@@ -75,6 +80,40 @@ test('a user can download invoice pdf', function () {
 
     $response->assertStatus(200)
         ->assertHeader('Content-Type', 'application/pdf');
+});
+
+test('a user can open invoice edit route', function () {
+    $user = User::factory()->create();
+    $invoice = Invoice::factory()->create();
+
+    $response = $this->actingAs($user)->get(route('finances.facture-chargement.edit', $invoice));
+
+    $response->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->component('finances/factures-chargement')
+            ->where('editingInvoiceId', $invoice->id)
+            ->has('invoices')
+            ->has('clients')
+        );
+});
+
+test('a user can open invoice creation with a prefilled locked client', function () {
+    $user = User::factory()->create();
+    $client = Client::factory()->create();
+
+    $response = $this->actingAs($user)->get(route('finances.facture-chargement.index', [
+        'client_id' => $client->id,
+        'create' => 1,
+        'lock_client' => 1,
+    ]));
+
+    $response->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->component('finances/factures-chargement')
+            ->where('prefillClientId', $client->id)
+            ->where('creatingInvoice', true)
+            ->where('lockClient', true)
+        );
 });
 
 test('a user can update an invoice and see available loads', function () {

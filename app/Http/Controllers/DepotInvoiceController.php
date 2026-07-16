@@ -53,7 +53,7 @@ class DepotInvoiceController extends Controller
         return $pdf->download("Facture_Depot_{$invoice->number}.pdf");
     }
 
-    public function index()
+    public function index(Request $request)
     {
         $invoices = DepotInvoice::with(['client', 'depot', 'items.compartment'])
             ->latest('date')
@@ -63,6 +63,9 @@ class DepotInvoiceController extends Controller
             'invoices' => $invoices,
             'clients' => Client::all(),
             'depots' => Depot::with('compartments')->get(),
+            'prefillClientId' => $request->query('client_id'),
+            'lockClient' => $request->boolean('lock_client'),
+            'creatingInvoice' => $request->boolean('create'),
         ]);
     }
 
@@ -82,6 +85,20 @@ class DepotInvoiceController extends Controller
         ]);
     }
 
+    public function edit($id)
+    {
+        $invoices = DepotInvoice::with(['client', 'depot', 'items.compartment'])
+            ->latest('date')
+            ->get();
+
+        return Inertia::render('finances/factures-depot', [
+            'invoices' => $invoices,
+            'clients' => Client::all(),
+            'depots' => Depot::with('compartments')->get(),
+            'editingInvoiceId' => (int) $id,
+        ]);
+    }
+
     public function store(Request $request)
     {
         $validated = $request->validate([
@@ -96,7 +113,7 @@ class DepotInvoiceController extends Controller
             'total_amount' => 'required|numeric|min:0',
         ]);
 
-        return DB::transaction(function () use ($validated) {
+        return DB::transaction(function () use ($validated, $request) {
             $year = date('Y', strtotime($validated['date']));
 
             // Generate invoice number: FAC-DEP-YYYY-XXXXX
@@ -136,6 +153,13 @@ class DepotInvoiceController extends Controller
                 $compartment->decrement('quantity', $item['quantity']);
             }
 
+            if ($request->query('redirect_back') === 'suivi-client') {
+                return redirect()->route('clients.suivi-client.index', [
+                    'client_id' => $validated['client_id'],
+                    'open_invoices' => 1,
+                ])->with('message', 'Facture dépôt générée avec succès');
+            }
+
             return back()->with('message', 'Facture dépôt générée avec succès');
         });
     }
@@ -156,7 +180,7 @@ class DepotInvoiceController extends Controller
             'total_amount' => 'required|numeric|min:0',
         ]);
 
-        return DB::transaction(function () use ($validated, $invoice) {
+        return DB::transaction(function () use ($validated, $invoice, $request) {
             // Restore old quantities to compartments
             foreach ($invoice->items as $oldItem) {
                 Compartment::where('id', $oldItem->compartment_id)->increment('quantity', $oldItem->quantity);
@@ -198,20 +222,35 @@ class DepotInvoiceController extends Controller
             // Remove items that are no longer in the list
             $invoice->items()->whereNotIn('id', $keepIds)->delete();
 
+            if ($request->query('redirect_back') === 'suivi-client') {
+                return redirect()->route('clients.suivi-client.index', [
+                    'client_id' => $validated['client_id'],
+                    'open_invoices' => 1,
+                ])->with('message', 'Facture dépôt mise à jour avec succès');
+            }
+
             return back()->with('message', 'Facture dépôt mise à jour avec succès');
         });
     }
 
-    public function destroy($id)
+    public function destroy(Request $request, $id)
     {
         $invoice = DepotInvoice::with('items')->findOrFail($id);
 
-        return DB::transaction(function () use ($invoice) {
+        return DB::transaction(function () use ($invoice, $request) {
+            $clientId = $invoice->client_id;
             foreach ($invoice->items as $item) {
                 Compartment::where('id', $item->compartment_id)->increment('quantity', $item->quantity);
             }
 
             $invoice->delete();
+
+            if ($request->query('redirect_back') === 'suivi-client') {
+                return redirect()->route('clients.suivi-client.index', [
+                    'client_id' => $clientId,
+                    'open_invoices' => 1,
+                ])->with('message', 'Facture dépôt supprimée avec succès');
+            }
 
             return back()->with('message', 'Facture dépôt supprimée avec succès');
         });

@@ -41,7 +41,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('chargements/{chargement}/deliver', [DeliveryController::class, 'deliver'])->name('chargements.deliver');
         Route::get('livraisons/download', [DeliveryController::class, 'downloadPdf'])->name('livraisons.download');
         Route::resource('livraisons', DeliveryController::class)->only(['index', 'update', 'destroy']);
-        Route::get('#3', fn () => null)->name('reglements.index');
     });
 
     // Finances
@@ -52,20 +51,21 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::resource('facture-chargement', InvoiceController::class);
         Route::get('facture-depots/{id}/download', [DepotInvoiceController::class, 'downloadPdf'])->name('facture-depots.download');
         Route::resource('facture-depots', DepotInvoiceController::class);
-        Route::get('reglements/advances/{clientId}', [ClientPaymentController::class, 'getAdvances'])->name('reglements.advances');
-        Route::get('reglements/{reglement}/download', [ClientPaymentController::class, 'downloadPdf'])->name('reglements.download');
-        Route::resource('reglements', ClientPaymentController::class)->only(['index', 'store', 'update', 'show', 'destroy']);
     });
 
     // Clients
     Route::prefix('clients')->name('clients.')->group(function () {
         Route::resource('gestion', ClientController::class)->parameters(['gestion' => 'client'])->except(['create', 'edit', 'show']);
+        Route::resource('reglements', ClientPaymentController::class)->only(['store', 'update', 'destroy']);
         Route::get('releve', [ClientStatementController::class, 'index'])->name('releve.index');
         Route::get('releve/{client}/download', [ClientStatementController::class, 'downloadPdf'])->name('releve.download');
         Route::get('releve/{client}', [ClientStatementController::class, 'show'])->name('releve.show');
         Route::get('suivi-client', [ClientTrackingController::class, 'index'])->name('suivi-client.index');
-        Route::get('suivi-client/{client}/download', [ClientTrackingController::class, 'downloadPdf'])->name('suivi-client.download');
-        Route::get('suivi-client/{client}', [ClientTrackingController::class, 'show'])->name('suivi-client.show');
+        Route::get('suivi-client/export-pdf', [ClientTrackingController::class, 'exportPdf'])->name('suivi-client.export-pdf');
+        Route::post('suivi-client/payment', [ClientTrackingController::class, 'processPayment'])->name('suivi-client.payment');
+        Route::post('suivi-client/update-payment-load', [ClientTrackingController::class, 'updatePaymentLoad'])->name('suivi-client.update-payment-load');
+        Route::post('suivi-client/unlink-load', [ClientTrackingController::class, 'unlinkLoad'])->name('suivi-client.unlink-load');
+        Route::get('suivi-client/{client}/invoices', [ClientTrackingController::class, 'getInvoices'])->name('suivi-client.invoices');
         Route::get('suivi-creances', fn () => null)->name('suivi-creances');
     });
 

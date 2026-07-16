@@ -51,7 +51,7 @@ class InvoiceController extends Controller
         return $pdf->download("Facture_{$invoice->number}.pdf");
     }
 
-    public function index()
+    public function index(Request $request)
     {
         $invoices = Invoice::with(['client', 'items.loadDetails'])
             ->latest('date')
@@ -60,6 +60,9 @@ class InvoiceController extends Controller
         return Inertia::render('finances/factures-chargement', [
             'invoices' => $invoices,
             'clients' => Client::all(),
+            'prefillClientId' => $request->integer('client_id') ?: null,
+            'lockClient' => $request->boolean('lock_client'),
+            'creatingInvoice' => $request->boolean('create'),
         ]);
     }
 
@@ -77,6 +80,21 @@ class InvoiceController extends Controller
         return Inertia::render('finances/factures-chargement/show', [
             'invoice' => $invoice,
             'vehicleCounts' => $vehicleCounts,
+        ]);
+    }
+
+    public function edit(Request $request, $id)
+    {
+        $invoices = Invoice::with(['client', 'items.loadDetails'])
+            ->latest('date')
+            ->get();
+
+        return Inertia::render('finances/factures-chargement', [
+            'invoices' => $invoices,
+            'clients' => Client::all(),
+            'editingInvoiceId' => (int) $id,
+            'prefillClientId' => $request->integer('client_id') ?: null,
+            'lockClient' => $request->boolean('lock_client'),
         ]);
     }
 
@@ -98,7 +116,7 @@ class InvoiceController extends Controller
             'total_missing' => 'nullable|numeric',
         ]);
 
-        return DB::transaction(function () use ($validated, $invoice) {
+        return DB::transaction(function () use ($validated, $invoice, $request) {
             $invoice->update([
                 'client_id' => $validated['client_id'],
                 'date' => $validated['date'],
@@ -168,15 +186,23 @@ class InvoiceController extends Controller
                 $item->delete();
             }
 
+            if ($request->query('redirect_back') === 'suivi-client') {
+                return redirect()->route('clients.suivi-client.index', [
+                    'client_id' => $validated['client_id'],
+                    'open_invoices' => 1,
+                ])->with('message', 'Facture mise à jour avec succès');
+            }
+
             return back()->with('message', 'Facture mise à jour avec succès');
         });
     }
 
-    public function destroy($id)
+    public function destroy(Request $request, $id)
     {
         $invoice = Invoice::findOrFail($id);
 
-        return DB::transaction(function () use ($invoice) {
+        return DB::transaction(function () use ($invoice, $request) {
+            $clientId = $invoice->client_id;
             foreach ($invoice->items as $item) {
                 Load::where('id', $item->load_id)->update([
                     'status' => LoadStatus::LIVRER,
@@ -184,6 +210,13 @@ class InvoiceController extends Controller
             }
 
             $invoice->delete();
+
+            if ($request->query('redirect_back') === 'suivi-client') {
+                return redirect()->route('clients.suivi-client.index', [
+                    'client_id' => $clientId,
+                    'open_invoices' => 1,
+                ])->with('message', 'Facture supprimée avec succès');
+            }
 
             return back()->with('message', 'Facture supprimée avec succès');
         });
@@ -205,7 +238,7 @@ class InvoiceController extends Controller
             'total_missing' => 'nullable|numeric',
         ]);
 
-        return DB::transaction(function () use ($validated) {
+        return DB::transaction(function () use ($validated, $request) {
             $year = date('Y', strtotime($validated['date']));
 
             // Generate invoice number: FAC-YYYY-XXXXX
@@ -248,6 +281,13 @@ class InvoiceController extends Controller
                 Load::where('id', $item['load_id'])->update([
                     'status' => LoadStatus::FACTURER,
                 ]);
+            }
+
+            if ($request->query('redirect_back') === 'suivi-client') {
+                return redirect()->route('clients.suivi-client.index', [
+                    'client_id' => $validated['client_id'],
+                    'open_invoices' => 1,
+                ])->with('message', 'Facture générée avec succès');
             }
 
             return back()->with('message', 'Facture générée avec succès');

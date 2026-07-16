@@ -1,7 +1,16 @@
 import { Head, router, useForm } from '@inertiajs/react';
 import type { ColumnDef } from '@tanstack/react-table';
 import { format } from 'date-fns';
-import { ArrowUpDown, CalendarIcon, Eye, MoreHorizontal, Pencil, Plus, Trash, X } from 'lucide-react';
+import {
+    ArrowUpDown,
+    CalendarIcon,
+    Eye,
+    MoreHorizontal,
+    Pencil,
+    Plus,
+    Trash,
+    X,
+} from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -24,8 +33,18 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+} from '@/components/ui/popover';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import { cn, formatNumber } from '@/lib/utils';
 import * as finances from '@/routes/finances';
 
@@ -73,18 +92,39 @@ interface Props {
     invoices: Invoice[];
     clients: Client[];
     depots: Depot[];
+    editingInvoiceId?: number | null;
+    prefillClientId?: number | null;
+    lockClient?: boolean;
+    creatingInvoice?: boolean;
 }
 
-export default function FacturesDepot({ invoices, clients, depots }: Props) {
-    const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
-    const [isCreateOpen, setIsCreateOpen] = useState(false);
-    const [isEditOpen, setIsEditOpen] = useState(false);
+export default function FacturesDepot({
+    invoices,
+    clients,
+    depots,
+    editingInvoiceId = null,
+    prefillClientId = null,
+    lockClient = false,
+    creatingInvoice = false,
+}: Props) {
+    const initialEditingInvoice = editingInvoiceId
+        ? (invoices.find((item) => item.id === editingInvoiceId) ?? null)
+        : null;
+    const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(
+        initialEditingInvoice,
+    );
+    const [isCreateOpen, setIsCreateOpen] = useState(creatingInvoice);
+    const [isEditOpen, setIsEditOpen] = useState(
+        Boolean(initialEditingInvoice),
+    );
 
     const { data, setData, post, put, processing, reset, errors } = useForm({
-        client_id: '',
+        client_id: prefillClientId?.toString() || '',
         depot_id: '',
         date: new Date().toISOString().split('T')[0],
-        items: [{ compartment_id: '', quantity: 0, unit_price: 0, total: 0 }] as any[],
+        items: [
+            { compartment_id: '', quantity: 0, unit_price: 0, total: 0 },
+        ] as any[],
         total_amount: 0,
     });
 
@@ -92,10 +132,12 @@ export default function FacturesDepot({ invoices, clients, depots }: Props) {
     const openCreate = () => {
         reset();
         setData({
-            client_id: '',
+            client_id: prefillClientId?.toString() || '',
             depot_id: '',
             date: new Date().toISOString().split('T')[0],
-            items: [{ compartment_id: '', quantity: 0, unit_price: 0, total: 0 }],
+            items: [
+                { compartment_id: '', quantity: 0, unit_price: 0, total: 0 },
+            ],
             total_amount: 0,
         });
         setIsCreateOpen(true);
@@ -108,7 +150,7 @@ export default function FacturesDepot({ invoices, clients, depots }: Props) {
                 client_id: selectedInvoice.client_id.toString(),
                 depot_id: selectedInvoice.depot_id.toString(),
                 date: selectedInvoice.date,
-                items: selectedInvoice.items.map(item => ({
+                items: selectedInvoice.items.map((item) => ({
                     id: item.id,
                     compartment_id: item.compartment_id.toString(),
                     quantity: item.quantity,
@@ -121,15 +163,25 @@ export default function FacturesDepot({ invoices, clients, depots }: Props) {
     }, [selectedInvoice, isEditOpen]);
 
     const handleAddItem = () => {
-        setData('items', [...data.items, { compartment_id: '', quantity: 0, unit_price: 0, total: 0 }]);
+        setData('items', [
+            ...data.items,
+            { compartment_id: '', quantity: 0, unit_price: 0, total: 0 },
+        ]);
     };
 
     const handleRemoveItem = (index: number) => {
         const newItems = [...data.items];
         newItems.splice(index, 1);
-        const totalAmount = newItems.reduce((acc, item) => acc + (parseFloat(item.total) || 0), 0);
+        const totalAmount = newItems.reduce(
+            (acc, item) => acc + (parseFloat(item.total) || 0),
+            0,
+        );
 
-        setData((prev) => ({ ...prev, items: newItems, total_amount: totalAmount }));
+        setData((prev) => ({
+            ...prev,
+            items: newItems,
+            total_amount: totalAmount,
+        }));
     };
 
     const handleEditItem = (index: number, field: string, value: any) => {
@@ -142,9 +194,16 @@ export default function FacturesDepot({ invoices, clients, depots }: Props) {
             newItems[index].total = qty * price;
         }
 
-        const totalAmount = newItems.reduce((acc, item) => acc + (parseFloat(item.total) || 0), 0);
+        const totalAmount = newItems.reduce(
+            (acc, item) => acc + (parseFloat(item.total) || 0),
+            0,
+        );
 
-        setData((prev) => ({ ...prev, items: newItems, total_amount: totalAmount }));
+        setData((prev) => ({
+            ...prev,
+            items: newItems,
+            total_amount: totalAmount,
+        }));
     };
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -175,7 +234,11 @@ export default function FacturesDepot({ invoices, clients, depots }: Props) {
     };
 
     const handleDelete = (id: number) => {
-        if (confirm('Êtes-vous sûr de vouloir supprimer cette facture ? Le stock sera restitué aux compartiments.')) {
+        if (
+            confirm(
+                'Êtes-vous sûr de vouloir supprimer cette facture ? Le stock sera restitué aux compartiments.',
+            )
+        ) {
             router.delete(finances.default.factureDepots.destroy(id).url, {
                 onSuccess: () => toast.success('Facture supprimée'),
             });
@@ -183,7 +246,7 @@ export default function FacturesDepot({ invoices, clients, depots }: Props) {
     };
 
     const currentDepot = useMemo(() => {
-        return depots.find(d => d.id.toString() === data.depot_id);
+        return depots.find((d) => d.id.toString() === data.depot_id);
     }, [data.depot_id, depots]);
 
     const columns = useMemo<ColumnDef<Invoice>[]>(
@@ -191,17 +254,25 @@ export default function FacturesDepot({ invoices, clients, depots }: Props) {
             {
                 accessorKey: 'number',
                 header: 'Numéro',
-                cell: ({ row }) => <div className="font-bold">{row.original.number}</div>,
+                cell: ({ row }) => (
+                    <div className="font-bold">{row.original.number}</div>
+                ),
             },
             {
                 accessorKey: 'date',
                 header: ({ column }) => (
-                    <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}>
+                    <Button
+                        variant="ghost"
+                        onClick={() =>
+                            column.toggleSorting(column.getIsSorted() === 'asc')
+                        }
+                    >
                         Date
                         <ArrowUpDown className="ml-2 h-4 w-4" />
                     </Button>
                 ),
-                cell: ({ row }) => format(new Date(row.original.date), 'dd/MM/yyyy'),
+                cell: ({ row }) =>
+                    format(new Date(row.original.date), 'dd/MM/yyyy'),
             },
             {
                 accessorKey: 'client.nom',
@@ -235,7 +306,15 @@ export default function FacturesDepot({ invoices, clients, depots }: Props) {
                                 </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => router.visit(finances.default.factureDepots.show(invoice.id).url)}>
+                                <DropdownMenuItem
+                                    onClick={() =>
+                                        router.visit(
+                                            finances.default.factureDepots.show(
+                                                invoice.id,
+                                            ).url,
+                                        )
+                                    }
+                                >
                                     <Eye className="mr-2 h-4 w-4" /> Consulter
                                 </DropdownMenuItem>
                                 <DropdownMenuItem
@@ -246,7 +325,10 @@ export default function FacturesDepot({ invoices, clients, depots }: Props) {
                                 >
                                     <Pencil className="mr-2 h-4 w-4" /> Modifier
                                 </DropdownMenuItem>
-                                <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(invoice.id)}>
+                                <DropdownMenuItem
+                                    className="text-destructive"
+                                    onClick={() => handleDelete(invoice.id)}
+                                >
                                     <Trash className="mr-2 h-4 w-4" /> Supprimer
                                 </DropdownMenuItem>
                             </DropdownMenuContent>
@@ -264,7 +346,9 @@ export default function FacturesDepot({ invoices, clients, depots }: Props) {
 
             <div className="flex h-full flex-1 flex-col gap-4 p-4">
                 <div className="flex items-center justify-between">
-                    <h1 className="text-2xl font-bold text-foreground">Factures Dépôt</h1>
+                    <h1 className="text-2xl font-bold text-foreground">
+                        Factures Dépôt
+                    </h1>
                     <Button onClick={openCreate}>
                         <Plus className="mr-2 h-4 w-4" /> Nouvelle Facture
                     </Button>
@@ -292,7 +376,11 @@ export default function FacturesDepot({ invoices, clients, depots }: Props) {
             >
                 <DialogContent className="max-h-[90vh] w-[calc(100vw-2rem)] overflow-y-auto border border-border shadow-none sm:max-w-[90rem] xl:max-w-[96rem]">
                     <DialogHeader>
-                        <DialogTitle>{isEditOpen ? `Modifier la Facture ${selectedInvoice?.number}` : 'Nouvelle Facture Dépôt'}</DialogTitle>
+                        <DialogTitle>
+                            {isEditOpen
+                                ? `Modifier la Facture ${selectedInvoice?.number}`
+                                : 'Nouvelle Facture Dépôt'}
+                        </DialogTitle>
                     </DialogHeader>
 
                     {Object.keys(errors).length > 0 && (
@@ -301,82 +389,219 @@ export default function FacturesDepot({ invoices, clients, depots }: Props) {
                         </div>
                     )}
 
-                    <form onSubmit={isEditOpen ? handleUpdate : handleSubmit} className="space-y-4 p-6 pt-0">
+                    <form
+                        onSubmit={isEditOpen ? handleUpdate : handleSubmit}
+                        className="space-y-4 p-6 pt-0"
+                    >
                         <div className="grid grid-cols-3 gap-4">
                             <div className="space-y-2">
                                 <Label>Client</Label>
-                                <Select value={data.client_id} onValueChange={(v) => setData('client_id', v)}>
-                                    <SelectTrigger><SelectValue placeholder="Client" /></SelectTrigger>
+                                <Select
+                                    value={data.client_id}
+                                    onValueChange={(v) =>
+                                        setData('client_id', v)
+                                    }
+                                    disabled={lockClient}
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Client" />
+                                    </SelectTrigger>
                                     <SelectContent>
-                                        {clients.map(c => <SelectItem key={c.id} value={c.id.toString()}>{c.nom}</SelectItem>)}
+                                        {clients.map((c) => (
+                                            <SelectItem
+                                                key={c.id}
+                                                value={c.id.toString()}
+                                            >
+                                                {c.nom}
+                                            </SelectItem>
+                                        ))}
                                     </SelectContent>
                                 </Select>
-                                {errors.client_id && <p className="text-xs text-destructive">{errors.client_id}</p>}
+                                {errors.client_id && (
+                                    <p className="text-xs text-destructive">
+                                        {errors.client_id}
+                                    </p>
+                                )}
                             </div>
                             <div className="space-y-2">
                                 <Label>Dépôt</Label>
-                                <Select value={data.depot_id} onValueChange={(v) => setData('depot_id', v)}>
-                                    <SelectTrigger><SelectValue placeholder="Dépôt" /></SelectTrigger>
+                                <Select
+                                    value={data.depot_id}
+                                    onValueChange={(v) =>
+                                        setData('depot_id', v)
+                                    }
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Dépôt" />
+                                    </SelectTrigger>
                                     <SelectContent>
-                                        {depots.map(d => <SelectItem key={d.id} value={d.id.toString()}>{d.name}</SelectItem>)}
+                                        {depots.map((d) => (
+                                            <SelectItem
+                                                key={d.id}
+                                                value={d.id.toString()}
+                                            >
+                                                {d.name}
+                                            </SelectItem>
+                                        ))}
                                     </SelectContent>
                                 </Select>
-                                {errors.depot_id && <p className="text-xs text-destructive">{errors.depot_id}</p>}
+                                {errors.depot_id && (
+                                    <p className="text-xs text-destructive">
+                                        {errors.depot_id}
+                                    </p>
+                                )}
                             </div>
-                            <div className="space-y-2 flex flex-col">
+                            <div className="flex flex-col space-y-2">
                                 <Label>Date</Label>
                                 <Popover>
                                     <PopoverTrigger asChild>
-                                        <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !data.date && "text-muted-foreground")}>
+                                        <Button
+                                            variant="outline"
+                                            className={cn(
+                                                'w-full justify-start text-left font-normal',
+                                                !data.date &&
+                                                    'text-muted-foreground',
+                                            )}
+                                        >
                                             <CalendarIcon className="mr-2 h-4 w-4" />
-                                            {data.date ? format(new Date(data.date), "dd/MM/yyyy") : <span>Choisir une date</span>}
+                                            {data.date ? (
+                                                format(
+                                                    new Date(data.date),
+                                                    'dd/MM/yyyy',
+                                                )
+                                            ) : (
+                                                <span>Choisir une date</span>
+                                            )}
                                         </Button>
                                     </PopoverTrigger>
                                     <PopoverContent className="w-auto p-0">
-                                        <Calendar mode="single" selected={data.date ? new Date(data.date) : undefined} onSelect={(date) => setData('date', date ? date.toISOString().split('T')[0] : '')} initialFocus />
+                                        <Calendar
+                                            mode="single"
+                                            selected={
+                                                data.date
+                                                    ? new Date(data.date)
+                                                    : undefined
+                                            }
+                                            onSelect={(date) =>
+                                                setData(
+                                                    'date',
+                                                    date
+                                                        ? date
+                                                              .toISOString()
+                                                              .split('T')[0]
+                                                        : '',
+                                                )
+                                            }
+                                        />
                                     </PopoverContent>
                                 </Popover>
-                                {errors.date && <p className="text-xs text-destructive">{errors.date}</p>}
+                                {errors.date && (
+                                    <p className="text-xs text-destructive">
+                                        {errors.date}
+                                    </p>
+                                )}
                             </div>
                         </div>
 
-                        <div className="border rounded-md max-h-[300px] overflow-auto">
+                        <div className="max-h-[300px] overflow-auto rounded-md border">
                             <table className="w-full text-sm">
-                                <thead className="bg-muted sticky top-0">
+                                <thead className="sticky top-0 bg-muted">
                                     <tr>
-                                        <th className="px-4 py-2 text-left">Compartiment / Produit</th>
-                                        <th className="px-4 py-2 text-right w-32">Quantité</th>
-                                        <th className="px-4 py-2 text-right w-32">P.U</th>
-                                        <th className="px-4 py-2 text-right w-32">Total</th>
-                                        <th className="px-4 py-2 text-center w-10"></th>
+                                        <th className="px-4 py-2 text-left">
+                                            Compartiment / Produit
+                                        </th>
+                                        <th className="w-32 px-4 py-2 text-right">
+                                            Quantité
+                                        </th>
+                                        <th className="w-32 px-4 py-2 text-right">
+                                            P.U
+                                        </th>
+                                        <th className="w-32 px-4 py-2 text-right">
+                                            Total
+                                        </th>
+                                        <th className="w-10 px-4 py-2 text-center"></th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {data.items.map((item, index) => (
                                         <tr key={index} className="border-t">
                                             <td className="px-4 py-2">
-                                                <Select value={item.compartment_id} onValueChange={(v) => handleEditItem(index, 'compartment_id', v)}>
-                                                    <SelectTrigger className="h-8"><SelectValue placeholder="Produit" /></SelectTrigger>
+                                                <Select
+                                                    value={item.compartment_id}
+                                                    onValueChange={(v) =>
+                                                        handleEditItem(
+                                                            index,
+                                                            'compartment_id',
+                                                            v,
+                                                        )
+                                                    }
+                                                >
+                                                    <SelectTrigger className="h-8">
+                                                        <SelectValue placeholder="Produit" />
+                                                    </SelectTrigger>
                                                     <SelectContent>
-                                                        {currentDepot?.compartments.map(c => (
-                                                            <SelectItem key={c.id} value={c.id?.toString() || ''}>
-                                                                {c.product} ({c.quantity} L dispo)
-                                                            </SelectItem>
-                                                        ))}
+                                                        {currentDepot?.compartments.map(
+                                                            (c) => (
+                                                                <SelectItem
+                                                                    key={c.id}
+                                                                    value={
+                                                                        c.id?.toString() ||
+                                                                        ''
+                                                                    }
+                                                                >
+                                                                    {c.product}{' '}
+                                                                    (
+                                                                    {c.quantity}{' '}
+                                                                    L dispo)
+                                                                </SelectItem>
+                                                            ),
+                                                        )}
                                                     </SelectContent>
                                                 </Select>
                                             </td>
                                             <td className="px-4 py-2 text-right">
-                                                <Input type="number" step="0.01" value={item.quantity} onChange={(e) => handleEditItem(index, 'quantity', e.target.value)} className="h-8 text-right" />
+                                                <Input
+                                                    type="number"
+                                                    step="0.01"
+                                                    value={item.quantity}
+                                                    onChange={(e) =>
+                                                        handleEditItem(
+                                                            index,
+                                                            'quantity',
+                                                            e.target.value,
+                                                        )
+                                                    }
+                                                    className="h-8 text-right"
+                                                />
                                             </td>
                                             <td className="px-4 py-2 text-right">
-                                                <Input type="number" step="0.01" value={item.unit_price} onChange={(e) => handleEditItem(index, 'unit_price', e.target.value)} className="h-8 text-right" />
+                                                <Input
+                                                    type="number"
+                                                    step="0.01"
+                                                    value={item.unit_price}
+                                                    onChange={(e) =>
+                                                        handleEditItem(
+                                                            index,
+                                                            'unit_price',
+                                                            e.target.value,
+                                                        )
+                                                    }
+                                                    className="h-8 text-right"
+                                                />
                                             </td>
                                             <td className="px-4 py-2 text-right font-medium">
                                                 {formatNumber(item.total || 0)}
                                             </td>
                                             <td className="px-4 py-2 text-center">
-                                                <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleRemoveItem(index)}>
+                                                <Button
+                                                    type="button"
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-8 w-8 text-destructive"
+                                                    onClick={() =>
+                                                        handleRemoveItem(index)
+                                                    }
+                                                >
                                                     <X className="h-4 w-4" />
                                                 </Button>
                                             </td>
@@ -385,14 +610,22 @@ export default function FacturesDepot({ invoices, clients, depots }: Props) {
                                 </tbody>
                             </table>
                         </div>
-                        <Button type="button" variant="outline" size="sm" onClick={handleAddItem} className="mt-2">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={handleAddItem}
+                            className="mt-2"
+                        >
                             <Plus className="mr-2 h-4 w-4" /> Ajouter un produit
                         </Button>
 
                         <div className="flex flex-col items-end border-t pt-4">
                             <div className="flex space-x-4 text-xl font-black">
                                 <span>MONTANT TOTAL:</span>
-                                <span className="text-primary">{formatNumber(data.total_amount)} CFA</span>
+                                <span className="text-primary">
+                                    {formatNumber(data.total_amount)} CFA
+                                </span>
                             </div>
                         </div>
 
@@ -409,7 +642,9 @@ export default function FacturesDepot({ invoices, clients, depots }: Props) {
                                 Annuler
                             </Button>
                             <Button type="submit" disabled={processing}>
-                                {isEditOpen ? 'Enregistrer les modifications' : 'Générer la facture'}
+                                {isEditOpen
+                                    ? 'Enregistrer les modifications'
+                                    : 'Générer la facture'}
                             </Button>
                         </DialogFooter>
                     </form>
@@ -422,7 +657,10 @@ export default function FacturesDepot({ invoices, clients, depots }: Props) {
 FacturesDepot.layout = (page: any) => ({
     breadcrumbs: [
         { title: 'Finances', href: '#' },
-        { title: 'Facture dépôt', href: finances.default.factureDepots.index().url },
+        {
+            title: 'Facture dépôt',
+            href: finances.default.factureDepots.index().url,
+        },
     ],
     children: page,
 });

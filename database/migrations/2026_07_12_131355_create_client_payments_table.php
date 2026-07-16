@@ -1,6 +1,5 @@
 <?php
 
-use App\Enums\PaymentMethod;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -20,7 +19,7 @@ return new class extends Migration
             $table->string('payment_type')->nullable();
             $table->boolean('is_advance')->default(false);
             $table->decimal('amount', 15, 2);
-            $table->string('payment_method')->default(PaymentMethod::ESPECE->value);
+            $table->string('payment_method')->default('ESPECE');
             $table->date('date');
             $table->string('reference')->nullable();
             $table->text('note')->nullable();

@@ -10,7 +10,6 @@ import {
     Fuel,
     Receipt,
     Files,
-    CreditCard,
     ClipboardCheck,
     BarChartHorizontal,
     Contact,
@@ -74,11 +73,6 @@ const mainNavGroups: NavGroup[] = [
                 title: 'Facture dépôt',
                 href: finances.default.factureDepots.index().url,
                 icon: Files,
-            },
-            {
-                title: 'Règlements',
-                href: finances.default.reglements.index().url,
-                icon: CreditCard,
             },
         ],
     },
@@ -153,7 +147,12 @@ export function AppSidebar() {
                 <SidebarMenu>
                     <SidebarMenuItem>
                         <SidebarMenuButton size="lg" asChild>
-                            <Link href={operations.default.chargements.index().url} prefetch>
+                            <Link
+                                href={
+                                    operations.default.chargements.index().url
+                                }
+                                prefetch
+                            >
                                 <AppLogo />
                             </Link>
                         </SidebarMenuButton>

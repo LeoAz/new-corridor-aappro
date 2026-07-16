@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Enums\LoadStatus;
-use App\Models\City;
 use App\Models\Client;
 use App\Models\Load;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -67,9 +66,7 @@ class DeliveryController extends Controller
 
         return Inertia::render('operations/livraisons', [
             'deliveries' => $deliveries,
-            'cities' => City::all(),
             'clients' => Client::all(),
-            'paymentMethods' => ['Chèque', 'Virement bancaire', 'Espèce', 'Autres'],
             'stats' => [
                 'by_product' => $statsByProduct,
                 'total_loads' => $totalLoads,
