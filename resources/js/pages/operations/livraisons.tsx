@@ -294,6 +294,7 @@ export default function Livraisons({
         unload_location: '',
         client_id: '',
         client_name: '',
+        volume: '',
     });
 
     const openEditModal = (delivery: Load) => {
@@ -305,6 +306,7 @@ export default function Livraisons({
             unload_location: delivery.unload_location || '',
             client_id: delivery.client_id?.toString() || '',
             client_name: delivery.client?.nom || '',
+            volume: delivery.volume?.toString() || '',
         });
         clearErrors();
         setIsEditModalOpen(true);
@@ -796,6 +798,24 @@ export default function Livraisons({
                                 {errors.client_name && (
                                     <p className="text-sm text-destructive">
                                         {errors.client_name}
+                                    </p>
+                                )}
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label htmlFor="edit_volume">Volume</Label>
+                                <Input
+                                    id="edit_volume"
+                                    type="number"
+                                    step="0.01"
+                                    value={data.volume}
+                                    onChange={(e) =>
+                                        setData('volume', e.target.value)
+                                    }
+                                />
+                                {errors.volume && (
+                                    <p className="text-sm text-destructive">
+                                        {errors.volume}
                                     </p>
                                 )}
                             </div>

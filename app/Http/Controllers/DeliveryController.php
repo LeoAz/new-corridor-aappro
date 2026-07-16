@@ -4,9 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Enums\LoadStatus;
 use App\Models\Client;
+use App\Models\Compartment;
 use App\Models\Load;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class DeliveryController extends Controller
@@ -87,6 +89,7 @@ class DeliveryController extends Controller
             'unload_location' => 'required|string|max:255',
             'client_id' => 'nullable|exists:clients,id',
             'client_name' => 'nullable|string|max:255',
+            'volume' => 'required|numeric|min:0',
         ]);
 
         if (empty($validated['client_id']) && ! empty($validated['client_name'])) {
@@ -94,12 +97,27 @@ class DeliveryController extends Controller
             $validated['client_id'] = $client->id;
         }
 
-        $chargement->update([
-            'unload_date' => $validated['unload_date'],
-            'unload_location' => $validated['unload_location'],
-            'client_id' => $validated['client_id'],
-            'status' => LoadStatus::LIVRER,
-        ]);
+        DB::transaction(function () use ($validated, $chargement) {
+            $oldVolume = (float) $chargement->volume;
+            $compartmentId = $chargement->compartment_id;
+
+            $chargement->update([
+                'unload_date' => $validated['unload_date'],
+                'unload_location' => $validated['unload_location'],
+                'client_id' => $validated['client_id'],
+                'volume' => $validated['volume'],
+                'status' => LoadStatus::LIVRER,
+            ]);
+
+            $newVolume = (float) $chargement->volume;
+
+            if ($compartmentId && $oldVolume != $newVolume) {
+                $compartment = Compartment::find($compartmentId);
+                if ($compartment) {
+                    $compartment->decrement('quantity', $newVolume - $oldVolume);
+                }
+            }
+        });
 
         return back()->with('message', 'Livraison effectuée avec succès');
     }
@@ -111,6 +129,7 @@ class DeliveryController extends Controller
             'unload_location' => 'required|string|max:255',
             'client_id' => 'nullable|exists:clients,id',
             'client_name' => 'nullable|string|max:255',
+            'volume' => 'required|numeric|min:0',
         ]);
 
         if (empty($validated['client_id']) && ! empty($validated['client_name'])) {
@@ -118,11 +137,26 @@ class DeliveryController extends Controller
             $validated['client_id'] = $client->id;
         }
 
-        $livraison->update([
-            'unload_date' => $validated['unload_date'],
-            'unload_location' => $validated['unload_location'],
-            'client_id' => $validated['client_id'],
-        ]);
+        DB::transaction(function () use ($validated, $livraison) {
+            $oldVolume = (float) $livraison->volume;
+            $compartmentId = $livraison->compartment_id;
+
+            $livraison->update([
+                'unload_date' => $validated['unload_date'],
+                'unload_location' => $validated['unload_location'],
+                'client_id' => $validated['client_id'],
+                'volume' => $validated['volume'],
+            ]);
+
+            $newVolume = (float) $livraison->volume;
+
+            if ($compartmentId && $oldVolume != $newVolume) {
+                $compartment = Compartment::find($compartmentId);
+                if ($compartment) {
+                    $compartment->decrement('quantity', $newVolume - $oldVolume);
+                }
+            }
+        });
 
         return back()->with('message', 'Livraison mise à jour avec succès');
     }

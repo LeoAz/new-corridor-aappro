@@ -321,6 +321,7 @@ export default function Chargements({ loads, depots, cities, clients, filters, d
             unload_location: load.city?.name || '',
             client_id: load.client_id?.toString() || '',
             client_name: load.client?.nom || '',
+            volume: load.volume,
         });
         clearErrors();
         setIsDeliverModalOpen(true);
@@ -1537,6 +1538,24 @@ export default function Chargements({ loads, depots, cities, clients, filters, d
                                 {errors.client_name && (
                                     <p className="text-sm text-destructive">
                                         {errors.client_name}
+                                    </p>
+                                )}
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label htmlFor="deliver_volume">Volume livré</Label>
+                                <Input
+                                    id="deliver_volume"
+                                    type="number"
+                                    step="0.01"
+                                    value={data.volume}
+                                    onChange={(e) =>
+                                        setData('volume', e.target.value)
+                                    }
+                                />
+                                {errors.volume && (
+                                    <p className="text-sm text-destructive">
+                                        {errors.volume}
                                     </p>
                                 )}
                             </div>
