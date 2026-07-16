@@ -47,7 +47,8 @@
                         @if(!isset($filters['date_from']) && !isset($filters['date_to'])) Toutes les dates @endif
                         <br>
                         <strong>Produit :</strong> {{ $filters['product'] ?? 'Tous' }} |
-                        <strong>Lieu :</strong> {{ $filters['load_location'] ?? 'Tous' }}
+                        <strong>Lieu :</strong> {{ $filters['load_location'] ?? 'Tous' }} <br>
+                        <strong>Client :</strong> {{ $client->nom ?? 'Tous' }}
                     </div>
                 </td>
                 <td class="qrcode" style="width: 30%;">

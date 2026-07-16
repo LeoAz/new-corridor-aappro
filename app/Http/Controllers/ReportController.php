@@ -34,6 +34,9 @@ class ReportController extends Controller
         if ($request->filled('load_location')) {
             $query->where('load_location', 'like', '%'.$request->load_location.'%');
         }
+        if ($request->filled('client_id')) {
+            $query->where('client_id', $request->client_id);
+        }
 
         $loads = $query->orderBy('load_date', 'desc')->get();
 
@@ -57,7 +60,7 @@ class ReportController extends Controller
             'loads' => $loads,
             'groupedLoads' => $groupedLoads,
             'stats' => $stats,
-            'filters' => $request->only(['date_from', 'date_to', 'product', 'load_location']),
+            'filters' => $request->only(['date_from', 'date_to', 'product', 'load_location', 'client_id']),
             'clients' => Client::all(['id', 'nom']),
             'depots' => Depot::all(['id', 'name']),
         ]);
@@ -78,6 +81,11 @@ class ReportController extends Controller
         }
         if ($request->filled('load_location')) {
             $query->where('load_location', 'like', '%'.$request->load_location.'%');
+        }
+        $client = null;
+        if ($request->filled('client_id')) {
+            $query->where('client_id', $request->client_id);
+            $client = Client::find($request->client_id);
         }
 
         $loads = $query->orderBy('load_date', 'asc')->get();
@@ -115,6 +123,7 @@ class ReportController extends Controller
             'stats' => $stats,
             'totalVolume' => $totalVolume,
             'filters' => $request->all(),
+            'client' => $client,
             'qrcode' => $qrcode,
             'date' => now()->format('d/m/Y H:i'),
         ])->setPaper('a4', 'landscape');
@@ -137,6 +146,9 @@ class ReportController extends Controller
         }
         if ($request->filled('unload_location')) {
             $query->where('unload_location', 'like', '%'.$request->unload_location.'%');
+        }
+        if ($request->filled('client_id')) {
+            $query->where('client_id', $request->client_id);
         }
 
         $loads = $query->orderBy('unload_date', 'desc')->get();
@@ -182,6 +194,11 @@ class ReportController extends Controller
         if ($request->filled('unload_location')) {
             $query->where('unload_location', 'like', '%'.$request->unload_location.'%');
         }
+        $client = null;
+        if ($request->filled('client_id')) {
+            $query->where('client_id', $request->client_id);
+            $client = Client::find($request->client_id);
+        }
 
         $loads = $query->orderBy('unload_date', 'asc')->get();
         $totalVolume = $loads->sum('volume');
@@ -218,6 +235,7 @@ class ReportController extends Controller
             'stats' => $stats,
             'totalVolume' => $totalVolume,
             'filters' => $request->all(),
+            'client' => $client,
             'qrcode' => $qrcode,
             'date' => now()->format('d/m/Y H:i'),
         ])->setPaper('a4', 'landscape');

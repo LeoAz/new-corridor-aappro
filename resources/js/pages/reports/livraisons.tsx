@@ -1,10 +1,11 @@
 import { Head, router } from '@inertiajs/react';
-import { ColumnDef } from '@tanstack/react-table';
+import type { ColumnDef } from '@tanstack/react-table';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { CalendarIcon, Download, Filter, Search, Truck } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
+import { Autocomplete } from '@/components/ui/autocomplete';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { DataTable } from '@/components/ui/data-table';
@@ -219,19 +220,18 @@ export default function ReportLivraisons({ loads, stats, clients, filters }: Pro
 
                         <div className="space-y-2">
                             <Label>Client</Label>
-                            <Select value={clientId} onValueChange={setClientId}>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Tous les clients" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="all">Tous les clients</SelectItem>
-                                    {clients.map((client) => (
-                                        <SelectItem key={client.id} value={client.id.toString()}>
-                                            {client.nom}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                            <Autocomplete
+                                options={[
+                                    { value: 'all', label: 'Tous les clients' },
+                                    ...clients.map((client) => ({
+                                        value: client.id.toString(),
+                                        label: client.nom,
+                                    })),
+                                ]}
+                                value={clientId}
+                                onValueChange={(value) => setClientId(value || 'all')}
+                                placeholder="Sélectionner un client..."
+                            />
                         </div>
 
                         <div className="flex items-end">
