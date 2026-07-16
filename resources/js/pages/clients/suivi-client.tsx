@@ -6,8 +6,6 @@ import {
     ArrowUpRight,
     Banknote,
     CalendarIcon,
-    Check,
-    ChevronsUpDown,
     CreditCard,
     Download,
     Eye,
@@ -32,14 +30,6 @@ import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
-import {
-    Command,
-    CommandEmpty,
-    CommandGroup,
-    CommandInput,
-    CommandItem,
-    CommandList,
-} from '@/components/ui/command';
 import { DataTable } from '@/components/ui/data-table';
 import {
     Dialog,
@@ -102,7 +92,6 @@ interface Payment {
     numero: string;
     amount: number;
     note: string;
-    loads?: Load[];
 }
 
 interface Load {
@@ -118,7 +107,6 @@ interface Load {
     missing_quantity: number;
     total_amount: number;
     status: string;
-    payment: string;
     is_paid: boolean;
     invoice_items?: {
         id: number;
@@ -212,22 +200,14 @@ export default function SuiviClient({
     const [isSheetOpen, setIsSheetOpen] = React.useState(false);
 
     const [isPaymentModalOpen, setIsPaymentModalOpen] = React.useState(false);
-    const [isPaymentComboboxOpen, setIsPaymentComboboxOpen] =
-        React.useState(false);
     const [isCreatePaymentModalOpen, setIsCreatePaymentModalOpen] =
         React.useState(false);
     const [isEditPaymentModalOpen, setIsEditPaymentModalOpen] =
-        React.useState(false);
-    const [isPaymentDetailsOpen, setIsPaymentDetailsOpen] =
-        React.useState(false);
-    const [isEditPaymentLoadOpen, setIsEditPaymentLoadOpen] =
         React.useState(false);
     const [paymentToDelete, setPaymentToDelete] =
         React.useState<Payment | null>(null);
     const [selectedPayment, setSelectedPayment] =
         React.useState<Payment | null>(null);
-    const [editingPaymentLoad, setEditingPaymentLoad] =
-        React.useState<Load | null>(null);
     const [invoiceToDelete, setInvoiceToDelete] =
         React.useState<InvoiceLine | null>(null);
     const [editingClientInvoice, setEditingClientInvoice] =
@@ -257,7 +237,6 @@ export default function SuiviClient({
     const unpaidLoads = loads.filter((load) => !load.is_paid).length;
 
     const paymentForm = useForm({
-        payment_id: '',
         load_ids: [] as number[],
         missings: {} as Record<number, number>,
     });
@@ -279,12 +258,6 @@ export default function SuiviClient({
         numero: '',
         amount: 0,
         note: '',
-    });
-
-    const editPaymentLoadForm = useForm({
-        payment_id: '',
-        load_id: '',
-        missing_quantity: 0,
     });
 
     const editLoadInvoiceForm = useForm({
@@ -910,7 +883,6 @@ export default function SuiviClient({
         });
 
         paymentForm.setData({
-            payment_id: '',
             load_ids: selectedLoads.map((l) => l.id),
             missings: initialMissings,
         });
@@ -995,125 +967,6 @@ export default function SuiviClient({
         });
     };
 
-    const handleUnlinkLoad = (loadId: number) => {
-        if (
-            !confirm(
-                'Voulez-vous vraiment retirer cette livraison du règlement ?',
-            )
-        ) {
-            return;
-        }
-
-        router.post(
-            tracking.unlinkLoad().url,
-            { load_id: loadId },
-            {
-                preserveScroll: true,
-                onSuccess: () => {
-                    // Mettre à jour localement selectedPayment si nécessaire
-                    if (selectedPayment) {
-                        const updatedLoads =
-                            selectedPayment.loads?.filter(
-                                (l) => l.id !== loadId,
-                            ) || [];
-                        setSelectedPayment({
-                            ...selectedPayment,
-                            loads: updatedLoads,
-                        });
-                    }
-                },
-            },
-        );
-    };
-
-    const openEditPaymentLoad = (load: Load) => {
-        if (!selectedPayment) {
-            return;
-        }
-
-        const invoiceItem = load.invoice_items?.[0];
-
-        setEditingPaymentLoad(load);
-        editPaymentLoadForm.setData({
-            payment_id: selectedPayment.id.toString(),
-            load_id: load.id.toString(),
-            missing_quantity: invoiceItem?.missing_quantity || 0,
-        });
-        setIsEditPaymentLoadOpen(true);
-    };
-
-    const submitEditPaymentLoad = (e: React.FormEvent) => {
-        e.preventDefault();
-
-        if (!selectedPayment || !editingPaymentLoad) {
-            return;
-        }
-
-        editPaymentLoadForm.post(tracking.updatePaymentLoad().url, {
-            preserveScroll: true,
-            onSuccess: () => {
-                const missingQuantity =
-                    editPaymentLoadForm.data.missing_quantity || 0;
-
-                setSelectedPayment({
-                    ...selectedPayment,
-                    loads:
-                        selectedPayment.loads?.map((load) => {
-                            if (load.id !== editingPaymentLoad.id) {
-                                return load;
-                            }
-
-                            const invoiceItem = load.invoice_items?.[0];
-
-                            if (!invoiceItem) {
-                                return {
-                                    ...load,
-                                    missing_quantity: missingQuantity,
-                                };
-                            }
-
-                            const totalMatches =
-                                Math.abs(
-                                    invoiceItem.total -
-                                        invoiceItem.quantity_delivered *
-                                            invoiceItem.unit_price,
-                                ) < 0.01;
-                            const quantityBeforeMissing =
-                                invoiceItem.missing_quantity > 0 && totalMatches
-                                    ? invoiceItem.quantity_delivered +
-                                      invoiceItem.missing_quantity
-                                    : invoiceItem.quantity_delivered;
-                            const quantityAfterMissing = Math.max(
-                                quantityBeforeMissing - missingQuantity,
-                                0,
-                            );
-                            const updatedInvoiceItem = {
-                                ...invoiceItem,
-                                quantity_delivered: quantityAfterMissing,
-                                missing_quantity: missingQuantity,
-                                total:
-                                    quantityAfterMissing *
-                                    invoiceItem.unit_price,
-                            };
-
-                            return {
-                                ...load,
-                                missing_quantity: missingQuantity,
-                                total_amount: updatedInvoiceItem.total,
-                                invoice_items: [
-                                    updatedInvoiceItem,
-                                    ...(load.invoice_items?.slice(1) || []),
-                                ],
-                            };
-                        }) || [],
-                });
-                setIsEditPaymentLoadOpen(false);
-                setEditingPaymentLoad(null);
-                editPaymentLoadForm.reset();
-            },
-        });
-    };
-
     const paymentColumns: ColumnDef<Payment>[] = React.useMemo(
         () => [
             {
@@ -1142,17 +995,6 @@ export default function SuiviClient({
 
                     return (
                         <div className="flex justify-end gap-1">
-                            <Button
-                                variant="ghost"
-                                size="icon-sm"
-                                onClick={() => {
-                                    setSelectedPayment(payment);
-                                    setIsPaymentDetailsOpen(true);
-                                }}
-                                title="Détails"
-                            >
-                                <Eye className="h-4 w-4" />
-                            </Button>
                             <Button
                                 variant="ghost"
                                 size="icon-sm"
@@ -1419,7 +1261,6 @@ export default function SuiviClient({
                     return <Badge variant={variant}>{status}</Badge>;
                 },
             },
-            { accessorKey: 'payment', header: 'Règlement' },
         ],
         [],
     );
@@ -1774,8 +1615,7 @@ export default function SuiviClient({
                                         </h2>
                                         <p className="text-sm text-muted-foreground">
                                             Sélectionnez uniquement les lignes
-                                            non payées à rattacher à un
-                                            règlement.
+                                            non payées à marquer comme payées.
                                         </p>
                                     </div>
 
@@ -1836,7 +1676,7 @@ export default function SuiviClient({
                                             onClick={openPaymentModal}
                                         >
                                             <CreditCard className="mr-2 h-4 w-4" />
-                                            Payer ({selectedLoads.length})
+                                            Marquer payées ({selectedLoads.length})
                                         </Button>
                                     </div>
                                 </div>
@@ -2675,113 +2515,11 @@ export default function SuiviClient({
                     <DialogHeader>
                         <DialogTitle>Enregistrer le paiement</DialogTitle>
                         <DialogDescription>
-                            Sélectionnez le règlement et saisissez les manquants
-                            éventuels pour chaque livraison.
+                            Saisissez les manquants éventuels pour chaque
+                            livraison sélectionnée.
                         </DialogDescription>
                     </DialogHeader>
                     <form onSubmit={submitPayment} className="space-y-6">
-                        <div className="space-y-2 text-right">
-                            <Button
-                                type="button"
-                                variant="link"
-                                size="sm"
-                                onClick={() => {
-                                    setIsPaymentModalOpen(false);
-                                    openCreatePaymentModal();
-                                }}
-                            >
-                                <Plus className="mr-1 h-3 w-3" />
-                                Créer un nouveau règlement
-                            </Button>
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="payment_id">
-                                Sélectionner le règlement
-                            </Label>
-                            <Popover
-                                open={isPaymentComboboxOpen}
-                                onOpenChange={setIsPaymentComboboxOpen}
-                            >
-                                <PopoverTrigger asChild>
-                                    <Button
-                                        variant="outline"
-                                        role="combobox"
-                                        aria-expanded={isPaymentComboboxOpen}
-                                        className="w-full justify-between font-normal"
-                                    >
-                                        {paymentForm.data.payment_id
-                                            ? (() => {
-                                                  const p = payments.find(
-                                                      (pay) =>
-                                                          pay.id.toString() ===
-                                                          paymentForm.data
-                                                              .payment_id,
-                                                  );
-
-                                                  return p
-                                                      ? `${formatDate(p.date)} - ${p.numero} - ${new Intl.NumberFormat('fr-FR').format(p.amount)} FCFA (${p.payment_method})`
-                                                      : 'Choisir un règlement...';
-                                              })()
-                                            : 'Choisir un règlement...'}
-                                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                    </Button>
-                                </PopoverTrigger>
-                                <PopoverContent
-                                    className="w-[500px] p-0"
-                                    align="start"
-                                >
-                                    <Command>
-                                        <CommandInput placeholder="Rechercher un règlement (date, numéro, montant)..." />
-                                        <CommandList>
-                                            <CommandEmpty>
-                                                Aucun règlement trouvé.
-                                            </CommandEmpty>
-                                            <CommandGroup>
-                                                {payments.map((p) => (
-                                                    <CommandItem
-                                                        key={p.id}
-                                                        value={`${p.date} ${p.numero} ${p.amount} ${p.payment_method}`}
-                                                        onSelect={() => {
-                                                            paymentForm.setData(
-                                                                'payment_id',
-                                                                p.id.toString(),
-                                                            );
-                                                            setIsPaymentComboboxOpen(
-                                                                false,
-                                                            );
-                                                        }}
-                                                    >
-                                                        <Check
-                                                            className={cn(
-                                                                'mr-2 h-4 w-4',
-                                                                paymentForm.data
-                                                                    .payment_id ===
-                                                                    p.id.toString()
-                                                                    ? 'opacity-100'
-                                                                    : 'opacity-0',
-                                                            )}
-                                                        />
-                                                        {formatDate(p.date)} -{' '}
-                                                        {p.numero} -{' '}
-                                                        {new Intl.NumberFormat(
-                                                            'fr-FR',
-                                                        ).format(p.amount)}{' '}
-                                                        FCFA ({p.payment_method}
-                                                        )
-                                                    </CommandItem>
-                                                ))}
-                                            </CommandGroup>
-                                        </CommandList>
-                                    </Command>
-                                </PopoverContent>
-                            </Popover>
-                            {paymentForm.errors.payment_id && (
-                                <p className="text-sm text-destructive">
-                                    {paymentForm.errors.payment_id}
-                                </p>
-                            )}
-                        </div>
-
                         <div className="space-y-4">
                             <h4 className="text-sm font-semibold tracking-wider text-muted-foreground uppercase">
                                 Détails des livraisons
@@ -2868,10 +2606,7 @@ export default function SuiviClient({
                             </Button>
                             <Button
                                 type="submit"
-                                disabled={
-                                    paymentForm.processing ||
-                                    !paymentForm.data.payment_id
-                                }
+                                disabled={paymentForm.processing}
                             >
                                 {paymentForm.processing
                                     ? 'Traitement...'
@@ -3201,244 +2936,6 @@ export default function SuiviClient({
                                 disabled={editPaymentForm.processing}
                             >
                                 Mettre à jour
-                            </Button>
-                        </DialogFooter>
-                    </form>
-                </DialogContent>
-            </Dialog>
-
-            {/* Modale de détails du règlement */}
-            <Dialog
-                open={isPaymentDetailsOpen}
-                onOpenChange={setIsPaymentDetailsOpen}
-            >
-                <DialogContent className="max-w-7xl">
-                    <DialogHeader>
-                        <DialogTitle>Détails du règlement</DialogTitle>
-                        <DialogDescription>
-                            Liste des livraisons liées au règlement{' '}
-                            {selectedPayment?.numero}.
-                        </DialogDescription>
-                    </DialogHeader>
-
-                    {selectedPayment && (
-                        <div className="space-y-6">
-                            <div className="grid grid-cols-3 gap-4">
-                                <div className="space-y-1">
-                                    <p className="text-xs font-semibold text-muted-foreground uppercase">
-                                        Date
-                                    </p>
-                                    <p className="font-medium">
-                                        {formatDate(selectedPayment.date)}
-                                    </p>
-                                </div>
-                                <div className="space-y-1">
-                                    <p className="text-xs font-semibold text-muted-foreground uppercase">
-                                        Mode / Banque
-                                    </p>
-                                    <p className="font-medium">
-                                        {selectedPayment.payment_method}{' '}
-                                        {selectedPayment.banque &&
-                                            `(${selectedPayment.banque})`}
-                                    </p>
-                                </div>
-                                <div className="space-y-1">
-                                    <p className="text-xs font-semibold text-muted-foreground uppercase">
-                                        Montant total
-                                    </p>
-                                    <p className="font-bold text-primary">
-                                        {formatCurrency(selectedPayment.amount)}
-                                    </p>
-                                </div>
-                            </div>
-
-                            <div className="rounded-md border">
-                                <DataTable
-                                    columns={[
-                                        {
-                                            accessorKey: 'unload_date',
-                                            header: 'Date Déchargement',
-                                            cell: ({ row }) =>
-                                                formatDate(
-                                                    row.original.unload_date,
-                                                ),
-                                        },
-                                        {
-                                            accessorKey: 'vehicle_registration',
-                                            header: 'Véhicule',
-                                        },
-                                        {
-                                            accessorKey: 'product',
-                                            header: 'Produit',
-                                        },
-                                        {
-                                            accessorKey: 'volume',
-                                            header: 'Volume',
-                                            cell: ({ row }) =>
-                                                formatVolume(
-                                                    row.original.volume,
-                                                ),
-                                        },
-                                        {
-                                            id: 'missing',
-                                            header: 'Manquant',
-                                            cell: ({ row }) => {
-                                                const invoiceItem =
-                                                    row.original
-                                                        .invoice_items?.[0];
-
-                                                return formatVolume(
-                                                    invoiceItem?.missing_quantity ||
-                                                        0,
-                                                );
-                                            },
-                                        },
-                                        {
-                                            id: 'total',
-                                            header: 'Montant',
-                                            cell: ({ row }) => {
-                                                const invoiceItem =
-                                                    row.original
-                                                        .invoice_items?.[0];
-
-                                                return formatCurrency(
-                                                    invoiceItem?.total || 0,
-                                                );
-                                            },
-                                        },
-                                        {
-                                            id: 'actions',
-                                            header: 'Action',
-                                            cell: ({ row }) => (
-                                                <div className="flex justify-end gap-1">
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        onClick={() =>
-                                                            openEditPaymentLoad(
-                                                                row.original,
-                                                            )
-                                                        }
-                                                    >
-                                                        <Pencil className="mr-1 h-3 w-3" />
-                                                        Modifier
-                                                    </Button>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-                                                        onClick={() =>
-                                                            handleUnlinkLoad(
-                                                                row.original.id,
-                                                            )
-                                                        }
-                                                    >
-                                                        Retirer
-                                                    </Button>
-                                                </div>
-                                            ),
-                                        },
-                                    ]}
-                                    data={selectedPayment.loads || []}
-                                    hidePagination={true}
-                                />
-                            </div>
-                        </div>
-                    )}
-
-                    <DialogFooter>
-                        <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => setIsPaymentDetailsOpen(false)}
-                        >
-                            Fermer
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-
-            {/* Modale de modification d'une livraison liée au règlement */}
-            <Dialog
-                open={isEditPaymentLoadOpen}
-                onOpenChange={setIsEditPaymentLoadOpen}
-            >
-                <DialogContent className="sm:max-w-md">
-                    <DialogHeader>
-                        <DialogTitle>Modifier la livraison réglée</DialogTitle>
-                        <DialogDescription>
-                            Mettre à jour le manquant de la livraison{' '}
-                            {editingPaymentLoad?.vehicle_registration}.
-                        </DialogDescription>
-                    </DialogHeader>
-
-                    <form
-                        onSubmit={submitEditPaymentLoad}
-                        className="space-y-4"
-                    >
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-1">
-                                <p className="text-xs font-semibold text-muted-foreground uppercase">
-                                    Produit
-                                </p>
-                                <p className="font-medium">
-                                    {editingPaymentLoad?.product || '-'}
-                                </p>
-                            </div>
-                            <div className="space-y-1">
-                                <p className="text-xs font-semibold text-muted-foreground uppercase">
-                                    Volume
-                                </p>
-                                <p className="font-medium">
-                                    {formatVolume(
-                                        editingPaymentLoad?.volume || 0,
-                                    )}
-                                </p>
-                            </div>
-                        </div>
-
-                        <div className="space-y-2">
-                            <Label htmlFor="payment-load-missing">
-                                Manquant
-                            </Label>
-                            <Input
-                                id="payment-load-missing"
-                                type="number"
-                                min="0"
-                                step="0.01"
-                                value={
-                                    editPaymentLoadForm.data.missing_quantity
-                                }
-                                onChange={(e) =>
-                                    editPaymentLoadForm.setData(
-                                        'missing_quantity',
-                                        parseFloat(e.target.value) || 0,
-                                    )
-                                }
-                            />
-                            {editPaymentLoadForm.errors.missing_quantity && (
-                                <p className="text-sm text-destructive">
-                                    {
-                                        editPaymentLoadForm.errors
-                                            .missing_quantity
-                                    }
-                                </p>
-                            )}
-                        </div>
-
-                        <DialogFooter>
-                            <Button
-                                type="button"
-                                variant="outline"
-                                onClick={() => setIsEditPaymentLoadOpen(false)}
-                            >
-                                Annuler
-                            </Button>
-                            <Button
-                                type="submit"
-                                disabled={editPaymentLoadForm.processing}
-                            >
-                                Enregistrer
                             </Button>
                         </DialogFooter>
                     </form>

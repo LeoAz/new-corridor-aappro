@@ -2,14 +2,10 @@
 
 namespace App\Http\Controllers;
 
-use App\Enums\LoadStatus;
 use App\Enums\PaymentMethod;
 use App\Models\ClientPayment;
-use App\Models\DepotInvoiceItem;
-use App\Models\InvoiceItem;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 
 class ClientPaymentController extends Controller
 {
@@ -52,34 +48,8 @@ class ClientPaymentController extends Controller
 
     public function destroy(ClientPayment $reglement): RedirectResponse
     {
-        try {
-            DB::transaction(function () use ($reglement) {
-                // 1. Détacher le règlement des items de facture (chargements) et remettre les montants
-                $invoiceItems = InvoiceItem::where('client_payment_id', $reglement->id)->get();
-                foreach ($invoiceItems as $invoiceItem) {
-                    $invoiceItem->restorePaymentMissingQuantity();
-                }
+        $reglement->delete();
 
-                // 2. Détacher le règlement des items de facture dépôt
-                DepotInvoiceItem::where('client_payment_id', $reglement->id)->update([
-                    'client_payment_id' => null,
-                    'is_paid' => false,
-                ]);
-
-                // 3. Remettre les livraisons en statut FACTURER
-                foreach ($reglement->loads()->get() as $load) {
-                    $load->status = LoadStatus::FACTURER;
-                    $load->client_payment_id = null;
-                    $load->save();
-                }
-
-                // 4. Supprimer le règlement
-                $reglement->delete();
-            });
-        } catch (\Exception $e) {
-            return redirect()->back()->with('error', 'Erreur lors de la suppression : '.$e->getMessage());
-        }
-
-        return redirect()->back()->with('success', 'Règlement supprimé avec succès. Les livraisons liées sont repassées au statut FACTURER.');
+        return redirect()->back()->with('success', 'Règlement supprimé avec succès.');
     }
 }

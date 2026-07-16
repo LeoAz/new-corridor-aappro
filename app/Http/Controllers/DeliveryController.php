@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Enums\LoadStatus;
 use App\Models\Client;
 use App\Models\Compartment;
+use App\Models\InvoiceItem;
 use App\Models\Load;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
@@ -121,18 +122,7 @@ class DeliveryController extends Controller
             // Sync with invoice item if it exists
             $invoiceItem = InvoiceItem::where('load_id', $chargement->id)->first();
             if ($invoiceItem) {
-                $invoiceItem->update([
-                    'quantity_delivered' => $newVolume,
-                    'total' => ($newVolume - (float) ($invoiceItem->missing_quantity ?? 0)) * (float) $invoiceItem->unit_price,
-                ]);
-
-                // Also update the invoice total amount
-                $invoice = $invoiceItem->invoice;
-                if ($invoice) {
-                    $invoice->update([
-                        'total_amount' => $invoice->items()->sum('total'),
-                    ]);
-                }
+                $invoiceItem->syncDeliveredQuantity($newVolume);
             }
         });
 
@@ -177,18 +167,7 @@ class DeliveryController extends Controller
             // Sync with invoice item if it exists
             $invoiceItem = InvoiceItem::where('load_id', $livraison->id)->first();
             if ($invoiceItem) {
-                $invoiceItem->update([
-                    'quantity_delivered' => $newVolume,
-                    'total' => ($newVolume - (float) ($invoiceItem->missing_quantity ?? 0)) * (float) $invoiceItem->unit_price,
-                ]);
-
-                // Also update the invoice total amount
-                $invoice = $invoiceItem->invoice;
-                if ($invoice) {
-                    $invoice->update([
-                        'total_amount' => $invoice->items()->sum('total'),
-                    ]);
-                }
+                $invoiceItem->syncDeliveredQuantity($newVolume);
             }
         });
 

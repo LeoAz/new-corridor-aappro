@@ -59,7 +59,7 @@ class ClientTrackingController extends Controller
                 if ($endDate) {
                     $paymentsQuery->where('date', '<=', $endDate);
                 }
-                $data['payments'] = $paymentsQuery->with('loads.invoiceItems')->orderBy('date', 'desc')->get();
+                $data['payments'] = $paymentsQuery->orderBy('date', 'desc')->get();
                 $data['total_payments'] = (float) $data['payments']->sum('amount');
 
                 // Livraisons (uniquement FACTURER et FACTURER ET PAYER selon l'énoncé pour le listing principal)
@@ -67,7 +67,7 @@ class ClientTrackingController extends Controller
                 // Mais il dit aussi "Seul les livraisons "FACTURER" seront selectionnable pour etre payé"
                 $loadsQuery = Load::where('client_id', $clientId)
                     ->whereIn('status', [LoadStatus::FACTURER, LoadStatus::PAYE])
-                    ->with(['invoiceItems', 'clientPayment']);
+                    ->with('invoiceItems');
 
                 if ($startDate) {
                     $loadsQuery->whereDate('unload_date', '>=', $startDate);
@@ -94,7 +94,6 @@ class ClientTrackingController extends Controller
                         'missing_quantity' => $invoiceItem?->missing_quantity ?? 0,
                         'total_amount' => $invoiceItem?->total ?? 0,
                         'status' => $load->status->value,
-                        'payment' => $load->clientPayment?->numero ?? '-',
                         'is_paid' => $load->status === LoadStatus::PAYE,
                     ];
                 });
@@ -148,7 +147,7 @@ class ClientTrackingController extends Controller
 
         // Listes des livraisons
         $loadsQuery = Load::where('client_id', $clientId)
-            ->with(['invoiceItems', 'clientPayment']);
+            ->with('invoiceItems');
 
         if ($startDate) {
             $loadsQuery->whereDate('unload_date', '>=', $startDate);
@@ -207,80 +206,31 @@ class ClientTrackingController extends Controller
     public function processPayment(Request $request)
     {
         $request->validate([
-            'payment_id' => 'required|exists:client_payments,id',
             'load_ids' => 'required|array',
             'load_ids.*' => 'exists:loads,id',
             'missings' => 'required|array',
             'missings.*' => 'nullable|numeric|min:0',
         ]);
 
-        $payment = ClientPayment::findOrFail($request->payment_id);
         $loadIds = $request->load_ids;
         $missings = $request->missings; // [load_id => missing_quantity]
 
-        DB::transaction(function () use ($loadIds, $missings, $payment) {
+        DB::transaction(function () use ($loadIds, $missings) {
             foreach ($loadIds as $loadId) {
-                $load = Load::findOrFail($loadId);
+                $load = Load::where('status', LoadStatus::FACTURER)->findOrFail($loadId);
                 $invoiceItem = InvoiceItem::where('load_id', $loadId)->first();
 
                 if ($invoiceItem) {
-                    $invoiceItem->applyPaymentMissingQuantity((float) ($missings[$loadId] ?? 0), $payment);
+                    $invoiceItem->markPaidWithMissingQuantity((float) ($missings[$loadId] ?? 0));
                 }
 
                 $load->status = LoadStatus::PAYE;
-                $load->client_payment_id = $payment->id;
+                $load->client_payment_id = null;
                 $load->save();
             }
         });
 
-        return back()->with('success', 'Paiement enregistré avec succès.');
-    }
-
-    public function unlinkLoad(Request $request)
-    {
-        $request->validate([
-            'load_id' => 'required|exists:loads,id',
-        ]);
-
-        DB::transaction(function () use ($request) {
-            $load = Load::findOrFail($request->load_id);
-            $invoiceItem = InvoiceItem::where('load_id', $load->id)->first();
-
-            if ($invoiceItem) {
-                $invoiceItem->restorePaymentMissingQuantity();
-            }
-
-            // Remettre la livraison en statut FACTURER
-            $load->status = LoadStatus::FACTURER;
-            $load->client_payment_id = null;
-            $load->save();
-        });
-
-        return back()->with('success', 'La livraison a été retirée du règlement et son statut a été remis à FACTURER.');
-    }
-
-    public function updatePaymentLoad(Request $request)
-    {
-        $validated = $request->validate([
-            'payment_id' => 'required|exists:client_payments,id',
-            'load_id' => 'required|exists:loads,id',
-            'missing_quantity' => 'required|numeric|min:0',
-        ]);
-
-        DB::transaction(function () use ($validated) {
-            $payment = ClientPayment::findOrFail($validated['payment_id']);
-            $load = Load::where('id', $validated['load_id'])
-                ->where('client_payment_id', $payment->id)
-                ->firstOrFail();
-
-            $invoiceItem = InvoiceItem::where('load_id', $load->id)
-                ->where('client_payment_id', $payment->id)
-                ->firstOrFail();
-
-            $invoiceItem->applyPaymentMissingQuantity((float) $validated['missing_quantity'], $payment);
-        });
-
-        return back()->with('success', 'La livraison liée au règlement a été mise à jour.');
+        return back()->with('success', 'Livraisons marquées comme payées avec succès.');
     }
 
     public function getInvoices(Client $client)

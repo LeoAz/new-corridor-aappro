@@ -230,8 +230,8 @@
                         <th width="15%">Camion</th>
                         <th width="13%">Produit</th>
                         <th width="10%" class="text-right">Qté</th>
-                        <th width="12%" class="text-right">Montant</th>
-                        <th width="23%">Règlement</th>
+                        <th width="17%" class="text-right">Montant</th>
+                        <th width="18%">Statut</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -253,10 +253,7 @@
                             <td>{{ $load->product }}</td>
                             <td class="text-right">{{ number_format($load->volume, 0, ',', ' ') }}</td>
                             <td class="text-right">{{ number_format($amount, 0, ',', ' ') }}</td>
-                            <td>
-                                <span class="badge badge-success">PAYÉ</span>
-                                <small style="display: block; font-size: 8px;">{{ $load->clientPayment?->numero ?? '-' }}</small>
-                            </td>
+                            <td><span class="badge badge-success">PAYÉ</span></td>
                         </tr>
                     @empty
                         <tr>

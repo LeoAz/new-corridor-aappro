@@ -63,8 +63,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('suivi-client', [ClientTrackingController::class, 'index'])->name('suivi-client.index');
         Route::get('suivi-client/export-pdf', [ClientTrackingController::class, 'exportPdf'])->name('suivi-client.export-pdf');
         Route::post('suivi-client/payment', [ClientTrackingController::class, 'processPayment'])->name('suivi-client.payment');
-        Route::post('suivi-client/update-payment-load', [ClientTrackingController::class, 'updatePaymentLoad'])->name('suivi-client.update-payment-load');
-        Route::post('suivi-client/unlink-load', [ClientTrackingController::class, 'unlinkLoad'])->name('suivi-client.unlink-load');
         Route::get('suivi-client/{client}/invoices', [ClientTrackingController::class, 'getInvoices'])->name('suivi-client.invoices');
         Route::get('suivi-creances', fn () => null)->name('suivi-creances');
     });

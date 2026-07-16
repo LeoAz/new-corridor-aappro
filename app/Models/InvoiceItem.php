@@ -40,17 +40,34 @@ class InvoiceItem extends Model
         return $this->belongsTo(Load::class, 'load_id');
     }
 
-    public function applyPaymentMissingQuantity(float $missingQuantity, ClientPayment $payment): void
+    public function applyPaymentMissingQuantity(float $missingQuantity): void
     {
-        $quantityBeforeMissing = $this->quantityBeforeMissing();
-        $quantityAfterMissing = max($quantityBeforeMissing - $missingQuantity, 0);
+        $this->markPaidWithMissingQuantity($missingQuantity);
+    }
+
+    public function markPaidWithMissingQuantity(float $missingQuantity): void
+    {
+        $quantityDelivered = $this->quantityBeforeMissing();
+        $quantityToInvoice = max($quantityDelivered - $missingQuantity, 0);
 
         $this->update([
-            'quantity_delivered' => $quantityAfterMissing,
+            'quantity_delivered' => $quantityDelivered,
             'missing_quantity' => $missingQuantity,
-            'total' => $quantityAfterMissing * $this->unit_price,
+            'total' => $quantityToInvoice * $this->unit_price,
             'is_paid' => true,
-            'client_payment_id' => $payment->id,
+            'client_payment_id' => null,
+        ]);
+
+        $this->refreshInvoiceTotals();
+    }
+
+    public function syncDeliveredQuantity(float $quantityDelivered): void
+    {
+        $quantityToInvoice = max($quantityDelivered - $this->missing_quantity, 0);
+
+        $this->update([
+            'quantity_delivered' => $quantityDelivered,
+            'total' => $quantityToInvoice * $this->unit_price,
         ]);
 
         $this->refreshInvoiceTotals();

@@ -113,12 +113,12 @@ test('client tracking invoices endpoint returns invoice line details', function 
         ->assertJsonPath('depot_invoices.0.items.0.total', 300000);
 });
 
-test('processing a payment applies missing quantity to invoice and exposes it in tracking tables', function () {
+test('processing selected deliveries marks them paid without linking a payment', function () {
     $this->withoutMiddleware(PreventRequestForgery::class);
 
     $user = User::factory()->create();
     $client = Client::factory()->create();
-    $payment = ClientPayment::factory()->create([
+    ClientPayment::factory()->create([
         'client_id' => $client->id,
         'date' => '2026-07-16',
         'amount' => 590000,
@@ -151,7 +151,6 @@ test('processing a payment applies missing quantity to invoice and exposes it in
 
     $this->actingAs($user)
         ->post(route('clients.suivi-client.payment'), [
-            'payment_id' => $payment->id,
             'load_ids' => [$load->id],
             'missings' => [
                 $load->id => 20,
@@ -160,11 +159,11 @@ test('processing a payment applies missing quantity to invoice and exposes it in
         ->assertRedirect();
 
     $invoiceItem->refresh();
-    expect($invoiceItem->quantity_delivered)->toBe(1180.0);
+    expect($invoiceItem->quantity_delivered)->toBe(1200.0);
     expect($invoiceItem->missing_quantity)->toBe(20.0);
     expect($invoiceItem->total)->toBe(590000.0);
     expect($invoiceItem->is_paid)->toBeTrue();
-    expect($invoiceItem->client_payment_id)->toBe($payment->id);
+    expect($invoiceItem->client_payment_id)->toBeNull();
 
     $invoice->refresh();
     expect((float) $invoice->total_missing)->toBe(20.0);
@@ -172,7 +171,7 @@ test('processing a payment applies missing quantity to invoice and exposes it in
 
     $load->refresh();
     expect($load->status)->toBe(LoadStatus::PAYE);
-    expect($load->client_payment_id)->toBe($payment->id);
+    expect($load->client_payment_id)->toBeNull();
 
     $this->actingAs($user)
         ->get(route('clients.suivi-client.index', ['client_id' => $client->id]))
@@ -181,40 +180,54 @@ test('processing a payment applies missing quantity to invoice and exposes it in
             ->component('clients/suivi-client')
             ->where('loads.0.missing_quantity', fn ($value) => (float) $value === 20.0)
             ->where('loads.0.total_amount', fn ($value) => (float) $value === 590000.0)
-            ->where('payments.0.loads.0.invoice_items.0.missing_quantity', fn ($value) => (float) $value === 20.0)
-            ->where('payments.0.loads.0.invoice_items.0.total', fn ($value) => (float) $value === 590000.0)
+            ->missing('loads.0.payment')
+            ->missing('payments.0.loads')
         );
-
-    $this->actingAs($user)
-        ->post(route('clients.suivi-client.unlink-load'), [
-            'load_id' => $load->id,
-        ])
-        ->assertRedirect();
-
-    $invoiceItem->refresh();
-    expect($invoiceItem->quantity_delivered)->toBe(1200.0);
-    expect($invoiceItem->missing_quantity)->toBe(0.0);
-    expect($invoiceItem->total)->toBe(600000.0);
-
-    $invoice->refresh();
-    expect((float) $invoice->total_missing)->toBe(0.0);
-    expect((float) $invoice->total_amount)->toBe(600000.0);
 });
 
-test('updating a paid load missing quantity recalculates invoice amounts', function () {
+test('processing a paid delivery again is rejected', function () {
     $this->withoutMiddleware(PreventRequestForgery::class);
 
     $user = User::factory()->create();
     $client = Client::factory()->create();
-    $payment = ClientPayment::factory()->create([
-        'client_id' => $client->id,
-        'amount' => 590000,
-    ]);
-
     $load = Load::factory()->create([
         'client_id' => $client->id,
         'status' => LoadStatus::PAYE,
-        'client_payment_id' => $payment->id,
+        'volume' => 1200,
+    ]);
+
+    InvoiceItem::factory()->create([
+        'invoice_id' => Invoice::factory()->create(['client_id' => $client->id])->id,
+        'load_id' => $load->id,
+        'quantity_delivered' => 1200,
+        'missing_quantity' => 20,
+        'unit_price' => 500,
+        'total' => 590000,
+        'is_paid' => true,
+    ]);
+
+    $this->actingAs($user)
+        ->post(route('clients.suivi-client.payment'), [
+            'load_ids' => [$load->id],
+            'missings' => [
+                $load->id => 50,
+            ],
+        ])
+        ->assertNotFound();
+});
+
+test('updating an invoiced delivery syncs the invoice delivered quantity', function () {
+    $this->withoutMiddleware(PreventRequestForgery::class);
+
+    $user = User::factory()->create();
+    $client = Client::factory()->create();
+
+    $load = Load::factory()->create([
+        'client_id' => $client->id,
+        'status' => LoadStatus::FACTURER,
+        'is_unload' => true,
+        'unload_date' => '2026-07-15',
+        'unload_location' => 'Bamako',
         'volume' => 1200,
     ]);
 
@@ -227,34 +240,30 @@ test('updating a paid load missing quantity recalculates invoice amounts', funct
     $invoiceItem = InvoiceItem::factory()->create([
         'invoice_id' => $invoice->id,
         'load_id' => $load->id,
-        'quantity_delivered' => 1180,
+        'quantity_delivered' => 1200,
         'missing_quantity' => 20,
         'unit_price' => 500,
         'total' => 590000,
-        'is_paid' => true,
-        'client_payment_id' => $payment->id,
     ]);
 
     $this->actingAs($user)
-        ->post(route('clients.suivi-client.update-payment-load'), [
-            'payment_id' => $payment->id,
-            'load_id' => $load->id,
-            'missing_quantity' => 50,
+        ->put(route('operations.livraisons.update', $load), [
+            'unload_date' => '2026-07-16',
+            'unload_location' => 'Kayes',
+            'client_id' => $client->id,
+            'volume' => 1300,
         ])
         ->assertRedirect();
 
     $invoiceItem->refresh();
-    expect($invoiceItem->quantity_delivered)->toBe(1150.0);
-    expect($invoiceItem->missing_quantity)->toBe(50.0);
-    expect($invoiceItem->total)->toBe(575000.0);
-    expect($invoiceItem->is_paid)->toBeTrue();
-    expect($invoiceItem->client_payment_id)->toBe($payment->id);
+    expect($invoiceItem->quantity_delivered)->toBe(1300.0);
+    expect($invoiceItem->missing_quantity)->toBe(20.0);
+    expect($invoiceItem->total)->toBe(640000.0);
 
     $invoice->refresh();
-    expect((float) $invoice->total_missing)->toBe(50.0);
-    expect((float) $invoice->total_amount)->toBe(575000.0);
+    expect((float) $invoice->total_missing)->toBe(20.0);
+    expect((float) $invoice->total_amount)->toBe(640000.0);
 
     $load->refresh();
-    expect($load->status)->toBe(LoadStatus::PAYE);
-    expect($load->client_payment_id)->toBe($payment->id);
+    expect($load->volume)->toBe(1300.0);
 });

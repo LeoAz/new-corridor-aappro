@@ -7,6 +7,7 @@ use App\Models\City;
 use App\Models\Client;
 use App\Models\Compartment;
 use App\Models\Depot;
+use App\Models\InvoiceItem;
 use App\Models\Load;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
@@ -148,6 +149,12 @@ class LoadController extends Controller
                         $newCompartment->decrement('quantity', $newVolume);
                     }
                 }
+            }
+
+            // Sync with invoice item if it exists
+            $invoiceItem = InvoiceItem::where('load_id', $chargement->id)->first();
+            if ($invoiceItem && in_array($chargement->status, [LoadStatus::FACTURER, LoadStatus::PAYE], true)) {
+                $invoiceItem->syncDeliveredQuantity($newVolume);
             }
         });
 
