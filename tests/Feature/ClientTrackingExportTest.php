@@ -66,3 +66,90 @@ test('it requires a client_id to export pdf', function () {
     $response->assertRedirect()
         ->assertSessionHas('error', 'Veuillez sélectionner un client.');
 });
+
+test('it filters export by product', function () {
+    $user = User::factory()->create();
+    $client = Client::factory()->create(['nom' => 'Client Test']);
+
+    Load::factory()->create([
+        'client_id' => $client->id,
+        'status' => LoadStatus::FACTURER,
+        'product' => 'GASOIL',
+    ]);
+
+    Load::factory()->create([
+        'client_id' => $client->id,
+        'status' => LoadStatus::FACTURER,
+        'product' => 'SUPER',
+    ]);
+
+    $response = $this->actingAs($user)
+        ->get(route('clients.suivi-client.export-pdf', [
+            'client_id' => $client->id,
+            'product_filter' => 'GASOIL',
+        ]));
+
+    $response->assertOk()
+        ->assertHeader('Content-Type', 'application/pdf');
+});
+
+test('it filters export by search term', function () {
+    $user = User::factory()->create();
+    $client = Client::factory()->create(['nom' => 'Client Test']);
+
+    Load::factory()->create([
+        'client_id' => $client->id,
+        'status' => LoadStatus::FACTURER,
+        'vehicle_registration' => 'CAMION-123',
+    ]);
+
+    Load::factory()->create([
+        'client_id' => $client->id,
+        'status' => LoadStatus::FACTURER,
+        'vehicle_registration' => 'OTHER-456',
+    ]);
+
+    $response = $this->actingAs($user)
+        ->get(route('clients.suivi-client.export-pdf', [
+            'client_id' => $client->id,
+            'search' => 'CAMION-123',
+        ]));
+
+    $response->assertOk()
+        ->assertHeader('Content-Type', 'application/pdf');
+});
+
+test('it filters export by status', function () {
+    $user = User::factory()->create();
+    $client = Client::factory()->create(['nom' => 'Client Test']);
+
+    Load::factory()->create([
+        'client_id' => $client->id,
+        'status' => LoadStatus::FACTURER,
+    ]);
+
+    Load::factory()->create([
+        'client_id' => $client->id,
+        'status' => LoadStatus::PAYE,
+    ]);
+
+    // Test filter FACTURER
+    $response = $this->actingAs($user)
+        ->get(route('clients.suivi-client.export-pdf', [
+            'client_id' => $client->id,
+            'status_filter' => 'FACTURER',
+        ]));
+
+    $response->assertOk()
+        ->assertHeader('Content-Type', 'application/pdf');
+
+    // Test filter FACTURER ET PAYER
+    $response = $this->actingAs($user)
+        ->get(route('clients.suivi-client.export-pdf', [
+            'client_id' => $client->id,
+            'status_filter' => 'FACTURER ET PAYER',
+        ]));
+
+    $response->assertOk()
+        ->assertHeader('Content-Type', 'application/pdf');
+});

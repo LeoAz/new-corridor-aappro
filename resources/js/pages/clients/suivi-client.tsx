@@ -165,6 +165,7 @@ interface InvoiceLine {
     total: number;
     invoice_total: number;
     type: 'chargement' | 'depot';
+    truck?: string | null;
 }
 
 interface Stats {
@@ -393,6 +394,7 @@ export default function SuiviClient({
                 total: item.total,
                 invoice_total: invoice.total_amount,
                 type,
+                truck: item.vehicle_registration,
             }));
         });
     };
@@ -827,6 +829,9 @@ export default function SuiviClient({
                 client_id: selectedClient.id,
                 start_date: startDate,
                 end_date: endDate,
+                search: search,
+                product_filter: productFilter,
+                status_filter: statusFilter,
             },
         }).url;
     };
@@ -1188,6 +1193,16 @@ export default function SuiviClient({
                                 ? 'Chargement'
                                 : 'Dépôt'}
                         </div>
+                    </div>
+                ),
+            },
+            {
+                accessorKey: 'truck',
+                header: 'Camion',
+                cell: ({ row }) => (
+                    <div className="flex items-center gap-2">
+                        <Truck className="h-3.5 w-3.5 text-muted-foreground" />
+                        <span className="font-medium">{row.original.truck || '-'}</span>
                     </div>
                 ),
             },
@@ -1917,6 +1932,8 @@ export default function SuiviClient({
                             <DataTable
                                 columns={invoiceColumns}
                                 data={loadInvoiceLines}
+                                searchKey="truck"
+                                searchPlaceholder="Filtrer par camion..."
                                 hidePagination
                             />
                         </TabsContent>
@@ -1939,6 +1956,8 @@ export default function SuiviClient({
                             <DataTable
                                 columns={invoiceColumns}
                                 data={depotInvoiceLines}
+                                searchKey="truck"
+                                searchPlaceholder="Filtrer par camion..."
                                 hidePagination
                             />
                         </TabsContent>

@@ -157,6 +157,28 @@ class ClientTrackingController extends Controller
             $loadsQuery->whereDate('unload_date', '<=', $endDate);
         }
 
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $loadsQuery->where(function ($q) use ($search) {
+                $q->where('numero', 'like', "%{$search}%")
+                    ->orWhere('vehicle_registration', 'like', "%{$search}%")
+                    ->orWhere('client_name', 'like', "%{$search}%")
+                    ->orWhere('unload_location', 'like', "%{$search}%");
+            });
+        }
+
+        if ($request->filled('product_filter') && $request->product_filter !== 'all') {
+            $loadsQuery->where('product', $request->product_filter);
+        }
+
+        if ($request->filled('status_filter') && $request->status_filter !== 'all') {
+            if ($request->status_filter === 'FACTURER ET PAYER') {
+                $loadsQuery->where('status', LoadStatus::PAYE);
+            } elseif ($request->status_filter === 'FACTURER') {
+                $loadsQuery->where('status', LoadStatus::FACTURER);
+            }
+        }
+
         $allLoads = $loadsQuery->orderBy('unload_date', 'desc')->get();
 
         $loadsFacturer = $allLoads->where('status', LoadStatus::FACTURER);

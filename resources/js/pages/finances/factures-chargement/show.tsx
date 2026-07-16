@@ -1,9 +1,11 @@
 import { Head, Link } from '@inertiajs/react';
+import type { ColumnDef } from '@tanstack/react-table';
 import { format } from 'date-fns';
 import { ChevronLeft, FileDown } from 'lucide-react';
 import { useMemo } from 'react';
 
 import { Button } from '@/components/ui/button';
+import { DataTable } from '@/components/ui/data-table';
 import AppLayout from '@/layouts/app-layout';
 import { formatNumber } from '@/lib/utils';
 import * as finances from '@/routes/finances';
@@ -40,6 +42,72 @@ interface Props {
 }
 
 export default function ShowInvoice({ invoice, vehicleCounts }: Props) {
+    const columns: ColumnDef<InvoiceItem>[] = [
+        {
+            id: 'vehicle_registration',
+            accessorKey: 'load_details.vehicle_registration',
+            header: 'VÉHICULE',
+            cell: ({ row }) => (
+                <span className="font-semibold text-slate-900">
+                    {row.original.load_details?.vehicle_registration}
+                </span>
+            ),
+        },
+        {
+            accessorKey: 'load_details.product',
+            header: 'PRODUIT',
+            cell: ({ row }) => {
+                const product = row.original.load_details?.product || '';
+
+                return (
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide ${
+                        product.toLowerCase() === 'gasoil'
+                            ? 'bg-blue-50 text-blue-700'
+                            : 'bg-red-50 text-red-700'
+                    }`}>
+                        {product}
+                    </span>
+                );
+            },
+        },
+        {
+            accessorKey: 'quantity_delivered',
+            header: () => <div className="text-right">QUANTITÉ</div>,
+            cell: ({ row }) => (
+                <div className="text-right font-medium text-slate-700">
+                    {formatNumber(row.getValue('quantity_delivered'))} L
+                </div>
+            ),
+        },
+        {
+            accessorKey: 'unit_price',
+            header: () => <div className="text-right">P.U</div>,
+            cell: ({ row }) => (
+                <div className="text-right font-medium text-slate-700">
+                    {formatNumber(row.getValue('unit_price'))} CFA
+                </div>
+            ),
+        },
+        {
+            accessorKey: 'missing_quantity',
+            header: () => <div className="text-right">MANQUANT</div>,
+            cell: ({ row }) => (
+                <div className="text-right text-red-600 font-bold">
+                    {formatNumber(row.getValue('missing_quantity'))} L
+                </div>
+            ),
+        },
+        {
+            accessorKey: 'total',
+            header: () => <div className="text-right">TOTAL</div>,
+            cell: ({ row }) => (
+                <div className="text-right font-bold text-slate-900">
+                    {formatNumber(row.getValue('total') || 0)} CFA
+                </div>
+            ),
+        },
+    ];
+
     const qrUrl = useMemo(() => {
         const qrData = `Facture Chargement: ${invoice.number}\nDate: ${invoice.date}\nClient: ${invoice.client_name}\nMontant: ${formatNumber(invoice.total_amount)} CFA`;
 
@@ -114,38 +182,11 @@ export default function ShowInvoice({ invoice, vehicleCounts }: Props) {
 
                     {/* Table */}
                     <div className="mb-10">
-                        <table className="w-full text-sm">
-                            <thead>
-                                <tr className="border-b-2 border-slate-900 text-slate-900">
-                                    <th className="text-left py-4 font-bold uppercase text-[10px] tracking-wider">VÉHICULE</th>
-                                    <th className="text-left py-4 font-bold uppercase text-[10px] tracking-wider">PRODUIT</th>
-                                    <th className="text-right py-4 font-bold uppercase text-[10px] tracking-wider">QUANTITÉ</th>
-                                    <th className="text-right py-4 font-bold uppercase text-[10px] tracking-wider">P.U</th>
-                                    <th className="text-right py-4 font-bold uppercase text-[10px] tracking-wider">MANQUANT</th>
-                                    <th className="text-right py-4 font-bold uppercase text-[10px] tracking-wider">TOTAL</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100">
-                                {invoice.items.map((item) => (
-                                    <tr key={item.id}>
-                                        <td className="py-5 font-semibold text-slate-900">{item.load_details?.vehicle_registration}</td>
-                                        <td className="py-5">
-                                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide ${
-                                                item.load_details?.product.toLowerCase() === 'gasoil'
-                                                    ? 'bg-blue-50 text-blue-700'
-                                                    : 'bg-red-50 text-red-700'
-                                            }`}>
-                                                {item.load_details?.product}
-                                            </span>
-                                        </td>
-                                        <td className="py-5 text-right font-medium text-slate-700">{formatNumber(item.quantity_delivered)} L</td>
-                                        <td className="py-5 text-right font-medium text-slate-700">{formatNumber(item.unit_price)} CFA</td>
-                                        <td className="py-5 text-right text-red-600 font-bold">{formatNumber(item.missing_quantity)} L</td>
-                                        <td className="py-5 text-right font-bold text-slate-900">{formatNumber(item.total || 0)} CFA</td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                        <DataTable
+                            columns={columns}
+                            data={invoice.items}
+                            hidePagination
+                        />
                     </div>
 
                     {/* Totals Block */}

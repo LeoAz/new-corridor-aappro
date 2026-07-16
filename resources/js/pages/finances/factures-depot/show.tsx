@@ -1,9 +1,11 @@
-import { Head, Link, usePage } from '@inertiajs/react';
+import { Head, Link } from '@inertiajs/react';
+import type { ColumnDef } from '@tanstack/react-table';
 import { format } from 'date-fns';
 import { ChevronLeft, FileDown } from 'lucide-react';
 import { useMemo } from 'react';
 
 import { Button } from '@/components/ui/button';
+import { DataTable } from '@/components/ui/data-table';
 import AppLayout from '@/layouts/app-layout';
 import { formatNumber } from '@/lib/utils';
 import * as finances from '@/routes/finances';
@@ -41,7 +43,49 @@ interface Props {
 }
 
 export default function ShowDepotInvoice({ invoice, productSummary }: Props) {
-    const { auth } = usePage().props as any;
+    const columns: ColumnDef<InvoiceItem>[] = [
+        {
+            accessorKey: 'compartment.product',
+            header: 'PRODUIT / COMPARTIMENT',
+            cell: ({ row }) => (
+                <>
+                    <div className="font-bold text-slate-900">
+                        {row.original.compartment?.product || 'N/A'}
+                    </div>
+                    <div className="text-[10px] text-slate-400 font-medium">
+                        Comp ID: #{row.original.compartment_id}
+                    </div>
+                </>
+            ),
+        },
+        {
+            accessorKey: 'quantity',
+            header: 'QUANTITÉ',
+            cell: ({ row }) => (
+                <div className="text-right font-medium text-slate-700">
+                    {formatNumber(row.original.quantity)} L
+                </div>
+            ),
+        },
+        {
+            accessorKey: 'unit_price',
+            header: 'P.U',
+            cell: ({ row }) => (
+                <div className="text-right font-medium text-slate-700">
+                    {formatNumber(row.original.unit_price)} CFA
+                </div>
+            ),
+        },
+        {
+            accessorKey: 'total',
+            header: 'TOTAL',
+            cell: ({ row }) => (
+                <div className="text-right font-bold text-slate-900">
+                    {formatNumber(row.original.total)} CFA
+                </div>
+            ),
+        },
+    ];
 
     const qrUrl = useMemo(() => {
         const qrData = `Facture Dépôt: ${invoice.number}\nDate: ${invoice.date}\nClient: ${invoice.client.nom}\nDépôt: ${invoice.depot.name}\nMontant: ${formatNumber(invoice.total_amount)} CFA`;
@@ -118,29 +162,11 @@ export default function ShowDepotInvoice({ invoice, productSummary }: Props) {
 
                     {/* Table */}
                     <div className="mb-10">
-                        <table className="w-full text-sm">
-                            <thead>
-                                <tr className="border-b-2 border-slate-900 text-slate-900">
-                                    <th className="text-left py-4 font-bold uppercase text-[10px] tracking-wider">PRODUIT / COMPARTIMENT</th>
-                                    <th className="text-right py-4 font-bold uppercase text-[10px] tracking-wider">QUANTITÉ</th>
-                                    <th className="text-right py-4 font-bold uppercase text-[10px] tracking-wider">P.U</th>
-                                    <th className="text-right py-4 font-bold uppercase text-[10px] tracking-wider">TOTAL</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100">
-                                {invoice.items.map((item) => (
-                                    <tr key={item.id}>
-                                        <td className="py-5">
-                                            <div className="font-bold text-slate-900">{item.compartment?.product || 'N/A'}</div>
-                                            <div className="text-[10px] text-slate-400 font-medium">Comp ID: #{item.compartment_id}</div>
-                                        </td>
-                                        <td className="py-5 text-right font-medium text-slate-700">{formatNumber(item.quantity)} L</td>
-                                        <td className="py-5 text-right font-medium text-slate-700">{formatNumber(item.unit_price)} CFA</td>
-                                        <td className="py-5 text-right font-bold text-slate-900">{formatNumber(item.total)} CFA</td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                        <DataTable
+                            columns={columns}
+                            data={invoice.items}
+                            hidePagination
+                        />
                     </div>
 
                     {/* Totals Block */}

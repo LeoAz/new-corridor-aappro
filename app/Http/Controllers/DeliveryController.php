@@ -117,6 +117,23 @@ class DeliveryController extends Controller
                     $compartment->decrement('quantity', $newVolume - $oldVolume);
                 }
             }
+
+            // Sync with invoice item if it exists
+            $invoiceItem = InvoiceItem::where('load_id', $chargement->id)->first();
+            if ($invoiceItem) {
+                $invoiceItem->update([
+                    'quantity_delivered' => $newVolume,
+                    'total' => ($newVolume - (float) ($invoiceItem->missing_quantity ?? 0)) * (float) $invoiceItem->unit_price,
+                ]);
+
+                // Also update the invoice total amount
+                $invoice = $invoiceItem->invoice;
+                if ($invoice) {
+                    $invoice->update([
+                        'total_amount' => $invoice->items()->sum('total'),
+                    ]);
+                }
+            }
         });
 
         return back()->with('message', 'Livraison effectuée avec succès');
@@ -154,6 +171,23 @@ class DeliveryController extends Controller
                 $compartment = Compartment::find($compartmentId);
                 if ($compartment) {
                     $compartment->decrement('quantity', $newVolume - $oldVolume);
+                }
+            }
+
+            // Sync with invoice item if it exists
+            $invoiceItem = InvoiceItem::where('load_id', $livraison->id)->first();
+            if ($invoiceItem) {
+                $invoiceItem->update([
+                    'quantity_delivered' => $newVolume,
+                    'total' => ($newVolume - (float) ($invoiceItem->missing_quantity ?? 0)) * (float) $invoiceItem->unit_price,
+                ]);
+
+                // Also update the invoice total amount
+                $invoice = $invoiceItem->invoice;
+                if ($invoice) {
+                    $invoice->update([
+                        'total_amount' => $invoice->items()->sum('total'),
+                    ]);
                 }
             }
         });
