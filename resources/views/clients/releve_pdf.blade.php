@@ -264,7 +264,7 @@
                 <span class="total-value">{{ number_format($operations->sum('credit') + ($initialBalance > 0 ? abs($initialBalance) : 0), 0, ',', ' ') }} CFA</span>
             </div>
             <div class="total-row grand-total">
-                <span class="total-label">SOLDE FINAL ({{ $finalBalance < 0 ? 'DÉBIT' : 'CRÉDIT' }})</span>
+                <span class="total-label">SOLDE FINAL ({{ $finalBalance < 0 ? 'L\'ENTREPRISE DOIT' : 'LE CLIENT DOIT' }})</span>
                 <span class="total-value {{ $finalBalance < 0 ? 'text-red' : 'text-green' }}">
                     {{ number_format(abs($finalBalance), 0, ',', ' ') }} CFA
                 </span>

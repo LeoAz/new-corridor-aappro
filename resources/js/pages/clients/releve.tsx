@@ -315,7 +315,7 @@ export default function Releve({ client, clients, statement, filters }: Props) {
                                             <div className="flex flex-col">
                                                 <span className="text-xl font-black text-blue-900 uppercase tracking-tight">SOLDE DU COMPTE:</span>
                                                 <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">
-                                                    {finalBalance < 0 ? 'Le client doit (Débit)' : 'L\'entreprise doit (Crédit)'}
+                                                    {finalBalance < 0 ? 'L\'entreprise doit (Rouge)' : 'Le client doit (Vert)'}
                                                 </span>
                                             </div>
                                             <span className={`text-2xl font-black tabular-nums ${finalBalance < 0 ? 'text-red-600' : 'text-emerald-600'}`}>
@@ -323,7 +323,7 @@ export default function Releve({ client, clients, statement, filters }: Props) {
                                             </span>
                                         </div>
                                         <p className="text-[10px] text-gray-400 italic mt-4 text-right">
-                                            * Un solde négatif en rouge indique que le client doit, un solde positif en vert indique une avance client.
+                                            * Un solde en rouge indique que l'entreprise doit au client, un solde en vert indique que le client doit à l'entreprise.
                                         </p>
                                     </div>
                                 </div>
