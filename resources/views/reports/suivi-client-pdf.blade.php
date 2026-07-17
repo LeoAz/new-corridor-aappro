@@ -172,7 +172,7 @@
                         @if($client->address) <strong>Adresse :</strong> {{ $client->address }}<br> @endif
                     </td>
                     <td width="40%" class="text-right">
-                        <strong>Date d'extraction :</strong> {{ now()->format('d/m/Y H:i') }}<br>
+                        <strong>Date d'extraction :</strong> {{ now()->format('d/m/Y') }}<br>
                         @if($startDate || $endDate)
                             <strong>Période :</strong>
                             @if($startDate) Du {{ \Carbon\Carbon::parse($startDate)->format('d/m/Y') }} @endif
@@ -427,7 +427,7 @@
         </div>
 
         <div class="footer">
-            Corridor Appro - Système de gestion intégrée - Généré le {{ date('d/m/Y H:i') }}
+            Corridor Appro - Système de gestion intégrée - Généré le {{ date('d/m/Y') }}
         </div>
     </div>
 </body>

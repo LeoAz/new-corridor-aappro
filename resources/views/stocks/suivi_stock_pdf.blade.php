@@ -45,7 +45,7 @@
                                 Produit: <strong>{{ $filteredProduct }}</strong><br>
                             @endif
                             Période: Du <strong>{{ date('d/m/Y', strtotime($dateFrom)) }}</strong> au <strong>{{ date('d/m/Y', strtotime($dateTo)) }}</strong><br>
-                            Généré le: {{ date('d/m/Y H:i') }}
+                            Généré le: {{ date('d/m/Y') }}
                         </div>
                     </td>
                     <td class="qr-code">

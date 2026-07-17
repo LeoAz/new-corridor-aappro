@@ -268,7 +268,7 @@
 
         <div class="footer">
             <p>CORRIDOR APPRO &bull; Bamako, Mali &bull; Reçu de règlement officiel</p>
-            <p>Imprimé le {{ date('d/m/Y H:i') }}</p>
+            <p>Imprimé le {{ date('d/m/Y') }}</p>
         </div>
     </div>
 </body>

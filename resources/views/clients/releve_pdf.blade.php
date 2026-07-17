@@ -482,7 +482,7 @@
 
         <div class="footer">
             <p>CORRIDOR APPRO &bull; Bamako, Mali &bull; Relevé de compte officiel</p>
-            <p>Document généré le {{ date('d/m/Y à H:i') }}</p>
+            <p>Document généré le {{ date('d/m/Y') }}</p>
         </div>
     </div>
 </body>

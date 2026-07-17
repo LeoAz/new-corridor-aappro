@@ -30,7 +30,7 @@
 
         <div class="info">
             Période: {{ $filters['date_from'] ?? 'Début' }} au {{ $filters['date_to'] ?? date('d/m/Y') }}<br>
-            Imprimé le: {{ date('d/m/Y H:i') }}
+            Imprimé le: {{ date('d/m/Y') }}
         </div>
 
         <table>
