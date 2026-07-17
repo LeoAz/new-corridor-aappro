@@ -235,12 +235,12 @@
                     @php
                         $totalPayments = 0;
                     @endphp
-                    @forelse($payments as $index => $payment)
+                    @forelse($payments as $payment)
                         @php
                             $totalPayments += $payment->amount;
                         @endphp
                         <tr>
-                            <td>{{ $index + 1 }}</td>
+                            <td>{{ $loop->iteration }}</td>
                             <td>{{ $payment->date?->format('d/m/Y') }}</td>
                             <td>{{ $payment->payment_method?->value ?? '-' }}</td>
                             <td>
@@ -289,14 +289,14 @@
                         $totalQtyPayer = 0;
                         $totalAmountPayer = 0;
                     @endphp
-                    @forelse($loadsFacturerPayer as $index => $load)
+                    @forelse($loadsFacturerPayer as $load)
                         @php
                             $amount = $load->invoiceItems->first()?->total ?? 0;
                             $totalQtyPayer += $load->volume;
                             $totalAmountPayer += $amount;
                         @endphp
                         <tr>
-                            <td>{{ $index + 1 }}</td>
+                            <td>{{ $loop->iteration }}</td>
                             <td>{{ $load->unload_date?->format('d/m/Y') }}</td>
                             <td>{{ $load->invoiceItems->first()?->bl_number ?? '-' }}</td>
                             <td>{{ $load->vehicle_registration }}</td>
@@ -343,14 +343,14 @@
                         $totalQtyFacturer = 0;
                         $totalAmountFacturer = 0;
                     @endphp
-                    @forelse($loadsFacturer as $index => $load)
+                    @forelse($loadsFacturer as $load)
                         @php
                             $amount = $load->invoiceItems->first()?->total ?? 0;
                             $totalQtyFacturer += $load->volume;
                             $totalAmountFacturer += $amount;
                         @endphp
                         <tr>
-                            <td>{{ $index + 1 }}</td>
+                            <td>{{ $loop->iteration }}</td>
                             <td>{{ $load->unload_date?->format('d/m/Y') }}</td>
                             <td>{{ $load->invoiceItems->first()?->bl_number ?? '-' }}</td>
                             <td>{{ $load->vehicle_registration }}</td>
@@ -394,14 +394,14 @@
                         $totalQtyLivrer = 0;
                         $totalAmountLivrer = 0;
                     @endphp
-                    @forelse($loadsLivrer as $index => $load)
+                    @forelse($loadsLivrer as $load)
                         @php
                             $estAmount = $load->volume * ($load->unit_price ?? 0);
                             $totalQtyLivrer += $load->volume;
                             $totalAmountLivrer += $estAmount;
                         @endphp
                         <tr>
-                            <td>{{ $index + 1 }}</td>
+                            <td>{{ $loop->iteration }}</td>
                             <td>{{ $load->unload_date?->format('d/m/Y') }}</td>
                             <td>{{ $load->vehicle_registration }}</td>
                             <td>{{ $load->product }}</td>
