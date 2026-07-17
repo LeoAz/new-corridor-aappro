@@ -220,6 +220,56 @@
         </div>
 
         <div class="table-section">
+            <div class="table-title">LISTE DES RÈGLEMENTS</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th width="5%">#</th>
+                        <th width="15%">Date</th>
+                        <th width="20%">Mode</th>
+                        <th width="40%">Référence / Note</th>
+                        <th width="20%" class="text-right">Montant</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @php
+                        $totalPayments = 0;
+                    @endphp
+                    @forelse($payments as $index => $payment)
+                        @php
+                            $totalPayments += $payment->amount;
+                        @endphp
+                        <tr>
+                            <td>{{ $index + 1 }}</td>
+                            <td>{{ $payment->date?->format('d/m/Y') }}</td>
+                            <td>{{ $payment->payment_method?->value ?? '-' }}</td>
+                            <td>
+                                {{ $payment->banque ? $payment->banque . ' - ' : '' }}
+                                {{ $payment->numero ?? '' }}
+                                @if($payment->note)
+                                    <br><small style="color: #666; font-style: italic">{{ $payment->note }}</small>
+                                @endif
+                            </td>
+                            <td class="text-right">{{ number_format($payment->amount, 0, ',', ' ') }}</td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="5" class="text-center">Aucun règlement enregistré sur cette période</td>
+                        </tr>
+                    @endforelse
+                </tbody>
+                @if($payments->count() > 0)
+                <tfoot>
+                    <tr class="table-total">
+                        <td colspan="4" class="text-right">TOTAL RÈGLEMENTS</td>
+                        <td class="text-right">{{ number_format($totalPayments, 0, ',', ' ') }}</td>
+                    </tr>
+                </tfoot>
+                @endif
+            </table>
+        </div>
+
+        <div class="table-section">
             <div class="table-title">LIVRAISONS FACTURÉES ET PAYÉES</div>
             <table>
                 <thead>

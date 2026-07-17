@@ -184,6 +184,18 @@ class ClientTrackingController extends Controller
         $loadsFacturerPayer = $allLoads->where('status', LoadStatus::PAYE);
         $loadsLivrer = $allLoads->where('status', LoadStatus::LIVRER);
 
+        // Liste des règlements
+        $paymentsQuery = ClientPayment::where('client_id', $clientId);
+
+        if ($startDate) {
+            $paymentsQuery->whereDate('date', '>=', $startDate);
+        }
+        if ($endDate) {
+            $paymentsQuery->whereDate('date', '<=', $endDate);
+        }
+
+        $payments = $paymentsQuery->orderBy('date', 'desc')->get();
+
         $pdf = Pdf::loadView('reports.suivi-client-pdf', [
             'client' => $client,
             'startDate' => $startDate,
@@ -198,6 +210,7 @@ class ClientTrackingController extends Controller
             'loadsFacturer' => $loadsFacturer,
             'loadsFacturerPayer' => $loadsFacturerPayer,
             'loadsLivrer' => $loadsLivrer,
+            'payments' => $payments,
         ]);
 
         return $pdf->download("suivi-client-{$client->nom}.pdf");
