@@ -85,13 +85,12 @@
                     <tbody>
                         @php
                             $clientTotal = 0;
-                            $rowCount = 1;
                         @endphp
                         @foreach($clientInvoices as $invoice)
                             @php $clientTotal += (float)$invoice->total_amount; @endphp
                             @foreach($invoice->items as $item)
                                 <tr>
-                                    <td>{{ $rowCount++ }}</td>
+                                    <td>{{ $loop->parent->iteration }}</td>
                                     @if($loop->first)
                                         <td rowspan="{{ $invoice->items->count() }}" style="vertical-align: top;">
                                             <strong>{{ $invoice->number }}</strong>

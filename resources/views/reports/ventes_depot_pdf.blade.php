@@ -79,12 +79,11 @@
                     <tbody>
                         @php
                             $clientTotal = 0;
-                            $rowCount = 1;
                         @endphp
                         @foreach($clientInvoices as $invoice)
                         @php $clientTotal += (float)$invoice->total_amount; @endphp
                         <tr>
-                            <td>{{ $rowCount++ }}</td>
+                            <td>{{ $loop->iteration }}</td>
                             <td>{{ $invoice->number }}</td>
                             <td>{{ $invoice->depot->name ?? 'Dépôt' }}</td>
                             <td>

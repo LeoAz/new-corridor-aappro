@@ -100,12 +100,11 @@
                     <tbody>
                         @php
                             $clientTotal = 0;
-                            $rowCount = 1;
                         @endphp
                         @foreach($clientLoads as $load)
                         @php $clientTotal += (float)$load->volume; @endphp
                         <tr>
-                            <td class="text-center">{{ $rowCount++ }}</td>
+                            <td class="text-center">{{ $loop->iteration }}</td>
                             <td class="font-bold">{{ $load->vehicle_registration }}</td>
                             <td>{{ $load->depot->name ?? 'N/A' }}</td>
                             <td>{{ $load->load_location }}</td>
