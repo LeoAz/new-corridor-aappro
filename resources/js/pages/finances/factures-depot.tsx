@@ -359,7 +359,7 @@ export default function FacturesDepot({
                     data={invoices}
                     searchKey="number"
                     searchPlaceholder="Rechercher par numéro..."
-                    showNumbering={true}
+                    hidePagination
                 />
             </div>
 

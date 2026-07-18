@@ -899,6 +899,7 @@ export default function FacturesChargement({
                     data={invoices}
                     searchKey="number"
                     searchPlaceholder="Rechercher par numéro..."
+                    hidePagination
                 />
             </div>
 

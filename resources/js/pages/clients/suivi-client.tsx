@@ -2511,7 +2511,7 @@ export default function SuiviClient({
                 open={isPaymentModalOpen}
                 onOpenChange={setIsPaymentModalOpen}
             >
-                <DialogContent className="sm:max-w-2xl">
+                <DialogContent className="sm:max-w-4xl">
                     <DialogHeader>
                         <DialogTitle>Enregistrer le paiement</DialogTitle>
                         <DialogDescription>
@@ -2532,6 +2532,12 @@ export default function SuiviClient({
                                                 N° BL
                                             </th>
                                             <th className="p-2 text-left">
+                                                Camion
+                                            </th>
+                                            <th className="p-2 text-left">
+                                                Date
+                                            </th>
+                                            <th className="p-2 text-left">
                                                 Produit
                                             </th>
                                             <th className="p-2 text-right">
@@ -2550,6 +2556,19 @@ export default function SuiviClient({
                                             >
                                                 <td className="p-2">
                                                     {load.bl_number}
+                                                </td>
+                                                <td className="p-2">
+                                                    {load.vehicle_registration}
+                                                </td>
+                                                <td className="p-2">
+                                                    {load.unload_date
+                                                        ? format(
+                                                              new Date(
+                                                                  load.unload_date,
+                                                              ),
+                                                              'dd/MM/yyyy',
+                                                          )
+                                                        : '-'}
                                                 </td>
                                                 <td className="p-2">
                                                     {load.product}
