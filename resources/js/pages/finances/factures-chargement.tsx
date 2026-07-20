@@ -18,6 +18,7 @@ import { useEffect, useMemo, useState } from 'react';
 import AlertError from '@/components/alert-error';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
     Command,
     CommandEmpty,
@@ -60,6 +61,8 @@ interface InvoiceItem {
     unit_price: number;
     total: number;
     missing_quantity: number;
+    is_partial?: boolean;
+    remaining_quantity?: number;
     load_details?: {
         vehicle_registration: string;
         product: string;
@@ -272,6 +275,9 @@ const InvoiceForm = ({
                         <tr>
                             <th className="px-4 py-2 text-left">Véhicule</th>
                             <th className="px-4 py-2 text-left">Produit</th>
+                            <th className="w-24 px-4 py-2 text-center">
+                                Partielle
+                            </th>
                             <th className="w-32 px-4 py-2 text-right">
                                 Quantité
                             </th>
@@ -319,7 +325,7 @@ const InvoiceForm = ({
                                                                   item.load_id.toString(),
                                                           )
                                                               ?.vehicle_registration +
-                                                          ` (${formatNumber(availableLoads.find((l: any) => l.id.toString() === item.load_id.toString())?.volume)} L)`
+                                                          ` (reste ${formatNumber(availableLoads.find((l: any) => l.id.toString() === item.load_id.toString())?.remaining_quantity ?? availableLoads.find((l: any) => l.id.toString() === item.load_id.toString())?.volume)} L)`
                                                         : 'Choisir une livraison'}
                                                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                                 </Button>
@@ -370,14 +376,18 @@ const InvoiceForm = ({
                                                                                 }{' '}
                                                                                 -{' '}
                                                                                 {formatNumber(
-                                                                                    load.volume,
+                                                                                    load.remaining_quantity ??
+                                                                                        load.volume,
                                                                                 )}{' '}
-                                                                                L
+                                                                                L restants
                                                                             </span>
                                                                             <span className="text-xs text-muted-foreground">
                                                                                 {
                                                                                     load.product
                                                                                 }{' '}
+                                                                                {load.partial_invoice_clients?.length
+                                                                                    ? `(${load.partial_invoice_clients.join(', ')}) `
+                                                                                    : ''}
                                                                                 {load.bl_number
                                                                                     ? `(BL: ${load.bl_number})`
                                                                                     : ''}
@@ -394,6 +404,19 @@ const InvoiceForm = ({
                                     )}
                                 </td>
                                 <td className="px-4 py-2">{item.product}</td>
+                                <td className="px-4 py-2 text-center">
+                                    <Checkbox
+                                        checked={Boolean(item.is_partial)}
+                                        onCheckedChange={(checked) =>
+                                            handleEditItem(
+                                                index,
+                                                'is_partial',
+                                                checked === true,
+                                            )
+                                        }
+                                        aria-label="Facture partielle"
+                                    />
+                                </td>
                                 <td className="px-4 py-2 text-right">
                                     <Input
                                         type="number"
@@ -535,8 +558,7 @@ export default function FacturesChargement({
         if ((isCreateOpen || isEditOpen) && data.client_id) {
             const url = operations.default.livraisons.index({
                 query: {
-                    client_id: data.client_id,
-                    status: 'LIVRER',
+                    invoiceable: 1,
                 },
             }).url;
 
@@ -549,21 +571,11 @@ export default function FacturesChargement({
                 .then((res) => res.json())
                 .then(setAvailableLoads);
         }
-    }, [isEditOpen, data.client_id]);
+    }, [isCreateOpen, isEditOpen, data.client_id]);
 
-    // Clear items if client changes and items don't belong to the new client
+    // Vider les articles si le client change
     useEffect(() => {
         if (data.client_id && data.items.length > 0) {
-            // Since we don't have client_id in the items, we can't easily check
-            // But if the client_id changed from the original invoice's client_id,
-            // and the user manually changed it, we might want to warn or clear.
-            // For now, let's stick to the requirement: "si le client selectionné change, le sous formulaire doit etre automatiquement vidé si les livraisons ne l'appartiennent pas"
-            // Actually, any new available loads will be for the new client.
-            // If the user changes client, we should probably clear items that were for the previous client.
-            // Since we fetch availableLoads for the current data.client_id,
-            // we can assume any item NOT in availableLoads AND NOT in the original selectedInvoice items (if still same client) might be wrong.
-            // Simplified: if client_id changes, clear items that were not part of the original invoice if it's a different client.
-
             if (
                 selectedInvoice &&
                 data.client_id !== selectedInvoice.client_id.toString()
@@ -590,6 +602,7 @@ export default function FacturesChargement({
                     quantity_delivered: item.quantity_delivered,
                     unit_price: item.unit_price,
                     missing_quantity: item.missing_quantity,
+                    is_partial: item.is_partial ?? false,
                     total: item.total,
                     vehicle_registration:
                         item.load_details?.vehicle_registration,
@@ -615,12 +628,16 @@ export default function FacturesChargement({
                     ...newItems[index],
                     load_id: load.id,
                     bl_number: load.bl_number || '',
-                    quantity_delivered: load.volume,
+                    quantity_delivered: load.remaining_quantity ?? load.volume,
                     unit_price: load.unit_price || 0,
                     missing_quantity: 0,
-                    total: (load.volume || 0) * (load.unit_price || 0),
+                    is_partial: false,
+                    total:
+                        (load.remaining_quantity ?? load.volume ?? 0) *
+                        (load.unit_price || 0),
                     vehicle_registration: load.vehicle_registration,
                     product: load.product,
+                    remaining_quantity: load.remaining_quantity,
                 };
             }
         }
@@ -651,6 +668,7 @@ export default function FacturesChargement({
             quantity_delivered: 0,
             unit_price: 0,
             missing_quantity: 0,
+            is_partial: false,
             total: 0,
             vehicle_registration: '',
             product: '',
@@ -667,12 +685,16 @@ export default function FacturesChargement({
             id: undefined, // Nouveau item de facture
             load_id: load.id,
             bl_number: load.bl_number || '',
-            quantity_delivered: load.volume,
+            quantity_delivered: load.remaining_quantity ?? load.volume,
             unit_price: load.unit_price || 0,
             missing_quantity: 0,
-            total: (load.volume || 0) * (load.unit_price || 0),
+            is_partial: false,
+            total:
+                (load.remaining_quantity ?? load.volume ?? 0) *
+                (load.unit_price || 0),
             vehicle_registration: load.vehicle_registration,
             product: load.product,
+            remaining_quantity: load.remaining_quantity,
         }));
 
         const updatedItems = [...data.items, ...newItemsFromLoads];

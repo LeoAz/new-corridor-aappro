@@ -6,9 +6,6 @@ use Illuminate\Support\Facades\DB;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
         $loadIds = DB::table('invoice_items')
@@ -20,9 +17,6 @@ return new class extends Migration
             ->update(['status' => LoadStatus::FACTURER->value]);
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         $loadIds = DB::table('invoice_items')

@@ -125,6 +125,8 @@ interface ClientInvoiceItem {
     product: string;
     quantity: number;
     missing_quantity: number;
+    is_partial?: boolean;
+    remaining_quantity?: number;
     unit_price: number;
     total: number;
     vehicle_registration?: string | null;
@@ -149,6 +151,7 @@ interface InvoiceLine {
     product: string;
     quantity: number;
     missing_quantity: number;
+    is_partial?: boolean;
     unit_price: number;
     total: number;
     invoice_total: number;
@@ -159,6 +162,7 @@ interface InvoiceLine {
 interface Stats {
     livrer: number;
     facturer: number;
+    facture_partielle: number;
     facturer_payer: number;
 }
 
@@ -234,7 +238,8 @@ export default function SuiviClient({
         (total, load) => total + load.total_amount,
         0,
     );
-    const unpaidLoads = loads.filter((load) => !load.is_paid).length;
+    const unpaidLoads = loads.filter((load) => load.status === 'FACTURER')
+        .length;
 
     const paymentForm = useForm({
         load_ids: [] as number[],
@@ -270,6 +275,8 @@ export default function SuiviClient({
             quantity_delivered: number;
             unit_price: number;
             missing_quantity: number;
+            is_partial: boolean;
+            remaining_quantity?: number;
             total: number;
             vehicle_registration?: string | null;
             product: string;
@@ -363,6 +370,7 @@ export default function SuiviClient({
                 product: item.product,
                 quantity: item.quantity,
                 missing_quantity: item.missing_quantity,
+                is_partial: item.is_partial,
                 unit_price: item.unit_price,
                 total: item.total,
                 invoice_total: invoice.total_amount,
@@ -446,6 +454,8 @@ export default function SuiviClient({
                     quantity_delivered: item.quantity,
                     unit_price: item.unit_price,
                     missing_quantity: item.missing_quantity,
+                    is_partial: item.is_partial ?? false,
+                    remaining_quantity: item.remaining_quantity,
                     total: item.total,
                     vehicle_registration: item.vehicle_registration,
                     product: item.product,
@@ -475,15 +485,22 @@ export default function SuiviClient({
 
     const updateLoadInvoiceItem = (
         index: number,
-        field: 'quantity_delivered' | 'unit_price' | 'missing_quantity',
-        value: string,
+        field:
+            | 'quantity_delivered'
+            | 'unit_price'
+            | 'missing_quantity'
+            | 'is_partial',
+        value: string | boolean,
     ) => {
         const items = [...editLoadInvoiceForm.data.items];
-        const numericValue = parseFloat(value) || 0;
+        const parsedValue =
+            field === 'is_partial'
+                ? value === true
+                : parseFloat(String(value)) || 0;
 
         items[index] = {
             ...items[index],
-            [field]: numericValue,
+            [field]: parsedValue,
         };
 
         items[index].total =
@@ -1035,6 +1052,11 @@ export default function SuiviClient({
                                 ? 'Chargement'
                                 : 'Dépôt'}
                         </div>
+                        {row.original.is_partial && (
+                            <Badge variant="outline" className="mt-1">
+                                Partielle
+                            </Badge>
+                        )}
                     </div>
                 ),
             },
@@ -1197,7 +1219,7 @@ export default function SuiviClient({
                         checked={row.getIsSelected()}
                         onCheckedChange={(value) => row.toggleSelected(!!value)}
                         aria-label="Sélectionner la ligne"
-                        disabled={row.original.is_paid}
+                        disabled={row.original.status !== 'FACTURER'}
                     />
                 ),
                 enableSorting: false,
@@ -1256,6 +1278,10 @@ export default function SuiviClient({
 
                     if (status === 'FACTURER') {
                         variant = 'secondary';
+                    }
+
+                    if (status === 'FACTURE PARTIELLE') {
+                        variant = 'outline';
                     }
 
                     return <Badge variant={variant}>{status}</Badge>;
@@ -1533,7 +1559,7 @@ export default function SuiviClient({
                             </div>
                         </div>
 
-                        <div className="grid gap-4 md:grid-cols-3">
+                        <div className="grid gap-4 md:grid-cols-4">
                             <Card>
                                 <CardHeader className="flex flex-row items-center justify-between pb-2">
                                     <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -1544,6 +1570,19 @@ export default function SuiviClient({
                                 <CardContent>
                                     <div className="text-2xl font-bold">
                                         {stats.livrer}
+                                    </div>
+                                </CardContent>
+                            </Card>
+                            <Card>
+                                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                                    <CardTitle className="text-sm font-medium text-muted-foreground">
+                                        Factures partielles
+                                    </CardTitle>
+                                    <Receipt className="h-4 w-4 text-violet-600" />
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="text-2xl font-bold">
+                                        {stats.facture_partielle}
                                     </div>
                                 </CardContent>
                             </Card>
@@ -1664,6 +1703,9 @@ export default function SuiviClient({
                                                 </SelectItem>
                                                 <SelectItem value="FACTURER">
                                                     FACTURER
+                                                </SelectItem>
+                                                <SelectItem value="FACTURE PARTIELLE">
+                                                    FACTURE PARTIELLE
                                                 </SelectItem>
                                                 <SelectItem value="FACTURER ET PAYER">
                                                     FACTURER ET PAYER
@@ -2130,6 +2172,9 @@ export default function SuiviClient({
                                                 <th className="px-4 py-2 text-left">
                                                     Produit
                                                 </th>
+                                                <th className="w-24 px-4 py-2 text-center">
+                                                    Partielle
+                                                </th>
                                                 <th className="w-36 px-4 py-2 text-right">
                                                     Quantité
                                                 </th>
@@ -2138,6 +2183,9 @@ export default function SuiviClient({
                                                 </th>
                                                 <th className="w-36 px-4 py-2 text-right">
                                                     Manquant
+                                                </th>
+                                                <th className="w-36 px-4 py-2 text-right">
+                                                    Restant
                                                 </th>
                                                 <th className="w-40 px-4 py-2 text-right">
                                                     Total
@@ -2157,6 +2205,24 @@ export default function SuiviClient({
                                                         </td>
                                                         <td className="px-4 py-2">
                                                             {item.product}
+                                                        </td>
+                                                        <td className="px-4 py-2 text-center">
+                                                            <Checkbox
+                                                                checked={
+                                                                    item.is_partial
+                                                                }
+                                                                onCheckedChange={(
+                                                                    checked,
+                                                                ) =>
+                                                                    updateLoadInvoiceItem(
+                                                                        index,
+                                                                        'is_partial',
+                                                                        checked ===
+                                                                            true,
+                                                                    )
+                                                                }
+                                                                aria-label="Facture partielle"
+                                                            />
                                                         </td>
                                                         <td className="px-4 py-2">
                                                             <Input
@@ -2211,6 +2277,12 @@ export default function SuiviClient({
                                                                 }
                                                                 className="h-8 text-right"
                                                             />
+                                                        </td>
+                                                        <td className="px-4 py-2 text-right text-muted-foreground">
+                                                            {formatVolume(
+                                                                item.remaining_quantity ??
+                                                                    0,
+                                                            )}
                                                         </td>
                                                         <td className="px-4 py-2 text-right font-semibold">
                                                             {formatCurrency(

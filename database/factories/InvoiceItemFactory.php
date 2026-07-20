@@ -29,6 +29,7 @@ class InvoiceItemFactory extends Factory
             'quantity_delivered' => $quantity,
             'unit_price' => $unitPrice,
             'missing_quantity' => 0,
+            'is_partial' => false,
             'total' => $quantity * $unitPrice,
             'is_paid' => false,
         ];

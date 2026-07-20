@@ -6,6 +6,7 @@ use App\Enums\LoadStatus;
 use App\Models\Client;
 use App\Models\ClientPayment;
 use App\Models\Depot;
+use App\Models\Invoice;
 use App\Models\InvoiceItem;
 use App\Models\Load;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -29,6 +30,7 @@ class ClientTrackingController extends Controller
             'selectedClient' => null,
             'stats' => [
                 'livrer' => 0,
+                'facture_partielle' => 0,
                 'facturer' => 0,
                 'facturer_payer' => 0,
             ],
@@ -48,8 +50,15 @@ class ClientTrackingController extends Controller
 
                 // Stats
                 $data['stats']['livrer'] = Load::where('client_id', $clientId)->where('status', LoadStatus::LIVRER)->count();
-                $data['stats']['facturer'] = Load::where('client_id', $clientId)->where('status', LoadStatus::FACTURER)->count();
-                $data['stats']['facturer_payer'] = Load::where('client_id', $clientId)->where('status', LoadStatus::PAYE)->count();
+                $data['stats']['facture_partielle'] = Load::where('status', LoadStatus::FACTURE_PARTIELLE)
+                    ->whereHas('invoiceItems.invoice', fn ($q) => $q->where('client_id', $clientId))
+                    ->count();
+                $data['stats']['facturer'] = Load::where('status', LoadStatus::FACTURER)
+                    ->whereHas('invoiceItems.invoice', fn ($q) => $q->where('client_id', $clientId))
+                    ->count();
+                $data['stats']['facturer_payer'] = Load::where('status', LoadStatus::PAYE)
+                    ->whereHas('invoiceItems.invoice', fn ($q) => $q->where('client_id', $clientId))
+                    ->count();
 
                 // Règlements
                 $paymentsQuery = ClientPayment::where('client_id', $clientId);
@@ -65,9 +74,16 @@ class ClientTrackingController extends Controller
                 // Livraisons (uniquement FACTURER et FACTURER ET PAYER selon l'énoncé pour le listing principal)
                 // Note: L'énoncé dit "on aura aussi la liste des livraisons avec le statut (FACTURER ET FACTURER ET PAYER)"
                 // Mais il dit aussi "Seul les livraisons "FACTURER" seront selectionnable pour etre payé"
-                $loadsQuery = Load::where('client_id', $clientId)
-                    ->whereIn('status', [LoadStatus::FACTURER, LoadStatus::PAYE])
-                    ->with('invoiceItems');
+                $loadsQuery = Load::where(function ($query) use ($clientId) {
+                    $query->where(function ($query) use ($clientId) {
+                        $query->where('client_id', $clientId)
+                            ->whereIn('status', [LoadStatus::FACTURE_PARTIELLE, LoadStatus::FACTURER, LoadStatus::PAYE]);
+                    })->orWhere(function ($query) use ($clientId) {
+                        $query->whereIn('status', [LoadStatus::FACTURE_PARTIELLE, LoadStatus::FACTURER, LoadStatus::PAYE])
+                            ->whereHas('invoiceItems.invoice', fn ($query) => $query->where('client_id', $clientId));
+                    });
+                })
+                    ->with(['invoiceItems.invoice']);
 
                 if ($startDate) {
                     $loadsQuery->whereDate('unload_date', '>=', $startDate);
@@ -78,8 +94,10 @@ class ClientTrackingController extends Controller
 
                 $loads = $loadsQuery->orderBy('unload_date', 'desc')->get();
 
-                $data['loads'] = $loads->map(function ($load) {
-                    $invoiceItem = $load->invoiceItems->first();
+                $data['loads'] = $loads->map(function ($load) use ($clientId) {
+                    $invoiceItem = $load->invoiceItems
+                        ->first(fn (InvoiceItem $item) => $item->invoice?->client_id === (int) $clientId)
+                        ?? $load->invoiceItems->first();
 
                     return [
                         'id' => $load->id,
@@ -94,15 +112,14 @@ class ClientTrackingController extends Controller
                         'missing_quantity' => $invoiceItem?->missing_quantity ?? 0,
                         'total_amount' => $invoiceItem?->total ?? 0,
                         'status' => $load->status->value,
+                        'remaining_quantity' => $load->remainingQuantity(),
                         'is_paid' => $load->status === LoadStatus::PAYE,
                     ];
                 });
 
                 // Calcul du solde client (basé sur le relevé de compte)
                 // Solde = Solde Initial + Total Facturé - Total Payé
-                $totalInvoiced = InvoiceItem::whereHas('loadDetails', function ($q) use ($clientId) {
-                    $q->where('client_id', $clientId);
-                })->sum('total');
+                $totalInvoiced = Invoice::where('client_id', $clientId)->sum('total_amount');
 
                 $data['current_balance'] = $data['initial_balance'] + (float) $totalInvoiced - (float) ClientPayment::where('client_id', $clientId)->sum('amount');
             }
@@ -146,8 +163,10 @@ class ClientTrackingController extends Controller
         });
 
         // Listes des livraisons
-        $loadsQuery = Load::where('client_id', $clientId)
-            ->with('invoiceItems');
+        $loadsQuery = Load::where(function ($query) use ($clientId) {
+            $query->where('client_id', $clientId)
+                ->orWhereHas('invoiceItems.invoice', fn ($query) => $query->where('client_id', $clientId));
+        })->with('invoiceItems');
 
         if ($startDate) {
             $loadsQuery->whereDate('unload_date', '>=', $startDate);
@@ -159,7 +178,7 @@ class ClientTrackingController extends Controller
         if ($request->filled('search')) {
             $search = $request->search;
             $loadsQuery->where(function ($q) use ($search) {
-                $q->where('numero', 'like', "%{$search}%")
+                $q->where('id', 'like', "%{$search}%")
                     ->orWhere('vehicle_registration', 'like', "%{$search}%")
                     ->orWhere('client_name', 'like', "%{$search}%")
                     ->orWhere('unload_location', 'like', "%{$search}%");
@@ -173,6 +192,8 @@ class ClientTrackingController extends Controller
         if ($request->filled('status_filter') && $request->status_filter !== 'all') {
             if ($request->status_filter === 'FACTURER ET PAYER') {
                 $loadsQuery->where('status', LoadStatus::PAYE);
+            } elseif ($request->status_filter === 'FACTURE PARTIELLE') {
+                $loadsQuery->where('status', LoadStatus::FACTURE_PARTIELLE);
             } elseif ($request->status_filter === 'FACTURER') {
                 $loadsQuery->where('status', LoadStatus::FACTURER);
             }
@@ -181,6 +202,7 @@ class ClientTrackingController extends Controller
         $allLoads = $loadsQuery->orderBy('unload_date', 'desc')->get();
 
         $loadsFacturer = $allLoads->where('status', LoadStatus::FACTURER);
+        $loadsFacturePartielle = $allLoads->where('status', LoadStatus::FACTURE_PARTIELLE);
         $loadsFacturerPayer = $allLoads->where('status', LoadStatus::PAYE);
         $loadsLivrer = $allLoads->where('status', LoadStatus::LIVRER);
 
@@ -208,6 +230,7 @@ class ClientTrackingController extends Controller
                 'total_not_invoiced' => $totalNotInvoiced,
             ],
             'loadsFacturer' => $loadsFacturer,
+            'loadsFacturePartielle' => $loadsFacturePartielle,
             'loadsFacturerPayer' => $loadsFacturerPayer,
             'loadsLivrer' => $loadsLivrer,
             'payments' => $payments,
@@ -267,6 +290,8 @@ class ClientTrackingController extends Controller
                         'product' => $item->loadDetails?->product ?? 'N/A',
                         'quantity' => (float) $item->quantity_delivered,
                         'missing_quantity' => (float) $item->missing_quantity,
+                        'is_partial' => (bool) $item->is_partial,
+                        'remaining_quantity' => $item->is_partial ? ($item->loadDetails?->remainingQuantity($invoice->id) ?? 0) : 0,
                         'unit_price' => (float) $item->unit_price,
                         'total' => (float) $item->total,
                         'vehicle_registration' => $item->loadDetails?->vehicle_registration,

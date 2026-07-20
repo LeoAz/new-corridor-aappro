@@ -64,7 +64,7 @@ export default function Releve({ client, clients, statement, filters }: Props) {
     };
 
     const handleClientChange = (clientId: string) => {
-        router.get(clientsActions.default.releve.show(clientId).url, {
+        router.get(clientsActions.default.releve.show(Number(clientId)).url, {
             date_from: dateFrom,
             date_to: dateTo,
         });
@@ -217,7 +217,6 @@ export default function Releve({ client, clients, statement, filters }: Props) {
                                             mode="single"
                                             selected={dateFrom ? new Date(dateFrom) : undefined}
                                             onSelect={(date) => setDateFrom(date ? format(date, "yyyy-MM-dd") : "")}
-                                            initialFocus
                                             locale={fr}
                                         />
                                     </PopoverContent>
@@ -243,7 +242,6 @@ export default function Releve({ client, clients, statement, filters }: Props) {
                                             mode="single"
                                             selected={dateTo ? new Date(dateTo) : undefined}
                                             onSelect={(date) => setDateTo(date ? format(date, "yyyy-MM-dd") : "")}
-                                            initialFocus
                                             locale={fr}
                                         />
                                     </PopoverContent>
@@ -315,7 +313,7 @@ export default function Releve({ client, clients, statement, filters }: Props) {
                                             <div className="flex flex-col">
                                                 <span className="text-xl font-black text-blue-900 uppercase tracking-tight">SOLDE DU COMPTE:</span>
                                                 <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">
-                                                    {finalBalance < 0 ? 'L\'entreprise doit (Rouge)' : 'Le client doit (Vert)'}
+                                                    {finalBalance < 0 ? 'Le client doit (Rouge)' : 'L\'entreprise doit (Vert)'}
                                                 </span>
                                             </div>
                                             <span className={`text-2xl font-black tabular-nums ${finalBalance < 0 ? 'text-red-600' : 'text-emerald-600'}`}>
@@ -323,7 +321,7 @@ export default function Releve({ client, clients, statement, filters }: Props) {
                                             </span>
                                         </div>
                                         <p className="text-[10px] text-gray-400 italic mt-4 text-right">
-                                            * Un solde en rouge indique que l'entreprise doit au client, un solde en vert indique que le client doit à l'entreprise.
+                                            * Un solde en rouge indique que le client doit à l'entreprise, un solde en vert indique que l'entreprise doit au client.
                                         </p>
                                     </div>
                                 </div>

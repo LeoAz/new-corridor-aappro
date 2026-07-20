@@ -125,7 +125,7 @@ class ClientStatementController extends Controller
             ]);
 
         $loadsFacturer = Load::where('client_id', $client->id)
-            ->where('status', LoadStatus::FACTURER)
+            ->whereIn('status', [LoadStatus::FACTURE_PARTIELLE, LoadStatus::FACTURER])
             ->with(['depot', 'compartment'])
             ->get()
             ->map(fn ($l) => [

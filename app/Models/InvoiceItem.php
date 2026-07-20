@@ -17,6 +17,7 @@ class InvoiceItem extends Model
         'quantity_delivered',
         'unit_price',
         'missing_quantity',
+        'is_partial',
         'total',
         'is_paid',
         'client_payment_id',
@@ -26,6 +27,7 @@ class InvoiceItem extends Model
         'quantity_delivered' => 'float',
         'unit_price' => 'float',
         'missing_quantity' => 'float',
+        'is_partial' => 'boolean',
         'total' => 'float',
         'is_paid' => 'boolean',
     ];

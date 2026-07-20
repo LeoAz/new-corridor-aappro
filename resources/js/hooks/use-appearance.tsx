@@ -48,7 +48,6 @@ export function useAppearance(): UseAppearanceReturn {
 
     const updateAppearance = (mode: Appearance): void => {
         // No-op as we only support light mode now
-        console.log('Theme change requested but ignored:', mode);
         notify();
     };
 

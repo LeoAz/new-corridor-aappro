@@ -68,4 +68,63 @@ class Load extends Model
     {
         return $this->belongsTo(ClientPayment::class, 'client_payment_id');
     }
+
+    public function invoicedQuantity(?int $exceptInvoiceId = null): float
+    {
+        if ($this->hasFullInvoiceItem($exceptInvoiceId)) {
+            return (float) $this->volume;
+        }
+
+        return $this->partialInvoicedQuantity($exceptInvoiceId);
+    }
+
+    public function partialInvoicedQuantity(?int $exceptInvoiceId = null): float
+    {
+        return (float) $this->invoiceItems()
+            ->when($exceptInvoiceId, fn ($query) => $query->where('invoice_id', '!=', $exceptInvoiceId))
+            ->where('is_partial', true)
+            ->sum('quantity_delivered');
+    }
+
+    public function remainingQuantity(?int $exceptInvoiceId = null): float
+    {
+        if ($this->hasFullInvoiceItem($exceptInvoiceId)) {
+            return 0;
+        }
+
+        return max((float) $this->volume - $this->partialInvoicedQuantity($exceptInvoiceId), 0);
+    }
+
+    public function refreshInvoiceStatus(): void
+    {
+        if ($this->hasFullInvoiceItem()) {
+            $this->update(['status' => LoadStatus::FACTURER]);
+
+            return;
+        }
+
+        $partialInvoicedQuantity = $this->partialInvoicedQuantity();
+
+        if ($partialInvoicedQuantity <= 0) {
+            $this->update(['status' => LoadStatus::LIVRER]);
+
+            return;
+        }
+
+        if ($partialInvoicedQuantity < (float) $this->volume) {
+            $this->update(['status' => LoadStatus::FACTURE_PARTIELLE]);
+
+            return;
+        }
+
+        $this->update(['status' => LoadStatus::FACTURER]);
+    }
+
+    public function hasFullInvoiceItem(?int $exceptInvoiceId = null): bool
+    {
+        return $this->invoiceItems()
+            ->when($exceptInvoiceId, fn ($query) => $query->where('invoice_id', '!=', $exceptInvoiceId))
+            ->where('is_partial', false)
+            ->exists();
+    }
 }

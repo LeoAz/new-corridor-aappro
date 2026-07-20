@@ -6,15 +6,11 @@ use Illuminate\Database\Migrations\Migration;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
         $invoiceItems = InvoiceItem::all();
 
         foreach ($invoiceItems as $item) {
-            $newTotal = ($item->quantity_delivered - ($item->missing_quantity ?? 0)) * $item->unit_price;
             $item->update(['total' => $newTotal]);
         }
 
@@ -31,15 +27,11 @@ return new class extends Migration
         }
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         $invoiceItems = InvoiceItem::all();
 
         foreach ($invoiceItems as $item) {
-            $oldTotal = $item->quantity_delivered * $item->unit_price;
             $item->update(['total' => $oldTotal]);
         }
 

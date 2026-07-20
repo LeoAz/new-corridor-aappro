@@ -5,9 +5,6 @@ use Illuminate\Support\Facades\DB;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
         // 1. Marquer l'ensemble des livraisons comme non payé et changer le statut de FACTURE/PAYE à LIVRER
@@ -26,9 +23,6 @@ return new class extends Migration
         DB::table('client_payments')->delete();
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         //

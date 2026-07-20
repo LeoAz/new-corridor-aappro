@@ -4,9 +4,6 @@ use Illuminate\Database\Migrations\Migration;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
         // LIVRÉ -> LIVRER
@@ -31,9 +28,6 @@ return new class extends Migration
         DB::table('loads')->where('status', 'LIVRE ET FACTURE')->update(['status' => 'FACTURER']);
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         //

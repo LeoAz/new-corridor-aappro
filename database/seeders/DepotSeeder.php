@@ -8,9 +8,6 @@ use Illuminate\Database\Seeder;
 
 class DepotSeeder extends Seeder
 {
-    /**
-     * Run the database seeds.
-     */
     public function run(): void
     {
         $depots = ['DOT (Dakar)', 'SENSTOCK', 'ARYA'];

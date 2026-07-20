@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Enums\LoadStatus;
 use App\Models\Client;
 use App\Models\Invoice;
 use App\Models\InvoiceItem;
@@ -14,6 +13,7 @@ use BaconQrCode\Writer;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
 class InvoiceController extends Controller
@@ -111,10 +111,13 @@ class InvoiceController extends Controller
             'items.*.quantity_delivered' => 'required|numeric',
             'items.*.unit_price' => 'required|numeric',
             'items.*.missing_quantity' => 'nullable|numeric',
+            'items.*.is_partial' => 'nullable|boolean',
             'items.*.total' => 'required|numeric',
             'total_amount' => 'required|numeric',
             'total_missing' => 'nullable|numeric',
         ]);
+
+        $this->validateInvoiceableQuantities($validated['items'], (int) $invoice->id);
 
         return DB::transaction(function () use ($validated, $invoice, $request) {
             $invoice->update([
@@ -133,17 +136,13 @@ class InvoiceController extends Controller
 
                 if (isset($item['id'])) {
                     $invoiceItem = InvoiceItem::find($item['id']);
+                    $oldLoad = null;
 
-                    // If the load_id has changed, reset the old load status
+                    $oldLoadId = $invoiceItem->load_id;
+
+                    // If the load_id has changed, refresh the old load status after the item moves.
                     if ($invoiceItem->load_id != $item['load_id']) {
-                        Load::where('id', $invoiceItem->load_id)->update([
-                            'status' => LoadStatus::LIVRER,
-                        ]);
-
-                        // Update the new load status
-                        Load::where('id', $item['load_id'])->update([
-                            'status' => LoadStatus::FACTURER,
-                        ]);
+                        $oldLoad = Load::find($oldLoadId);
                     }
 
                     $invoiceItem->update([
@@ -152,9 +151,16 @@ class InvoiceController extends Controller
                         'quantity_delivered' => $item['quantity_delivered'],
                         'unit_price' => $item['unit_price'],
                         'missing_quantity' => $item['missing_quantity'] ?? 0,
+                        'is_partial' => $item['is_partial'] ?? false,
                         'total' => $itemTotal,
                     ]);
                     $keepIds[] = $invoiceItem->id;
+
+                    if (isset($oldLoad)) {
+                        $oldLoad->refreshInvoiceStatus();
+                    }
+
+                    $invoiceItem->loadDetails?->refreshInvoiceStatus();
                 } else {
                     $newItem = InvoiceItem::create([
                         'invoice_id' => (int) $invoice->id,
@@ -163,14 +169,12 @@ class InvoiceController extends Controller
                         'quantity_delivered' => $item['quantity_delivered'],
                         'unit_price' => $item['unit_price'],
                         'missing_quantity' => $item['missing_quantity'] ?? 0,
+                        'is_partial' => $item['is_partial'] ?? false,
                         'total' => $itemTotal,
                     ]);
                     $keepIds[] = $newItem->id;
 
-                    // Update load status to INVOICED
-                    Load::where('id', $item['load_id'])->update([
-                        'status' => LoadStatus::FACTURER,
-                    ]);
+                    $newItem->loadDetails?->refreshInvoiceStatus();
                 }
             }
 
@@ -180,10 +184,9 @@ class InvoiceController extends Controller
                 ->get();
 
             foreach ($removedItems as $item) {
-                Load::where('id', $item->load_id)->update([
-                    'status' => LoadStatus::LIVRER,
-                ]);
+                $load = $item->loadDetails;
                 $item->delete();
+                $load?->refreshInvoiceStatus();
             }
 
             if ($request->query('redirect_back') === 'suivi-client') {
@@ -203,13 +206,15 @@ class InvoiceController extends Controller
 
         return DB::transaction(function () use ($invoice, $request) {
             $clientId = $invoice->client_id;
+            $loads = $invoice->items->map->loadDetails->filter();
+
             foreach ($invoice->items as $item) {
-                Load::where('id', $item->load_id)->update([
-                    'status' => LoadStatus::LIVRER,
-                ]);
+                $item->delete();
             }
 
             $invoice->delete();
+
+            $loads->each->refreshInvoiceStatus();
 
             if ($request->query('redirect_back') === 'suivi-client') {
                 return redirect()->route('clients.suivi-client.index', [
@@ -233,10 +238,13 @@ class InvoiceController extends Controller
             'items.*.quantity_delivered' => 'required|numeric',
             'items.*.unit_price' => 'required|numeric',
             'items.*.missing_quantity' => 'nullable|numeric',
+            'items.*.is_partial' => 'nullable|boolean',
             'items.*.total' => 'required|numeric',
             'total_amount' => 'required|numeric',
             'total_missing' => 'nullable|numeric',
         ]);
+
+        $this->validateInvoiceableQuantities($validated['items']);
 
         return DB::transaction(function () use ($validated, $request) {
             $year = date('Y', strtotime($validated['date']));
@@ -274,13 +282,11 @@ class InvoiceController extends Controller
                     'quantity_delivered' => $item['quantity_delivered'],
                     'unit_price' => $item['unit_price'],
                     'missing_quantity' => $item['missing_quantity'] ?? 0,
+                    'is_partial' => $item['is_partial'] ?? false,
                     'total' => $itemTotal,
                 ]);
 
-                // Update load status to INVOICED
-                Load::where('id', $item['load_id'])->update([
-                    'status' => LoadStatus::FACTURER,
-                ]);
+                Load::find($item['load_id'])?->refreshInvoiceStatus();
             }
 
             if ($request->query('redirect_back') === 'suivi-client') {
@@ -292,5 +298,78 @@ class InvoiceController extends Controller
 
             return back()->with('message', 'Facture générée avec succès');
         });
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $items
+     *
+     * @throws ValidationException
+     */
+    private function validateInvoiceableQuantities(array $items, ?int $invoiceId = null): void
+    {
+        $requestedByLoad = [];
+
+        foreach ($items as $index => $item) {
+            $quantity = (float) ($item['quantity_delivered'] ?? 0);
+            $missingQuantity = (float) ($item['missing_quantity'] ?? 0);
+            $isPartial = (bool) ($item['is_partial'] ?? false);
+
+            if ($quantity <= 0) {
+                throw ValidationException::withMessages([
+                    "items.{$index}.quantity_delivered" => 'La quantité facturée doit être supérieure à zéro.',
+                ]);
+            }
+
+            if ($missingQuantity < 0 || $missingQuantity > $quantity) {
+                throw ValidationException::withMessages([
+                    "items.{$index}.missing_quantity" => 'Le manquant ne peut pas dépasser la quantité de la ligne.',
+                ]);
+            }
+
+            $loadId = (int) $item['load_id'];
+            $requestedByLoad[$loadId] ??= [
+                'partial_quantity' => 0.0,
+                'full_quantity' => 0.0,
+                'full_items_count' => 0,
+                'has_partial_items' => false,
+            ];
+
+            if ($isPartial) {
+                $requestedByLoad[$loadId]['partial_quantity'] += $quantity;
+                $requestedByLoad[$loadId]['has_partial_items'] = true;
+            } else {
+                $requestedByLoad[$loadId]['full_quantity'] += $quantity;
+                $requestedByLoad[$loadId]['full_items_count']++;
+            }
+        }
+
+        foreach ($requestedByLoad as $loadId => $requested) {
+            $load = Load::findOrFail($loadId);
+            $remainingQuantity = $load->remainingQuantity($invoiceId);
+
+            if ($requested['full_items_count'] > 1 || ($requested['full_items_count'] === 1 && $requested['has_partial_items'])) {
+                throw ValidationException::withMessages([
+                    'items' => "La livraison {$load->vehicle_registration} doit être facturée soit en une ligne complète, soit en lignes partielles.",
+                ]);
+            }
+
+            if ($remainingQuantity <= 0) {
+                throw ValidationException::withMessages([
+                    'items' => "La livraison {$load->vehicle_registration} n'a plus de quantité restante à facturer.",
+                ]);
+            }
+
+            if ($requested['full_items_count'] === 1 && $requested['full_quantity'] > $remainingQuantity) {
+                throw ValidationException::withMessages([
+                    'items' => "La quantité facturée pour la livraison {$load->vehicle_registration} dépasse le restant disponible de {$remainingQuantity} L.",
+                ]);
+            }
+
+            if ($requested['full_items_count'] === 0 && $requested['partial_quantity'] > $remainingQuantity) {
+                throw ValidationException::withMessages([
+                    'items' => "La quantité facturée pour la livraison {$load->vehicle_registration} dépasse le restant disponible de {$remainingQuantity} L.",
+                ]);
+            }
+        }
     }
 }

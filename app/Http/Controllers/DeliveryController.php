@@ -17,21 +17,24 @@ class DeliveryController extends Controller
     public function index(Request $request)
     {
         $status = $request->input('status');
+        $invoiceable = $request->boolean('invoiceable');
 
-        if ($status) {
+        if ($invoiceable) {
+            $query = Load::whereIn('status', [LoadStatus::LIVRER, LoadStatus::FACTURE_PARTIELLE]);
+        } elseif ($status) {
             if (str_contains($status, ',')) {
                 $query = Load::whereIn('status', explode(',', $status));
             } else {
                 $query = Load::where('status', $status);
             }
         } else {
-            $query = Load::whereIn('status', [LoadStatus::LIVRER, LoadStatus::FACTURER, LoadStatus::PAYE]);
+            $query = Load::whereIn('status', [LoadStatus::LIVRER, LoadStatus::FACTURE_PARTIELLE, LoadStatus::FACTURER, LoadStatus::PAYE]);
         }
 
-        $query->with(['depot', 'city', 'client', 'compartment', 'invoiceItems']);
+        $query->with(['depot', 'city', 'client', 'compartment', 'invoiceItems.invoice.client']);
 
         // Filters
-        if ($request->filled('client_id')) {
+        if (! $invoiceable && $request->filled('client_id')) {
             $query->where('client_id', $request->client_id);
         }
         if ($request->filled('product')) {
@@ -54,6 +57,14 @@ class DeliveryController extends Controller
         $deliveries = $query->latest('unload_date')->get();
 
         if ($request->wantsJson()) {
+            if ($invoiceable) {
+                $deliveries = $deliveries
+                    ->filter(fn (Load $load) => $load->remainingQuantity() > 0)
+                    ->values();
+            }
+
+            $deliveries = $deliveries->map(fn (Load $load) => $this->serializeDelivery($load));
+
             return response()->json($deliveries);
         }
 
@@ -68,7 +79,7 @@ class DeliveryController extends Controller
         $totalVolume = $deliveries->sum('volume');
 
         return Inertia::render('operations/livraisons', [
-            'deliveries' => $deliveries,
+            'deliveries' => $deliveries->map(fn (Load $load) => $this->serializeDelivery($load)),
             'clients' => Client::all(),
             'stats' => [
                 'by_product' => $statsByProduct,
@@ -76,7 +87,7 @@ class DeliveryController extends Controller
                 'total_volume' => $totalVolume,
             ],
             'filters' => $request->only(['product', 'date_from', 'date_to', 'load_locations']),
-            'distinct_locations' => Load::whereIn('status', [LoadStatus::LIVRER, LoadStatus::FACTURER, LoadStatus::PAYE])
+            'distinct_locations' => Load::whereIn('status', [LoadStatus::LIVRER, LoadStatus::FACTURE_PARTIELLE, LoadStatus::FACTURER, LoadStatus::PAYE])
                 ->whereNotNull('load_location')
                 ->distinct()
                 ->pluck('load_location'),
@@ -197,10 +208,10 @@ class DeliveryController extends Controller
                 $query = Load::where('status', $status);
             }
         } else {
-            $query = Load::whereIn('status', [LoadStatus::LIVRER, LoadStatus::FACTURER, LoadStatus::PAYE]);
+            $query = Load::whereIn('status', [LoadStatus::LIVRER, LoadStatus::FACTURE_PARTIELLE, LoadStatus::FACTURER, LoadStatus::PAYE]);
         }
 
-        $query->with(['depot', 'city', 'client', 'compartment', 'invoiceItems']);
+        $query->with(['depot', 'city', 'client', 'compartment', 'invoiceItems.invoice.client']);
 
         // Filters
         if ($request->filled('client_id')) {
@@ -231,5 +242,24 @@ class DeliveryController extends Controller
         ]);
 
         return $pdf->download('livraisons_'.date('Ymd_His').'.pdf');
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function serializeDelivery(Load $load): array
+    {
+        return [
+            ...$load->toArray(),
+            'invoiced_quantity' => $load->invoicedQuantity(),
+            'remaining_quantity' => $load->remainingQuantity(),
+            'partial_invoice_clients' => $load->invoiceItems
+                ->where('is_partial', true)
+                ->map(fn (InvoiceItem $item) => $item->invoice?->client?->nom)
+                ->filter()
+                ->unique()
+                ->values()
+                ->all(),
+        ];
     }
 }

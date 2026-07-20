@@ -120,9 +120,9 @@ test('a user can update an invoice and see available loads', function () {
     $user = User::factory()->create();
     $client = Client::factory()->create();
 
-    $load1 = Load::factory()->create(['client_id' => $client->id, 'status' => LoadStatus::FACTURER]);
-    $load2 = Load::factory()->create(['client_id' => $client->id, 'status' => LoadStatus::LIVRER]);
-    $load3 = Load::factory()->create(['client_id' => $client->id, 'status' => LoadStatus::LIVRER]);
+    $load1 = Load::factory()->create(['client_id' => $client->id, 'status' => LoadStatus::FACTURER, 'volume' => 1200]);
+    $load2 = Load::factory()->create(['client_id' => $client->id, 'status' => LoadStatus::LIVRER, 'volume' => 800]);
+    $load3 = Load::factory()->create(['client_id' => $client->id, 'status' => LoadStatus::LIVRER, 'volume' => 900]);
 
     $invoice = Invoice::factory()->create([
         'client_id' => $client->id,
@@ -217,6 +217,163 @@ test('invoice items total deducts missing quantity', function () {
     expect($invoiceItem->total)->toEqual(495000);
 });
 
+test('a delivery can be partially invoiced and exposes its remaining quantity', function () {
+    $user = User::factory()->create();
+    $client = Client::factory()->create();
+    $load = Load::factory()->create([
+        'client_id' => $client->id,
+        'status' => LoadStatus::LIVRER,
+        'volume' => 1000,
+    ]);
+
+    $response = $this->actingAs($user)->post(route('finances.facture-chargement.store'), [
+        'client_id' => $client->id,
+        'date' => now()->format('Y-m-d'),
+        'items' => [
+            [
+                'load_id' => $load->id,
+                'quantity_delivered' => 400,
+                'unit_price' => 500,
+                'missing_quantity' => 25,
+                'is_partial' => true,
+                'total' => 187500,
+            ],
+        ],
+        'total_amount' => 187500,
+        'total_missing' => 25,
+    ]);
+
+    $response->assertRedirect();
+
+    expect($load->refresh()->status)->toBe(LoadStatus::FACTURE_PARTIELLE);
+    expect($load->remainingQuantity())->toBe(600.0);
+});
+
+test('a full invoice with missing quantity is not considered partial', function () {
+    $user = User::factory()->create();
+    $client = Client::factory()->create();
+    $load = Load::factory()->create([
+        'client_id' => $client->id,
+        'status' => LoadStatus::LIVRER,
+        'volume' => 1000,
+    ]);
+
+    $response = $this->actingAs($user)->post(route('finances.facture-chargement.store'), [
+        'client_id' => $client->id,
+        'date' => now()->format('Y-m-d'),
+        'items' => [
+            [
+                'load_id' => $load->id,
+                'quantity_delivered' => 990,
+                'unit_price' => 500,
+                'missing_quantity' => 10,
+                'is_partial' => false,
+                'total' => 490000,
+            ],
+        ],
+        'total_amount' => 490000,
+        'total_missing' => 10,
+    ]);
+
+    $response->assertRedirect();
+
+    expect($load->refresh()->status)->toBe(LoadStatus::FACTURER);
+    expect($load->remainingQuantity())->toBe(0.0);
+});
+
+test('a partially invoiced delivery can be completed by another client', function () {
+    $user = User::factory()->create();
+    $firstClient = Client::factory()->create();
+    $secondClient = Client::factory()->create();
+    $load = Load::factory()->create([
+        'client_id' => $firstClient->id,
+        'status' => LoadStatus::LIVRER,
+        'volume' => 1000,
+    ]);
+
+    $this->actingAs($user)->post(route('finances.facture-chargement.store'), [
+        'client_id' => $firstClient->id,
+        'date' => now()->format('Y-m-d'),
+        'items' => [
+            [
+                'load_id' => $load->id,
+                'quantity_delivered' => 400,
+                'unit_price' => 500,
+                'missing_quantity' => 0,
+                'is_partial' => true,
+                'total' => 200000,
+            ],
+        ],
+        'total_amount' => 200000,
+        'total_missing' => 0,
+    ])->assertRedirect();
+
+    $this->actingAs($user)->post(route('finances.facture-chargement.store'), [
+        'client_id' => $secondClient->id,
+        'date' => now()->format('Y-m-d'),
+        'items' => [
+            [
+                'load_id' => $load->id,
+                'quantity_delivered' => 600,
+                'unit_price' => 500,
+                'missing_quantity' => 0,
+                'is_partial' => false,
+                'total' => 300000,
+            ],
+        ],
+        'total_amount' => 300000,
+        'total_missing' => 0,
+    ])->assertRedirect();
+
+    expect($load->refresh()->status)->toBe(LoadStatus::FACTURER);
+    expect($load->remainingQuantity())->toBe(0.0);
+
+    $response = $this->actingAs($user)->getJson(route('operations.livraisons.index', [
+        'invoiceable' => 1,
+    ]));
+
+    expect(array_column($response->json(), 'id'))->not->toContain($load->id);
+});
+
+test('invoice creation cannot exceed a delivery remaining quantity', function () {
+    $user = User::factory()->create();
+    $client = Client::factory()->create();
+    $load = Load::factory()->create([
+        'client_id' => $client->id,
+        'status' => LoadStatus::FACTURE_PARTIELLE,
+        'volume' => 1000,
+    ]);
+    $invoice = Invoice::factory()->create(['client_id' => $client->id]);
+    InvoiceItem::create([
+        'invoice_id' => $invoice->id,
+        'load_id' => $load->id,
+        'quantity_delivered' => 700,
+        'unit_price' => 500,
+        'missing_quantity' => 0,
+        'is_partial' => true,
+        'total' => 350000,
+    ]);
+
+    $response = $this->actingAs($user)->post(route('finances.facture-chargement.store'), [
+        'client_id' => $client->id,
+        'date' => now()->format('Y-m-d'),
+        'items' => [
+            [
+                'load_id' => $load->id,
+                'quantity_delivered' => 400,
+                'unit_price' => 500,
+                'missing_quantity' => 0,
+                'is_partial' => true,
+                'total' => 200000,
+            ],
+        ],
+        'total_amount' => 200000,
+        'total_missing' => 0,
+    ]);
+
+    $response->assertSessionHasErrors('items');
+});
+
 test('a user can remove an item from an invoice', function () {
     $user = User::factory()->create();
     $client = Client::factory()->create();
@@ -249,7 +406,7 @@ test('a user can remove an item from an invoice', function () {
     $response->assertSessionHasErrors('items');
 
     // Test with removing one and adding another
-    $load2 = Load::factory()->create(['client_id' => $client->id, 'status' => LoadStatus::LIVRER]);
+    $load2 = Load::factory()->create(['client_id' => $client->id, 'status' => LoadStatus::LIVRER, 'volume' => 800]);
 
     $response = $this->actingAs($user)->put(route('finances.facture-chargement.update', $invoice), [
         'client_id' => $client->id,
@@ -283,9 +440,9 @@ test('load statuses are correctly updated when invoice is modified', function ()
     $client = Client::factory()->create();
 
     // 1. Initial loads
-    $loadToKeep = Load::factory()->create(['client_id' => $client->id, 'status' => LoadStatus::FACTURER]);
-    $loadToRemove = Load::factory()->create(['client_id' => $client->id, 'status' => LoadStatus::FACTURER]);
-    $loadToAdd = Load::factory()->create(['client_id' => $client->id, 'status' => LoadStatus::LIVRER]);
+    $loadToKeep = Load::factory()->create(['client_id' => $client->id, 'status' => LoadStatus::FACTURER, 'volume' => 1000]);
+    $loadToRemove = Load::factory()->create(['client_id' => $client->id, 'status' => LoadStatus::FACTURER, 'volume' => 1000]);
+    $loadToAdd = Load::factory()->create(['client_id' => $client->id, 'status' => LoadStatus::LIVRER, 'volume' => 1000]);
 
     $invoice = Invoice::factory()->create(['client_id' => $client->id]);
 
@@ -336,7 +493,7 @@ test('load statuses are correctly updated when invoice is modified', function ()
     expect($loadToAdd->refresh()->status)->toBe(LoadStatus::FACTURER);
 
     // 4. Test changing the load of an existing item
-    $loadSwitch = Load::factory()->create(['client_id' => $client->id, 'status' => LoadStatus::LIVRER]);
+    $loadSwitch = Load::factory()->create(['client_id' => $client->id, 'status' => LoadStatus::LIVRER, 'volume' => 1000]);
 
     $response = $this->actingAs($user)->put(route('finances.facture-chargement.update', $invoice), [
         'client_id' => $client->id,
@@ -363,7 +520,7 @@ test('load statuses are correctly updated when invoice is modified', function ()
 test('a user can delete an invoice and reset load statuses', function () {
     $user = User::factory()->create();
     $client = Client::factory()->create();
-    $load = Load::factory()->create(['client_id' => $client->id, 'status' => LoadStatus::FACTURER]);
+    $load = Load::factory()->create(['client_id' => $client->id, 'status' => LoadStatus::FACTURER, 'volume' => 1000]);
 
     $invoice = Invoice::factory()->create(['client_id' => $client->id]);
     InvoiceItem::create([

@@ -81,6 +81,8 @@ interface Load {
     unload_location: string;
     status: string;
     unit_price?: number | null;
+    remaining_quantity?: number;
+    partial_invoice_clients?: string[];
     client_id: number | null;
     client: Client | null;
     depot?: Depot | null;
@@ -209,6 +211,22 @@ export default function Livraisons({
                 cell: ({ row }) => formatNumber(row.original.volume) + ' L',
             },
             {
+                accessorKey: 'remaining_quantity',
+                header: 'Restant',
+                cell: ({ row }) =>
+                    row.original.remaining_quantity === undefined
+                        ? '-'
+                        : `${formatNumber(row.original.remaining_quantity)} L`,
+            },
+            {
+                accessorKey: 'partial_invoice_clients',
+                header: 'Clients facturés',
+                cell: ({ row }) =>
+                    row.original.partial_invoice_clients?.length
+                        ? row.original.partial_invoice_clients.join(', ')
+                        : '-',
+            },
+            {
                 accessorKey: 'unload_location',
                 header: 'Lieu Livraison',
             },
@@ -226,6 +244,8 @@ export default function Livraisons({
                                     ? 'bg-green-100 text-green-800'
                                     : status === 'FACTURER'
                                       ? 'bg-orange-100 text-orange-800'
+                                      : status === 'FACTURE PARTIELLE'
+                                        ? 'bg-violet-100 text-violet-800'
                                       : status === 'LIVRER'
                                         ? 'bg-blue-100 text-blue-800'
                                         : 'bg-gray-100 text-gray-800',
