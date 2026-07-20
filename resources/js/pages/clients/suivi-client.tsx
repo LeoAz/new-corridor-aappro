@@ -17,6 +17,7 @@ import {
     Search,
     Trash2,
     Truck,
+    Undo2,
     UserRound,
     Wallet,
 } from 'lucide-react';
@@ -1285,6 +1286,40 @@ export default function SuiviClient({
                     }
 
                     return <Badge variant={variant}>{status}</Badge>;
+                },
+            },
+            {
+                id: 'actions',
+                header: 'Actions',
+                cell: ({ row }) => {
+                    const load = row.original;
+
+                    if (load.status !== 'FACTURER ET PAYER') {
+                        return null;
+                    }
+
+                    return (
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            title="Remettre à FACTURER"
+                            onClick={() => {
+                                if (
+                                    confirm(
+                                        'Êtes-vous sûr de vouloir remettre cette livraison à l\'état FACTURER ?',
+                                    )
+                                ) {
+                                    router.post(
+                                        route('clients.suivi-client.reset-load', {
+                                            load: load.id,
+                                        }),
+                                    );
+                                }
+                            }}
+                        >
+                            <Undo2 className="h-4 w-4 text-orange-500" />
+                        </Button>
+                    );
                 },
             },
         ],

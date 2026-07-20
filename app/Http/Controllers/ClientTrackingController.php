@@ -269,6 +269,28 @@ class ClientTrackingController extends Controller
         return back()->with('success', 'Livraisons marquées comme payées avec succès.');
     }
 
+    public function resetLoadToInvoiced(Load $load)
+    {
+        if ($load->status !== LoadStatus::PAYE) {
+            return back()->with('error', 'Seules les livraisons payées peuvent être remises à l\'état facturé.');
+        }
+
+        DB::transaction(function () use ($load) {
+            $invoiceItem = InvoiceItem::where('load_id', $load->id)->first();
+
+            if ($invoiceItem) {
+                $invoiceItem->restorePaymentMissingQuantity();
+            }
+
+            $load->status = LoadStatus::FACTURER;
+            $load->is_paid = false;
+            $load->client_payment_id = null;
+            $load->save();
+        });
+
+        return back()->with('success', 'La livraison a été remise à l\'état facturé.');
+    }
+
     public function getInvoices(Client $client)
     {
         return response()->json([
