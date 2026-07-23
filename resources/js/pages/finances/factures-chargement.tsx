@@ -681,7 +681,9 @@ export default function FacturesChargement({
     };
 
     const addAllAvailableLoads = () => {
-        const newItemsFromLoads = filteredAvailableLoads.map((load) => ({
+        const newItemsFromLoads = filteredAvailableLoads
+            .filter((load) => load.status === 'LIVRER')
+            .map((load) => ({
             id: undefined, // Nouveau item de facture
             load_id: load.id,
             bl_number: load.bl_number || '',

@@ -331,11 +331,12 @@
                     <tr>
                         <th width="5%">#</th>
                         <th width="10%">Date</th>
-                        <th width="15%">N° BL</th>
-                        <th width="18%">Camion</th>
-                        <th width="18%">Produit</th>
-                        <th width="15%" class="text-right">Qté</th>
-                        <th width="19%" class="text-right">Montant</th>
+                        <th width="12%">N° BL</th>
+                        <th width="15%">Camion</th>
+                        <th width="15%">Produit</th>
+                        <th width="10%" class="text-right">Qté</th>
+                        <th width="15%" class="text-right">Montant</th>
+                        <th width="18%">Statut</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -357,10 +358,17 @@
                             <td>{{ $load->product }}</td>
                             <td class="text-right">{{ number_format($load->volume, 0, ',', ' ') }}</td>
                             <td class="text-right">{{ number_format($amount, 0, ',', ' ') }}</td>
+                            <td>
+                                @if($load->status === \App\Enums\LoadStatus::FACTURE_PARTIELLE)
+                                    <span class="badge badge-warning">PARTIELLE</span>
+                                @else
+                                    <span class="badge badge-info">FACTURÉ</span>
+                                @endif
+                            </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="7" class="text-center">Aucune livraison en attente de paiement</td>
+                            <td colspan="8" class="text-center">Aucune livraison en attente de paiement</td>
                         </tr>
                     @endforelse
                 </tbody>
@@ -370,6 +378,7 @@
                         <td colspan="5" class="text-right">TOTAL</td>
                         <td class="text-right">{{ number_format($totalQtyFacturer, 0, ',', ' ') }}</td>
                         <td class="text-right">{{ number_format($totalAmountFacturer, 0, ',', ' ') }}</td>
+                        <td></td>
                     </tr>
                 </tfoot>
                 @endif

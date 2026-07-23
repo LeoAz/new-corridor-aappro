@@ -57,7 +57,7 @@ class ClientTrackingController extends Controller
                     ->whereHas('invoiceItems.invoice', fn ($q) => $q->where('client_id', $clientId))
                     ->count();
                 $data['stats']['facturer_payer'] = Load::where('status', LoadStatus::PAYE)
-                    ->whereHas('invoiceItems.invoice', fn ($q) => $q->where('client_id', $clientId))
+                    ->where('client_id', $clientId)
                     ->count();
 
                 // Règlements
@@ -75,13 +75,8 @@ class ClientTrackingController extends Controller
                 // Note: L'énoncé dit "on aura aussi la liste des livraisons avec le statut (FACTURER ET FACTURER ET PAYER)"
                 // Mais il dit aussi "Seul les livraisons "FACTURER" seront selectionnable pour etre payé"
                 $loadsQuery = Load::where(function ($query) use ($clientId) {
-                    $query->where(function ($query) use ($clientId) {
-                        $query->where('client_id', $clientId)
-                            ->whereIn('status', [LoadStatus::FACTURE_PARTIELLE, LoadStatus::FACTURER, LoadStatus::PAYE]);
-                    })->orWhere(function ($query) use ($clientId) {
-                        $query->whereIn('status', [LoadStatus::FACTURE_PARTIELLE, LoadStatus::FACTURER, LoadStatus::PAYE])
-                            ->whereHas('invoiceItems.invoice', fn ($query) => $query->where('client_id', $clientId));
-                    });
+                    $query->where('client_id', $clientId)
+                        ->whereIn('status', [LoadStatus::FACTURE_PARTIELLE, LoadStatus::FACTURER, LoadStatus::PAYE]);
                 })
                     ->with(['invoiceItems.invoice']);
 
@@ -201,8 +196,7 @@ class ClientTrackingController extends Controller
 
         $allLoads = $loadsQuery->orderBy('unload_date', 'desc')->get();
 
-        $loadsFacturer = $allLoads->where('status', LoadStatus::FACTURER);
-        $loadsFacturePartielle = $allLoads->where('status', LoadStatus::FACTURE_PARTIELLE);
+        $loadsFacturer = $allLoads->filter(fn($l) => $l->status === LoadStatus::FACTURER || $l->status === LoadStatus::FACTURE_PARTIELLE);
         $loadsFacturerPayer = $allLoads->where('status', LoadStatus::PAYE);
         $loadsLivrer = $allLoads->where('status', LoadStatus::LIVRER);
 
@@ -230,7 +224,6 @@ class ClientTrackingController extends Controller
                 'total_not_invoiced' => $totalNotInvoiced,
             ],
             'loadsFacturer' => $loadsFacturer,
-            'loadsFacturePartielle' => $loadsFacturePartielle,
             'loadsFacturerPayer' => $loadsFacturerPayer,
             'loadsLivrer' => $loadsLivrer,
             'payments' => $payments,

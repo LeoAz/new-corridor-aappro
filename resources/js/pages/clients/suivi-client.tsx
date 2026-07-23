@@ -239,8 +239,10 @@ export default function SuiviClient({
         (total, load) => total + load.total_amount,
         0,
     );
-    const unpaidLoads = loads.filter((load) => load.status === 'FACTURER')
-        .length;
+    const unpaidLoads = loads.filter(
+        (load) =>
+            load.status === 'FACTURER' || load.status === 'FACTURE PARTIELLE',
+    ).length;
 
     const paymentForm = useForm({
         load_ids: [] as number[],
@@ -1220,7 +1222,7 @@ export default function SuiviClient({
                         checked={row.getIsSelected()}
                         onCheckedChange={(value) => row.toggleSelected(!!value)}
                         aria-label="Sélectionner la ligne"
-                        disabled={row.original.status !== 'FACTURER'}
+                        disabled={row.original.status !== 'FACTURER' && row.original.status !== 'FACTURE PARTIELLE'}
                     />
                 ),
                 enableSorting: false,
