@@ -545,13 +545,15 @@ export default function FacturesChargement({
 
     const [availableLoads, setAvailableLoads] = useState<any[]>([]);
 
-    // Filter available loads: must belong to client and NOT be already in items
+    // Filter available loads: must belong to client, NOT be already in items AND be in status 'LIVRER'
     const filteredAvailableLoads = useMemo(() => {
         const selectedLoadIds = new Set(
             data.items.map((item) => item.load_id).filter((id) => id),
         );
 
-        return availableLoads.filter((load) => !selectedLoadIds.has(load.id));
+        return availableLoads.filter(
+            (load) => !selectedLoadIds.has(load.id) && load.status === 'LIVRER',
+        );
     }, [availableLoads, data.items]);
 
     useEffect(() => {
@@ -681,9 +683,7 @@ export default function FacturesChargement({
     };
 
     const addAllAvailableLoads = () => {
-        const newItemsFromLoads = filteredAvailableLoads
-            .filter((load) => load.status === 'LIVRER')
-            .map((load) => ({
+        const newItemsFromLoads = filteredAvailableLoads.map((load) => ({
             id: undefined, // Nouveau item de facture
             load_id: load.id,
             bl_number: load.bl_number || '',

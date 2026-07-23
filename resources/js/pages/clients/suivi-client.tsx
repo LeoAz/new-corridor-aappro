@@ -24,7 +24,6 @@ import {
 import * as React from 'react';
 
 import * as clientPaymentActions from '@/actions/App/Http/Controllers/ClientPaymentController';
-import * as tracking from '@/actions/App/Http/Controllers/ClientTrackingController';
 import { Autocomplete } from '@/components/ui/autocomplete';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -63,6 +62,7 @@ import {
 } from '@/components/ui/sheet';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn, formatNumber } from '@/lib/utils';
+import tracking from '@/routes/clients/suivi-client';
 import * as finances from '@/routes/finances';
 
 interface Client {
@@ -234,6 +234,8 @@ export default function SuiviClient({
         load_invoices: [],
         depot_invoices: [],
     });
+
+    const [loadToReset, setLoadToReset] = React.useState<Load | null>(null);
 
     const totalInvoiced = loads.reduce(
         (total, load) => total + load.total_amount,
@@ -786,13 +788,13 @@ export default function SuiviClient({
 
     const handleClientChange = (clientId: string) => {
         router.get(
-            tracking.index.url({
+            tracking.index({
                 query: {
                     client_id: clientId,
                     start_date: startDate,
                     end_date: endDate,
                 },
-            }),
+            }).url,
             {},
             { preserveState: true },
         );
@@ -800,13 +802,13 @@ export default function SuiviClient({
 
     const handleFilter = () => {
         router.get(
-            tracking.index.url({
+            tracking.index({
                 query: {
                     client_id: selectedClient?.id,
                     start_date: startDate,
                     end_date: endDate,
                 },
-            }),
+            }).url,
             {},
             { preserveState: true },
         );
@@ -836,7 +838,7 @@ export default function SuiviClient({
 
         try {
             const response = await fetch(
-                tracking.getInvoices.url(selectedClient.id),
+                tracking.invoices(selectedClient.id).url,
             );
             const data = await response.json();
             setClientInvoices(data);
@@ -911,7 +913,7 @@ export default function SuiviClient({
 
     const submitPayment = (e: React.FormEvent) => {
         e.preventDefault();
-        paymentForm.post(tracking.processPayment().url, {
+        paymentForm.post(tracking.payment().url, {
             onSuccess: () => {
                 setIsPaymentModalOpen(false);
                 setSelectedLoads([]);
@@ -1301,26 +1303,16 @@ export default function SuiviClient({
                     }
 
                     return (
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            title="Remettre à FACTURER"
-                            onClick={() => {
-                                if (
-                                    confirm(
-                                        'Êtes-vous sûr de vouloir remettre cette livraison à l\'état FACTURER ?',
-                                    )
-                                ) {
-                                    router.post(
-                                        route('clients.suivi-client.reset-load', {
-                                            load: load.id,
-                                        }),
-                                    );
-                                }
-                            }}
-                        >
-                            <Undo2 className="h-4 w-4 text-orange-500" />
-                        </Button>
+                        <>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                title="Remettre à FACTURER"
+                                onClick={() => setLoadToReset(load)}
+                            >
+                                <Undo2 className="h-4 w-4 text-orange-500" />
+                            </Button>
+                        </>
                     );
                 },
             },
@@ -1883,6 +1875,49 @@ export default function SuiviClient({
                     </Tabs>
                 </SheetContent>
             </Sheet>
+
+            <Dialog
+                open={!!loadToReset}
+                onOpenChange={(open) => !open && setLoadToReset(null)}
+            >
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Confirmer l'action</DialogTitle>
+                        <DialogDescription>
+                            Êtes-vous sûr de vouloir remettre cette livraison à
+                            l'état <strong>FACTURER</strong> ? Cette action est
+                            irréversible.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <Button
+                            variant="outline"
+                            onClick={() => setLoadToReset(null)}
+                        >
+                            Annuler
+                        </Button>
+                        <Button
+                            variant="default"
+                            onClick={() => {
+                                if (loadToReset) {
+                                    router.post(
+                                        tracking.resetLoad({
+                                            load: loadToReset.id,
+                                        }).url,
+                                        {},
+                                        {
+                                            onSuccess: () =>
+                                                setLoadToReset(null),
+                                        },
+                                    );
+                                }
+                            }}
+                        >
+                            Confirmer
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
             <Dialog
                 open={isCreateDepotInvoiceOpen}
@@ -2589,7 +2624,7 @@ export default function SuiviClient({
                 open={Boolean(invoiceToDelete)}
                 onOpenChange={(open) => !open && setInvoiceToDelete(null)}
             >
-                <DialogContent>
+                <DialogContent className="sm:max-w-md">
                     <DialogHeader>
                         <DialogTitle>Confirmer la suppression</DialogTitle>
                         <DialogDescription>
@@ -3075,7 +3110,7 @@ export default function SuiviClient({
                 open={!!paymentToDelete}
                 onOpenChange={(open) => !open && setPaymentToDelete(null)}
             >
-                <DialogContent>
+                <DialogContent className="sm:max-w-md">
                     <DialogHeader>
                         <DialogTitle>Confirmer la suppression</DialogTitle>
                         <DialogDescription>

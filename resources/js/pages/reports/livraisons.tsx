@@ -47,7 +47,7 @@ interface Props {
     };
 }
 
-export default function ReportLivraisons({ loads, stats, clients, filters }: Props) {
+export default function ReportLivraisons({ loads = [], stats = { total_trucks: 0, total_volume: 0, by_product: {} }, clients = [], filters }: Props) {
     const [dateFrom, setDateFrom] = useState<string>(filters?.date_from || '');
     const [dateTo, setDateTo] = useState<string>(filters?.date_to || '');
     const [product, setProduct] = useState<string>(filters?.product || 'all');

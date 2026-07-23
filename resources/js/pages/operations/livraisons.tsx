@@ -118,7 +118,7 @@ export default function Livraisons({
     clients = [],
     filters,
     distinct_locations = [],
-    stats,
+    stats = { by_product: [], total_loads: 0, total_volume: 0 },
 }: Props) {
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -511,7 +511,7 @@ export default function Livraisons({
                                     <SelectItem value=" ">
                                         Tous les produits
                                     </SelectItem>
-                                    {allProducts.map((p) => (
+                                    {(allProducts || []).map((p) => (
                                         <SelectItem key={p} value={p}>
                                             {p}
                                         </SelectItem>
@@ -612,8 +612,8 @@ export default function Livraisons({
                                             Lieux disponibles
                                         </div>
                                         <div className="max-h-60 space-y-1 overflow-y-auto">
-                                            {distinct_locations.length > 0 ? (
-                                                distinct_locations.map(
+                                            {(distinct_locations || []).length > 0 ? (
+                                                (distinct_locations || []).map(
                                                     (location) => (
                                                         <div
                                                             key={location}
@@ -678,7 +678,7 @@ export default function Livraisons({
                             </span>
                         </div>
                     </Card>
-                    {stats.by_product.map((s) => (
+                    {(stats?.by_product || []).map((s) => (
                         <Card key={s.product} className="p-4">
                             <div className="flex flex-col gap-1">
                                 <span className="text-sm font-medium tracking-wider text-muted-foreground uppercase">
@@ -796,7 +796,7 @@ export default function Livraisons({
                             <div className="space-y-2">
                                 <Label htmlFor="edit_client_id">Client</Label>
                                 <SimpleAutocomplete
-                                    options={clients.map((c) => ({
+                                    options={(clients || []).map((c) => ({
                                         value: c.id.toString(),
                                         label: c.nom,
                                     }))}
