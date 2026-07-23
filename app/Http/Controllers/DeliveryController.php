@@ -20,7 +20,7 @@ class DeliveryController extends Controller
         $invoiceable = $request->boolean('invoiceable');
 
         if ($invoiceable) {
-            $query = Load::whereIn('status', [LoadStatus::LIVRER, LoadStatus::FACTURE_PARTIELLE]);
+            $query = Load::whereIn('status', [LoadStatus::FACTURER, LoadStatus::FACTURE_PARTIELLE]);
         } elseif ($status) {
             if (str_contains($status, ',')) {
                 $query = Load::whereIn('status', explode(',', $status));
