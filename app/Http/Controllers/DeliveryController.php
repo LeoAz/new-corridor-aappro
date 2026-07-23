@@ -34,7 +34,7 @@ class DeliveryController extends Controller
         $query->with(['depot', 'city', 'client', 'compartment', 'invoiceItems.invoice.client']);
 
         // Filters
-        if (! $invoiceable && $request->filled('client_id')) {
+        if ($request->filled('client_id')) {
             $query->where('client_id', $request->client_id);
         }
         if ($request->filled('product')) {

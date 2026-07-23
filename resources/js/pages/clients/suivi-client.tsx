@@ -177,6 +177,7 @@ interface Props {
     total_payments: number;
     current_balance: number;
     depots: Depot[];
+    delivered_loads?: Load[];
 }
 
 interface PageProps extends Props {
@@ -196,6 +197,7 @@ export default function SuiviClient({
     total_payments,
     current_balance,
     depots = [],
+    delivered_loads = [],
 }: Props) {
     const { props } = usePage<PageProps>();
     const openInvoicesParam = props.open_invoices;
@@ -203,6 +205,8 @@ export default function SuiviClient({
     const [startDate, setStartDate] = React.useState<string>('');
     const [endDate, setEndDate] = React.useState<string>('');
     const [isSheetOpen, setIsSheetOpen] = React.useState(false);
+    const [isDeliveredLoadsSheetOpen, setIsDeliveredLoadsSheetOpen] =
+        React.useState(false);
 
     const [isPaymentModalOpen, setIsPaymentModalOpen] = React.useState(false);
     const [isCreatePaymentModalOpen, setIsCreatePaymentModalOpen] =
@@ -1202,6 +1206,40 @@ export default function SuiviClient({
         setSelectedLoads(rows);
     }, []);
 
+    const deliveredLoadColumns: ColumnDef<Load>[] = React.useMemo(
+        () => [
+            {
+                accessorKey: 'load_date',
+                header: 'Date Charg.',
+                cell: ({ row }) => formatDate(row.original.load_date),
+            },
+            {
+                accessorKey: 'unload_date',
+                header: 'Date Livr.',
+                cell: ({ row }) => formatDate(row.original.unload_date),
+            },
+            { accessorKey: 'bl_number', header: 'N° BL' },
+            { accessorKey: 'vehicle_registration', header: 'Camion' },
+            { accessorKey: 'product', header: 'Produit' },
+            {
+                accessorKey: 'volume',
+                header: 'Qté',
+                cell: ({ row }) => formatNumber(row.original.volume),
+            },
+            {
+                accessorKey: 'unit_price',
+                header: 'P.U',
+                cell: ({ row }) => formatCurrency(row.original.unit_price),
+            },
+            {
+                accessorKey: 'total_amount',
+                header: 'Montant',
+                cell: ({ row }) => formatCurrency(row.original.total_amount),
+            },
+        ],
+        [],
+    );
+
     const loadColumns: ColumnDef<Load>[] = React.useMemo(
         () => [
             {
@@ -1597,8 +1635,24 @@ export default function SuiviClient({
                                     <Truck className="h-4 w-4 text-sky-600" />
                                 </CardHeader>
                                 <CardContent>
-                                    <div className="text-2xl font-bold">
-                                        {stats.livrer}
+                                    <div className="flex items-center justify-between">
+                                        <div className="text-2xl font-bold">
+                                            {stats.livrer}
+                                        </div>
+                                        {stats.livrer > 0 && (
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                className="h-7 text-xs"
+                                                onClick={() =>
+                                                    setIsDeliveredLoadsSheetOpen(
+                                                        true,
+                                                    )
+                                                }
+                                            >
+                                                Afficher les livraisons
+                                            </Button>
+                                        )}
                                     </div>
                                 </CardContent>
                             </Card>
@@ -1873,6 +1927,28 @@ export default function SuiviClient({
                             />
                         </TabsContent>
                     </Tabs>
+                </SheetContent>
+            </Sheet>
+
+            <Sheet
+                open={isDeliveredLoadsSheetOpen}
+                onOpenChange={setIsDeliveredLoadsSheetOpen}
+            >
+                <SheetContent className="sm:max-w-4xl p-0 flex flex-col">
+                    <SheetHeader className="p-6 pb-0">
+                        <SheetTitle>Livraisons livrées</SheetTitle>
+                        <SheetDescription>
+                            Liste des livraisons au statut LIVRER pour ce
+                            client.
+                        </SheetDescription>
+                    </SheetHeader>
+                    <div className="mt-6 flex-1 overflow-y-auto px-6 pb-6">
+                        <DataTable
+                            columns={deliveredLoadColumns}
+                            data={delivered_loads}
+                            hidePagination
+                        />
+                    </div>
                 </SheetContent>
             </Sheet>
 

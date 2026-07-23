@@ -60,6 +60,24 @@ class ClientTrackingController extends Controller
                     ->where('client_id', $clientId)
                     ->count();
 
+                // Livraisons livrées (pour le Sheet)
+                $data['delivered_loads'] = Load::where('client_id', $clientId)
+                    ->where('status', LoadStatus::LIVRER)
+                    ->orderBy('unload_date', 'desc')
+                    ->get()
+                    ->map(fn ($load) => [
+                        'id' => $load->id,
+                        'load_date' => $load->load_date?->format('Y-m-d'),
+                        'unload_date' => $load->unload_date?->format('Y-m-d'),
+                        'bl_number' => $load->bl_number ?? '',
+                        'vehicle_registration' => $load->vehicle_registration,
+                        'product' => $load->product,
+                        'volume' => $load->volume,
+                        'unit_price' => $load->unit_price ?? 0,
+                        'total_amount' => $load->volume * ($load->unit_price ?? 0),
+                        'status' => $load->status->value,
+                    ]);
+
                 // Règlements
                 $paymentsQuery = ClientPayment::where('client_id', $clientId);
                 if ($startDate) {

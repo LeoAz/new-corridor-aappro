@@ -561,6 +561,7 @@ export default function FacturesChargement({
             const url = operations.default.livraisons.index({
                 query: {
                     invoiceable: 1,
+                    client_id: data.client_id,
                 },
             }).url;
 
