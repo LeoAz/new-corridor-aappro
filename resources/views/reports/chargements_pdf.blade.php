@@ -79,56 +79,64 @@
         </table>
     </div>
 
-    @foreach($groupedLoads as $date => $clients)
-        <h3 style="background: #333; color: white; padding: 8px; margin-top: 20px;">Date : {{ \Carbon\Carbon::parse($date)->format('d/m/Y') }}</h3>
+    <table class="table">
+        <thead>
+            <tr>
+                <th style="width: 40px;">N°</th>
+                <th style="width: 80px;">DATE</th>
+                <th>DEPOT</th>
+                <th>PRODUIT</th>
+                <th class="text-right">QUANTITE</th>
+                <th class="text-right">VOLUME</th>
+                <th class="text-center">STATUT</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach($loads as $load)
+            <tr>
+                <td class="text-center">{{ $loop->iteration }}</td>
+                <td>{{ \Carbon\Carbon::parse($load->load_date)->format('d/m/Y') }}</td>
+                <td>{{ $load->depot->name ?? 'N/A' }}</td>
+                <td>
+                    <span class="badge {{ $load->product === 'GASOIL' ? 'bg-blue' : ($load->product === 'SUPER' ? 'bg-orange' : 'bg-purple') }}">
+                        {{ $load->product }}
+                    </span>
+                </td>
+                <td class="text-right">{{ number_format($load->volume, 0, '.', ' ') }}</td>
+                <td class="text-right font-bold">{{ number_format($load->volume, 0, '.', ' ') }} L</td>
+                <td class="text-center">{{ $load->status }}</td>
+            </tr>
+            @endforeach
+        </tbody>
+    </table>
 
-        @foreach($clients as $clientName => $clientLoads)
-            <div style="margin-bottom: 20px;">
-                <h4 style="margin: 10px 0; color: #333; border-bottom: 1px solid #eee;">Client : {{ $clientName }}</h4>
-                <table class="table">
-                    <thead>
+    <div style="margin-top: 20px;">
+        <h3 style="background: #333; color: white; padding: 8px;">Statistiques par Dépôt</h3>
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Dépôt</th>
+                    <th>Produit</th>
+                    <th class="text-center">Nombre de Chargements</th>
+                    <th class="text-right">Total Quantité/Volume</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach($depotStats as $depotName => $products)
+                    @foreach($products as $stat)
                         <tr>
-                            <th style="width: 40px;">N°</th>
-                            <th style="width: 120px;">Véhicule</th>
-                            <th>Dépôt</th>
-                            <th>Lieu de Chargement</th>
-                            <th style="width: 100px;">Produit</th>
-                            <th style="width: 120px;" class="text-right">Volume</th>
-                            <th style="width: 100px;" class="text-center">Statut</th>
+                            @if($loop->first)
+                                <td rowspan="{{ count($products) }}" style="vertical-align: middle;" class="font-bold">{{ $depotName }}</td>
+                            @endif
+                            <td>{{ $stat['product'] }}</td>
+                            <td class="text-center">{{ $stat['count'] }}</td>
+                            <td class="text-right font-bold">{{ number_format($stat['volume'], 0, '.', ' ') }} L</td>
                         </tr>
-                    </thead>
-                    <tbody>
-                        @php
-                            $clientTotal = 0;
-                        @endphp
-                        @foreach($clientLoads as $load)
-                        @php $clientTotal += (float)$load->volume; @endphp
-                        <tr>
-                            <td class="text-center">{{ $loop->iteration }}</td>
-                            <td class="font-bold">{{ $load->vehicle_registration }}</td>
-                            <td>{{ $load->depot->name ?? 'N/A' }}</td>
-                            <td>{{ $load->load_location }}</td>
-                            <td>
-                                <span class="badge {{ $load->product === 'GASOIL' ? 'bg-blue' : ($load->product === 'SUPER' ? 'bg-orange' : 'bg-purple') }}">
-                                    {{ $load->product }}
-                                </span>
-                            </td>
-                            <td class="text-right font-bold">{{ number_format($load->volume, 0, '.', ' ') }} L</td>
-                            <td class="text-center">{{ $load->status }}</td>
-                        </tr>
-                        @endforeach
-                    </tbody>
-                    <tfoot>
-                        <tr style="background: #f0f0f0;">
-                            <td colspan="5" class="text-right font-bold">TOTAL CLIENT</td>
-                            <td class="text-right font-bold" style="font-size: 11pt;">{{ number_format($clientTotal, 0, '.', ' ') }} L</td>
-                            <td></td>
-                        </tr>
-                    </tfoot>
-                </table>
-            </div>
-        @endforeach
-    @endforeach
+                    @endforeach
+                @endforeach
+            </tbody>
+        </table>
+    </div>
 
     <div style="margin-top: 30px; border-top: 3px double #333; padding-top: 10px; text-align: right;">
         <span style="font-size: 16pt; font-weight: bold; text-transform: uppercase;">Total Général : {{ number_format($totalVolume, 0, '.', ' ') }} L</span>

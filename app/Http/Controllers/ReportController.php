@@ -88,7 +88,7 @@ class ReportController extends Controller
             $client = Client::find($request->client_id);
         }
 
-        $loads = $query->orderBy('load_date', 'asc')->get();
+        $loads = $query->orderBy('load_date', 'desc')->get();
         $totalVolume = $loads->sum('volume');
 
         $stats = $loads->groupBy('product')->map(fn ($group, $product) => [
@@ -97,13 +97,14 @@ class ReportController extends Controller
             'volume' => $group->sum('volume'),
         ])->values()->toArray();
 
-        $groupedLoads = $loads->groupBy(function ($item) {
-            return Carbon::parse($item->load_date)->format('Y-m-d');
-        })->map(function ($dateGroup) {
-            return $dateGroup->groupBy(function ($item) {
-                return $item->client->nom ?? 'Sans Client';
-            });
-        });
+        $depotStats = $loads->groupBy(fn ($load) => $load->depot->name ?? 'N/A')
+            ->map(fn ($depotGroup) => $depotGroup->groupBy('product')
+                ->map(fn ($productGroup, $product) => [
+                    'product' => $product ?: 'INCONNU',
+                    'count' => $productGroup->count(),
+                    'volume' => $productGroup->sum('volume'),
+                ])
+            )->toArray();
 
         $qrData = "Rapport Chargements\n";
         $qrData .= 'Date: '.now()->format('d/m/Y')."\n";
@@ -119,8 +120,8 @@ class ReportController extends Controller
 
         $pdf = Pdf::loadView('reports.chargements_pdf', [
             'loads' => $loads,
-            'groupedLoads' => $groupedLoads,
             'stats' => $stats,
+            'depotStats' => $depotStats,
             'totalVolume' => $totalVolume,
             'filters' => $request->all(),
             'client' => $client,
