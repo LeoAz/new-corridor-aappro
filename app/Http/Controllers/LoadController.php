@@ -76,12 +76,20 @@ class LoadController extends Controller
             'product' => 'required|string|max:255',
             'volume' => 'required|numeric|min:0',
             'vehicle_registration' => 'required|string|max:255',
-            'depot_id' => 'required|exists:depots,id',
+            'depot_id' => 'nullable|exists:depots,id',
             'city_id' => 'nullable|exists:cities,id',
             'client_id' => 'nullable|exists:clients,id',
             'compartment_id' => 'nullable|exists:compartments,id',
             'client_name' => 'nullable|string|max:255',
         ]);
+
+        if (empty($validated['depot_id'])) {
+            $validated['depot_id'] = null;
+        }
+
+        if (empty($validated['compartment_id'])) {
+            $validated['compartment_id'] = null;
+        }
 
         $validated['status'] = LoadStatus::EN_COURS;
 
@@ -109,12 +117,20 @@ class LoadController extends Controller
             'product' => 'required|string|max:255',
             'volume' => 'required|numeric|min:0',
             'vehicle_registration' => 'required|string|max:255',
-            'depot_id' => 'required|exists:depots,id',
+            'depot_id' => 'nullable|exists:depots,id',
             'city_id' => 'nullable|exists:cities,id',
             'client_id' => 'nullable|exists:clients,id',
             'compartment_id' => 'nullable|exists:compartments,id',
             'client_name' => 'nullable|string|max:255',
         ]);
+
+        if (empty($validated['depot_id'])) {
+            $validated['depot_id'] = null;
+        }
+
+        if (empty($validated['compartment_id'])) {
+            $validated['compartment_id'] = null;
+        }
 
         DB::transaction(function () use ($validated, $chargement) {
             $oldVolume = (float) $chargement->volume;

@@ -813,7 +813,7 @@ export default function Chargements({ loads, depots, cities, clients, filters, d
                                                               d.id?.toString() ===
                                                               data.depot_id?.toString(),
                                                       )?.name
-                                                    : 'Sélectionner un dépôt...'}
+                                                    : 'Sélectionner un dépôt (facultatif)...'}
                                                 <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                             </Button>
                                         </PopoverTrigger>
@@ -825,6 +825,35 @@ export default function Chargements({ loads, depots, cities, clients, filters, d
                                                         Aucun dépôt trouvé.
                                                     </CommandEmpty>
                                                     <CommandGroup>
+                                                        <CommandItem
+                                                            value="none"
+                                                            onSelect={() => {
+                                                                setData(
+                                                                    (
+                                                                        prev,
+                                                                    ) => ({
+                                                                        ...prev,
+                                                                        depot_id:
+                                                                            '',
+                                                                        compartment_id:
+                                                                            '',
+                                                                    }),
+                                                                );
+                                                                setIsDepotComboboxOpen(
+                                                                    false,
+                                                                );
+                                                            }}
+                                                        >
+                                                            <Check
+                                                                className={cn(
+                                                                    'mr-2 h-4 w-4',
+                                                                    !data.depot_id
+                                                                        ? 'opacity-100'
+                                                                        : 'opacity-0',
+                                                                )}
+                                                            />
+                                                            Aucun dépôt
+                                                        </CommandItem>
                                                         {depots.map((depot) => (
                                                             <CommandItem
                                                                 key={depot.id}
@@ -891,31 +920,37 @@ export default function Chargements({ loads, depots, cities, clients, filters, d
                                                 );
                                             setData((prev) => ({
                                                 ...prev,
-                                                compartment_id: v,
-                                                product: comp?.product || '',
+                                                compartment_id: v.startsWith('manual:') ? '' : v,
+                                                product: comp?.product || v.replace('manual:', ''),
                                             }));
                                         }}
-                                        disabled={!data.depot_id}
                                     >
                                         <SelectTrigger>
                                             <SelectValue
-                                                placeholder={
-                                                    data.depot_id
-                                                        ? 'Sélectionner un produit'
-                                                        : 'Sélectionnez d’abord un dépôt'
-                                                }
+                                                placeholder="Sélectionner un produit"
                                             />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            {selectedDepot?.compartments?.map(
-                                                (comp) => (
+                                            {data.depot_id ? (
+                                                selectedDepot?.compartments?.map(
+                                                    (comp) => (
+                                                        <SelectItem
+                                                            key={comp.id}
+                                                            value={comp.id?.toString() || ''}
+                                                        >
+                                                            {comp.product}
+                                                        </SelectItem>
+                                                    ),
+                                                )
+                                            ) : (
+                                                allProducts.map((product) => (
                                                     <SelectItem
-                                                        key={comp.id}
-                                                        value={comp.id?.toString() || ''}
+                                                        key={product}
+                                                        value={`manual:${product}`}
                                                     >
-                                                        {comp.product}
+                                                        {product}
                                                     </SelectItem>
-                                                ),
+                                                ))
                                             )}
                                         </SelectContent>
                                     </Select>
@@ -1173,7 +1208,7 @@ export default function Chargements({ loads, depots, cities, clients, filters, d
                                                               d.id?.toString() ===
                                                               data.depot_id?.toString(),
                                                       )?.name
-                                                    : 'Sélectionner un dépôt...'}
+                                                    : 'Sélectionner un dépôt (facultatif)...'}
                                                 <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                             </Button>
                                         </PopoverTrigger>
@@ -1185,6 +1220,35 @@ export default function Chargements({ loads, depots, cities, clients, filters, d
                                                         Aucun dépôt trouvé.
                                                     </CommandEmpty>
                                                     <CommandGroup>
+                                                        <CommandItem
+                                                            value="none"
+                                                            onSelect={() => {
+                                                                setData(
+                                                                    (
+                                                                        prev,
+                                                                    ) => ({
+                                                                        ...prev,
+                                                                        depot_id:
+                                                                            '',
+                                                                        compartment_id:
+                                                                            '',
+                                                                    }),
+                                                                );
+                                                                setIsDepotComboboxOpen(
+                                                                    false,
+                                                                );
+                                                            }}
+                                                        >
+                                                            <Check
+                                                                className={cn(
+                                                                    'mr-2 h-4 w-4',
+                                                                    !data.depot_id
+                                                                        ? 'opacity-100'
+                                                                        : 'opacity-0',
+                                                                )}
+                                                            />
+                                                            Aucun dépôt
+                                                        </CommandItem>
                                                         {depots.map((depot) => (
                                                             <CommandItem
                                                                 key={depot.id}
@@ -1253,31 +1317,37 @@ export default function Chargements({ loads, depots, cities, clients, filters, d
                                                 );
                                             setData((prev) => ({
                                                 ...prev,
-                                                compartment_id: v,
-                                                product: comp?.product || '',
+                                                compartment_id: v.startsWith('manual:') ? '' : v,
+                                                product: comp?.product || v.replace('manual:', ''),
                                             }));
                                         }}
-                                        disabled={!data.depot_id}
                                     >
                                         <SelectTrigger>
                                             <SelectValue
-                                                placeholder={
-                                                    data.depot_id
-                                                        ? 'Sélectionner un produit'
-                                                        : 'Sélectionnez d’abord un dépôt'
-                                                }
+                                                placeholder="Sélectionner un produit"
                                             />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            {selectedDepot?.compartments?.map(
-                                                (comp) => (
+                                            {data.depot_id ? (
+                                                selectedDepot?.compartments?.map(
+                                                    (comp) => (
+                                                        <SelectItem
+                                                            key={comp.id}
+                                                            value={comp.id?.toString() || ''}
+                                                        >
+                                                            {comp.product}
+                                                        </SelectItem>
+                                                    ),
+                                                )
+                                            ) : (
+                                                allProducts.map((product) => (
                                                     <SelectItem
-                                                        key={comp.id}
-                                                        value={comp.id?.toString() || ''}
+                                                        key={product}
+                                                        value={`manual:${product}`}
                                                     >
-                                                        {comp.product}
+                                                        {product}
                                                     </SelectItem>
-                                                ),
+                                                ))
                                             )}
                                         </SelectContent>
                                     </Select>
