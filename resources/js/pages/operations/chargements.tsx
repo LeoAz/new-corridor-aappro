@@ -58,7 +58,7 @@ interface Client {
 interface Compartment {
     id: number;
     product: string;
-    depot_id: number;
+    depot_id: number | null;
 }
 
 interface Depot {
@@ -74,7 +74,7 @@ interface Load {
     product: string;
     volume: number;
     vehicle_registration: string;
-    depot_id: number;
+    depot_id: number | null;
     city_id: number | null;
     client_id: number | null;
     compartment_id: number | null;
@@ -281,7 +281,7 @@ export default function Chargements({ loads, depots, cities, clients, filters, d
     });
 
     const selectedDepot = useMemo(() => {
-        return depots.find((d) => d.id.toString() === data.depot_id);
+        return depots.find((d) => d.id?.toString() === data.depot_id?.toString());
     }, [data.depot_id, depots]);
 
     const openCreateModal = () => {
@@ -298,7 +298,7 @@ export default function Chargements({ loads, depots, cities, clients, filters, d
             product: load.product,
             volume: load.volume,
             vehicle_registration: load.vehicle_registration,
-            depot_id: load.depot_id.toString(),
+            depot_id: load.depot_id?.toString() || '',
             city_id: load.city_id?.toString() || '',
             client_id: load.client_id?.toString() || '',
             compartment_id: load.compartment_id?.toString() || '',
@@ -810,8 +810,8 @@ export default function Chargements({ loads, depots, cities, clients, filters, d
                                                 {data.depot_id
                                                     ? depots.find(
                                                           (d) =>
-                                                              d.id.toString() ===
-                                                              data.depot_id,
+                                                              d.id?.toString() ===
+                                                              data.depot_id?.toString(),
                                                       )?.name
                                                     : 'Sélectionner un dépôt...'}
                                                 <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
@@ -856,8 +856,8 @@ export default function Chargements({ loads, depots, cities, clients, filters, d
                                                                 <Check
                                                                     className={cn(
                                                                         'mr-2 h-4 w-4',
-                                                                        data.depot_id ===
-                                                                            depot.id.toString()
+                                                                        data.depot_id?.toString() ===
+                                                                            depot.id?.toString()
                                                                             ? 'opacity-100'
                                                                             : 'opacity-0',
                                                                     )}
@@ -887,7 +887,7 @@ export default function Chargements({ loads, depots, cities, clients, filters, d
                                             const comp =
                                                 selectedDepot?.compartments?.find(
                                                     (c) =>
-                                                        c.id.toString() === v,
+                                                        c.id?.toString() === v,
                                                 );
                                             setData((prev) => ({
                                                 ...prev,
@@ -911,7 +911,7 @@ export default function Chargements({ loads, depots, cities, clients, filters, d
                                                 (comp) => (
                                                     <SelectItem
                                                         key={comp.id}
-                                                        value={comp.id.toString()}
+                                                        value={comp.id?.toString() || ''}
                                                     >
                                                         {comp.product}
                                                     </SelectItem>
@@ -964,7 +964,7 @@ export default function Chargements({ loads, depots, cities, clients, filters, d
                                             {cities.map((city) => (
                                                 <SelectItem
                                                     key={city.id}
-                                                    value={city.id.toString()}
+                                                    value={city.id?.toString() || ''}
                                                 >
                                                     {city.name}
                                                 </SelectItem>
@@ -1128,7 +1128,7 @@ export default function Chargements({ loads, depots, cities, clients, filters, d
                                     </Label>
                                     <SimpleAutocomplete
                                         options={clients.map((c) => ({
-                                            value: c.id.toString(),
+                                            value: c.id?.toString() || '',
                                             label: c.nom,
                                         }))}
                                         value={data.client_id || ''}
@@ -1170,8 +1170,8 @@ export default function Chargements({ loads, depots, cities, clients, filters, d
                                                 {data.depot_id
                                                     ? depots.find(
                                                           (d) =>
-                                                              d.id.toString() ===
-                                                              data.depot_id,
+                                                              d.id?.toString() ===
+                                                              data.depot_id?.toString(),
                                                       )?.name
                                                     : 'Sélectionner un dépôt...'}
                                                 <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
@@ -1216,8 +1216,8 @@ export default function Chargements({ loads, depots, cities, clients, filters, d
                                                                 <Check
                                                                     className={cn(
                                                                         'mr-2 h-4 w-4',
-                                                                        data.depot_id ===
-                                                                            depot.id.toString()
+                                                                        data.depot_id?.toString() ===
+                                                                            depot.id?.toString()
                                                                             ? 'opacity-100'
                                                                             : 'opacity-0',
                                                                     )}
@@ -1249,7 +1249,7 @@ export default function Chargements({ loads, depots, cities, clients, filters, d
                                             const comp =
                                                 selectedDepot?.compartments?.find(
                                                     (c) =>
-                                                        c.id.toString() === v,
+                                                        c.id?.toString() === v,
                                                 );
                                             setData((prev) => ({
                                                 ...prev,
@@ -1273,7 +1273,7 @@ export default function Chargements({ loads, depots, cities, clients, filters, d
                                                 (comp) => (
                                                     <SelectItem
                                                         key={comp.id}
-                                                        value={comp.id.toString()}
+                                                        value={comp.id?.toString() || ''}
                                                     >
                                                         {comp.product}
                                                     </SelectItem>
@@ -1326,7 +1326,7 @@ export default function Chargements({ loads, depots, cities, clients, filters, d
                                             {cities.map((city) => (
                                                 <SelectItem
                                                     key={city.id}
-                                                    value={city.id.toString()}
+                                                    value={city.id?.toString() || ''}
                                                 >
                                                     {city.name}
                                                 </SelectItem>
@@ -1517,7 +1517,7 @@ export default function Chargements({ loads, depots, cities, clients, filters, d
                                 </Label>
                                 <SimpleAutocomplete
                                     options={clients.map((c) => ({
-                                        value: c.id.toString(),
+                                        value: c.id?.toString() || '',
                                         label: c.nom,
                                     }))}
                                     value={data.client_id || ''}
