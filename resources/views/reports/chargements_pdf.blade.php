@@ -108,13 +108,13 @@
             <tbody>
             @foreach($depotStats as $depotName => $products)
                 @foreach($products as $stat)
-                    <tr>
+                    <tr class="font-bold">
                         @if($loop->first)
-                            <td rowspan="{{ count($products) }}" style="vertical-align: middle;" class="font-bold">{{ $depotName }}</td>
+                            <td rowspan="{{ count($products) }}" style="vertical-align: middle;">{{ $depotName }}</td>
                         @endif
                         <td>{{ $stat['product'] }}</td>
                         <td class="text-center">{{ $stat['count'] }}</td>
-                        <td class="text-right font-bold">{{ number_format($stat['volume'], 0, '.', ' ') }} L</td>
+                        <td class="text-right">{{ number_format($stat['volume'], 0, '.', ' ') }} L</td>
                     </tr>
                 @endforeach
             @endforeach
