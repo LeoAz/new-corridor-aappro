@@ -236,6 +236,8 @@ class DeliveryController extends Controller
 
         $deliveries = $query->latest('unload_date')->get();
 
+        ini_set('memory_limit', '512M');
+
         $pdf = Pdf::loadView('operations.deliveries_pdf', [
             'deliveries' => $deliveries,
             'filters' => $request->only(['product', 'date_from', 'date_to', 'load_locations', 'client_id']),

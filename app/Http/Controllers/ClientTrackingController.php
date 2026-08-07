@@ -230,6 +230,8 @@ class ClientTrackingController extends Controller
 
         $payments = $paymentsQuery->orderBy('date', 'desc')->get();
 
+        ini_set('memory_limit', '512M');
+
         $pdf = Pdf::loadView('reports.suivi-client-pdf', [
             'client' => $client,
             'startDate' => $startDate,

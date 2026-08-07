@@ -5,10 +5,13 @@
     <style>
         body { font-family: 'Helvetica', 'Arial', sans-serif; font-size: 11px; color: #333; line-height: 1.4; margin: 0; padding: 0; }
         .container { padding: 20px; }
-        .header { margin-bottom: 20px; border-bottom: 2px solid #000; padding-bottom: 10px; }
+        .header { margin-bottom: 20px; border-bottom: 2px solid #000; padding-bottom: 10px; display: flex; align-items: center; justify-content: space-between; }
+        .logo-container { width: 80px; float: right; margin-top: -10px; }
+        .logo-container img { width: 100%; height: auto; }
+        .company-info { float: left; }
         .company-name { font-size: 20px; font-weight: bold; text-transform: uppercase; }
         .title { font-size: 16px; font-weight: bold; margin-top: 5px; color: #666; }
-        .info { margin-bottom: 20px; }
+        .info { margin-bottom: 20px; clear: both; padding-top: 10px; }
         table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
         th { background-color: #f2f2f2; padding: 8px; border: 1px solid #ddd; text-align: left; text-transform: uppercase; font-size: 9px; }
         td { padding: 8px; border: 1px solid #ddd; }
@@ -25,8 +28,23 @@
 <body>
     <div class="container">
         <div class="header">
-            <div class="company-name">CORRIDOR PETROLEUM</div>
-            <div class="title">LISTE DES LIVRAISONS</div>
+            <div class="company-info">
+                <div class="company-name">CORRIDOR PETROLEUM</div>
+                <div class="title">LISTE DES LIVRAISONS</div>
+            </div>
+        <div class="logo-container" style="margin-top: -35px;">
+            @php
+                $logoPath = public_path('img/corridor.png');
+                $logoData = '';
+                if (file_exists($logoPath)) {
+                    $logoData = base64_encode(file_get_contents($logoPath));
+                }
+            @endphp
+            @if($logoData)
+                <img src="data:image/png;base64,{{ $logoData }}" alt="Logo">
+            @endif
+        </div>
+            <div style="clear: both;"></div>
         </div>
 
         <div class="info">

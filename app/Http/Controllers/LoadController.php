@@ -220,6 +220,8 @@ class LoadController extends Controller
 
         $loads = $query->latest()->get();
 
+        ini_set('memory_limit', '512M');
+
         $pdf = Pdf::loadView('operations.loads_pdf', [
             'loads' => $loads,
             'filters' => $request->only(['product', 'date_from', 'date_to', 'load_locations']),

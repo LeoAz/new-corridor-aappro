@@ -156,6 +156,8 @@ class StockTrackingController extends Controller
             new SvgImageBackEnd
         )))->writeString($qrData));
 
+        ini_set('memory_limit', '512M');
+
         $pdf = Pdf::loadView('stocks.suivi_stock_pdf', [
             'depot' => $depot,
             'purchases' => $purchases,

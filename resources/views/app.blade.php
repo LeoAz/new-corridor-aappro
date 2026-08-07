@@ -11,8 +11,8 @@
             }
         </style>
 
-        <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-        <link rel="apple-touch-icon" href="/favicon.svg">
+        <link rel="icon" href="/img/corridor.png" type="image/png">
+        <link rel="apple-touch-icon" href="/img/corridor.png">
 
         @fonts
 

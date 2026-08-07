@@ -6,15 +6,18 @@
         body { font-family: 'Helvetica', 'Arial', sans-serif; font-size: 11px; color: #333; line-height: 1.4; margin: 0; padding: 0; }
         .container { padding: 20px; }
         .header { margin-bottom: 20px; border-bottom: 2px solid #000; padding-bottom: 10px; }
+        .logo-container { width: 80px; float: right; margin-top: -10px; }
+        .logo-container img { width: 100%; height: auto; }
+        .company-info { float: left; }
         .company-name { font-size: 20px; font-weight: bold; text-transform: uppercase; }
         .title { font-size: 16px; font-weight: bold; margin-top: 5px; color: #666; }
-        .info { margin-bottom: 20px; }
+        .info { margin-bottom: 10px; clear: both; padding-top: 10px; }
         table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
         th { background-color: #f2f2f2; padding: 8px; border: 1px solid #ddd; text-align: left; text-transform: uppercase; font-size: 9px; }
         td { padding: 8px; border: 1px solid #ddd; }
         .text-right { text-align: right; }
         .footer { position: fixed; bottom: 20px; width: 100%; text-align: center; font-size: 9px; color: #999; }
-        .total-section { margin-top: 10px; border-top: 2px solid #000; padding-top: 10px; }
+        .total-section { margin-top: 10px; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 20px; }
         .total-table { width: 300px; float: right; }
         .total-table td { border: none; padding: 4px; }
         .total-label { font-weight: bold; }
@@ -24,13 +27,42 @@
 <body>
     <div class="container">
         <div class="header">
-            <div class="company-name">CORRIDOR PETROLEUM</div>
-            <div class="title">LISTE DES CHARGEMENTS EN COURS</div>
+            <div class="company-info">
+                <div class="company-name">CORRIDOR PETROLEUM</div>
+                <div class="title">LISTE DES CHARGEMENTS EN COURS</div>
+            </div>
+        <div class="logo-container" style="margin-top: -35px;">
+            @php
+                $logoPath = public_path('img/corridor.png');
+                $logoData = '';
+                if (file_exists($logoPath)) {
+                    $logoData = base64_encode(file_get_contents($logoPath));
+                }
+            @endphp
+            @if($logoData)
+                <img src="data:image/png;base64,{{ $logoData }}" alt="Logo">
+            @endif
+        </div>
+            <div style="clear: both;"></div>
         </div>
 
         <div class="info">
             Période: {{ $filters['date_from'] ?? 'Début' }} au {{ $filters['date_to'] ?? date('d/m/Y') }}<br>
             Imprimé le: {{ date('d/m/Y') }}
+        </div>
+
+        <div class="total-section">
+            <table class="total-table">
+                <tr>
+                    <td class="total-label">Nombre de chargements:</td>
+                    <td class="total-value">{{ $loads->count() }}</td>
+                </tr>
+                <tr>
+                    <td class="total-label">Volume Total:</td>
+                    <td class="total-value">{{ number_format($loads->sum('volume'), 0, ',', ' ') }} L</td>
+                </tr>
+            </table>
+            <div style="clear: both;"></div>
         </div>
 
         <table>
@@ -59,20 +91,6 @@
                 @endforeach
             </tbody>
         </table>
-
-        <div class="total-section">
-            <table class="total-table">
-                <tr>
-                    <td class="total-label">Nombre de chargements:</td>
-                    <td class="total-value">{{ $loads->count() }}</td>
-                </tr>
-                <tr>
-                    <td class="total-label">Volume Total:</td>
-                    <td class="total-value">{{ number_format($loads->sum('volume'), 0, ',', ' ') }} L</td>
-                </tr>
-            </table>
-            <div style="clear: both;"></div>
-        </div>
 
         <div class="footer">
             CORRIDOR APPRO - Système de Gestion de Carburant

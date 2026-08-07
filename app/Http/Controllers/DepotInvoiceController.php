@@ -46,6 +46,8 @@ class DepotInvoiceController extends Controller
         $writer = new Writer($renderer);
         $qrCode = $writer->writeString($qrData);
 
+        ini_set('memory_limit', '512M');
+
         // Reuse the same template but adapt it if necessary.
         // For now, let's use a similar approach to InvoiceController
         $pdf = Pdf::loadView('invoices.depot_pdf', compact('invoice', 'productSummary', 'qrCode'));

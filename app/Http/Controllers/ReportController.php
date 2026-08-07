@@ -118,6 +118,8 @@ class ReportController extends Controller
         $writer = new Writer($renderer);
         $qrcode = base64_encode($writer->writeString($qrData));
 
+        ini_set('memory_limit', '512M');
+
         $pdf = Pdf::loadView('reports.chargements_pdf', [
             'loads' => $loads,
             'stats' => $stats,
@@ -238,6 +240,8 @@ class ReportController extends Controller
         $writer = new Writer($renderer);
         $qrcode = base64_encode($writer->writeString($qrData));
 
+        ini_set('memory_limit', '512M');
+
         $pdf = Pdf::loadView('reports.livraisons_pdf', [
             'loads' => $loads,
             'groupedLoads' => $groupedLoads,
@@ -317,6 +321,8 @@ class ReportController extends Controller
         );
         $writer = new Writer($renderer);
         $qrcode = base64_encode($writer->writeString($qrData));
+
+        ini_set('memory_limit', '512M');
 
         $pdf = Pdf::loadView('reports.ventes_chargement_pdf', [
             'invoices' => $invoices,
@@ -400,6 +406,8 @@ class ReportController extends Controller
         );
         $writer = new Writer($renderer);
         $qrcode = base64_encode($writer->writeString($qrData));
+
+        ini_set('memory_limit', '512M');
 
         $pdf = Pdf::loadView('reports.ventes_depot_pdf', [
             'invoices' => $invoices,

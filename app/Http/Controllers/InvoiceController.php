@@ -46,6 +46,8 @@ class InvoiceController extends Controller
         $writer = new Writer($renderer);
         $qrCode = $writer->writeString($qrData);
 
+        ini_set('memory_limit', '512M');
+
         $pdf = Pdf::loadView('invoices.pdf', compact('invoice', 'vehicleCounts', 'qrCode'));
 
         return $pdf->download("Facture_{$invoice->number}.pdf");

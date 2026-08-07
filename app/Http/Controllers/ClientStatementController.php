@@ -163,6 +163,8 @@ class ClientStatementController extends Controller
         $writer = new Writer($renderer);
         $qrCode = $writer->writeString($qrData);
 
+        ini_set('memory_limit', '512M');
+
         $pdf = Pdf::loadView('clients.releve_pdf', [
             'client' => $client,
             'operations' => $operations,

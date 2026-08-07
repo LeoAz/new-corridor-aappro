@@ -18,6 +18,18 @@
             margin-bottom: 20px;
             border-bottom: 2px solid #333;
             padding-bottom: 10px;
+            position: relative;
+            text-align: right;
+        }
+        .logo-container {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 80px;
+        }
+        .logo-container img {
+            width: 100%;
+            height: auto;
         }
         .company-name {
             font-size: 20px;
@@ -158,6 +170,18 @@
 <body>
     <div class="container">
         <div class="header">
+            <div class="logo-container" style="margin-top: -35px;">
+                @php
+                    $logoPath = public_path('img/corridor.png');
+                    $logoData = '';
+                    if (file_exists($logoPath)) {
+                        $logoData = base64_encode(file_get_contents($logoPath));
+                    }
+                @endphp
+                @if($logoData)
+                    <img src="data:image/png;base64,{{ $logoData }}" alt="Logo">
+                @endif
+            </div>
             <div class="company-name">CORRIDOR APPRO</div>
             <div class="report-title">RELEVÉ DE COMPTE CLIENT</div>
         </div>

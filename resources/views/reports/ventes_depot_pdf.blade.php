@@ -5,8 +5,10 @@
     <title>Rapport des Ventes (Dépôt)</title>
     <style>
         body { font-family: 'Helvetica', sans-serif; font-size: 10pt; color: #333; margin: 0; padding: 0; }
-        .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #333; padding-bottom: 10px; }
+        .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #333; padding-bottom: 10px; position: relative; }
         .header h1 { margin: 0; font-size: 18pt; text-transform: uppercase; }
+        .logo-container { position: absolute; left: 0; top: 0; width: 80px; }
+        .logo-container img { width: 100%; height: auto; }
         .info { margin-bottom: 20px; }
         .info table { width: 100%; }
         .info td { vertical-align: top; }
@@ -25,6 +27,18 @@
 </head>
 <body>
     <div class="header">
+        <div class="logo-container" style="margin-top: -35px;">
+            @php
+                $logoPath = public_path('img/corridor.png');
+                $logoData = '';
+                if (file_exists($logoPath)) {
+                    $logoData = base64_encode(file_get_contents($logoPath));
+                }
+            @endphp
+            @if($logoData)
+                <img src="data:image/png;base64,{{ $logoData }}" alt="Logo">
+            @endif
+        </div>
         <h1>Rapport des Ventes (Dépôt)</h1>
         <p>Généré le {{ $date }}</p>
     </div>

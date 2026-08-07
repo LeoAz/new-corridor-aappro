@@ -140,6 +140,8 @@ class FuelPurchaseController extends Controller
 
         $purchases = $query->latest()->get();
 
+        ini_set('memory_limit', '512M');
+
         $pdf = Pdf::loadView('finances.fuel_purchases_pdf', [
             'purchases' => $purchases,
             'filters' => $request->only(['product', 'date_from', 'date_to']),
