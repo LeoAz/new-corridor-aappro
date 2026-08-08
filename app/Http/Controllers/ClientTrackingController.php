@@ -30,7 +30,7 @@ class ClientTrackingController extends Controller
             'selectedClient' => null,
             'stats' => [
                 'livrer' => 0,
-                'facture_partielle' => 0,
+                'livre_partiellement' => 0,
                 'facturer' => 0,
                 'facturer_payer' => 0,
             ],
@@ -50,7 +50,7 @@ class ClientTrackingController extends Controller
 
                 // Stats
                 $data['stats']['livrer'] = Load::where('client_id', $clientId)->where('status', LoadStatus::LIVRER)->count();
-                $data['stats']['facture_partielle'] = Load::where('status', LoadStatus::FACTURE_PARTIELLE)
+                $data['stats']['livre_partiellement'] = Load::where('status', LoadStatus::LIVRE_PARTIELLEMENT)
                     ->whereHas('invoiceItems.invoice', fn ($q) => $q->where('client_id', $clientId))
                     ->count();
                 $data['stats']['facturer'] = Load::where('status', LoadStatus::FACTURER)
@@ -94,7 +94,7 @@ class ClientTrackingController extends Controller
                 // Mais il dit aussi "Seul les livraisons "FACTURER" seront selectionnable pour etre payé"
                 $loadsQuery = Load::where(function ($query) use ($clientId) {
                     $query->where('client_id', $clientId)
-                        ->whereIn('status', [LoadStatus::FACTURE_PARTIELLE, LoadStatus::FACTURER, LoadStatus::PAYE]);
+                        ->whereIn('status', [LoadStatus::LIVRE_PARTIELLEMENT, LoadStatus::FACTURER, LoadStatus::PAYE]);
                 })
                     ->with(['invoiceItems.invoice']);
 
@@ -205,8 +205,8 @@ class ClientTrackingController extends Controller
         if ($request->filled('status_filter') && $request->status_filter !== 'all') {
             if ($request->status_filter === 'FACTURER ET PAYER') {
                 $loadsQuery->where('status', LoadStatus::PAYE);
-            } elseif ($request->status_filter === 'FACTURE PARTIELLE') {
-                $loadsQuery->where('status', LoadStatus::FACTURE_PARTIELLE);
+            } elseif ($request->status_filter === 'LIVRE PARTIELLEMENT') {
+                $loadsQuery->where('status', LoadStatus::LIVRE_PARTIELLEMENT);
             } elseif ($request->status_filter === 'FACTURER') {
                 $loadsQuery->where('status', LoadStatus::FACTURER);
             }
@@ -214,7 +214,7 @@ class ClientTrackingController extends Controller
 
         $allLoads = $loadsQuery->orderBy('unload_date', 'desc')->get();
 
-        $loadsFacturer = $allLoads->filter(fn($l) => $l->status === LoadStatus::FACTURER || $l->status === LoadStatus::FACTURE_PARTIELLE);
+        $loadsFacturer = $allLoads->filter(fn($l) => $l->status === LoadStatus::FACTURER || $l->status === LoadStatus::LIVRE_PARTIELLEMENT);
         $loadsFacturerPayer = $allLoads->where('status', LoadStatus::PAYE);
         $loadsLivrer = $allLoads->where('status', LoadStatus::LIVRER);
 

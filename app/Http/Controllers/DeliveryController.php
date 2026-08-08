@@ -20,7 +20,7 @@ class DeliveryController extends Controller
         $invoiceable = $request->boolean('invoiceable');
 
         if ($invoiceable) {
-            $query = Load::whereIn('status', [LoadStatus::LIVRER, LoadStatus::FACTURE_PARTIELLE]);
+            $query = Load::whereIn('status', [LoadStatus::LIVRER, LoadStatus::LIVRE_PARTIELLEMENT]);
         } elseif ($status) {
             if (str_contains($status, ',')) {
                 $query = Load::whereIn('status', explode(',', $status));
@@ -28,7 +28,7 @@ class DeliveryController extends Controller
                 $query = Load::where('status', $status);
             }
         } else {
-            $query = Load::whereIn('status', [LoadStatus::LIVRER, LoadStatus::FACTURE_PARTIELLE, LoadStatus::FACTURER, LoadStatus::PAYE]);
+            $query = Load::whereIn('status', [LoadStatus::LIVRER, LoadStatus::LIVRE_PARTIELLEMENT, LoadStatus::FACTURER, LoadStatus::PAYE]);
         }
 
         $query->with(['depot', 'city', 'client', 'compartment', 'invoiceItems.invoice.client']);
@@ -87,7 +87,7 @@ class DeliveryController extends Controller
                 'total_volume' => $totalVolume,
             ],
             'filters' => $request->only(['product', 'date_from', 'date_to', 'load_locations']),
-            'distinct_locations' => Load::whereIn('status', [LoadStatus::LIVRER, LoadStatus::FACTURE_PARTIELLE, LoadStatus::FACTURER, LoadStatus::PAYE])
+            'distinct_locations' => Load::whereIn('status', [LoadStatus::LIVRER, LoadStatus::LIVRE_PARTIELLEMENT, LoadStatus::FACTURER, LoadStatus::PAYE])
                 ->whereNotNull('load_location')
                 ->distinct()
                 ->pluck('load_location'),
@@ -168,12 +168,14 @@ class DeliveryController extends Controller
 
             $newVolume = (float) $livraison->volume;
 
+            /* Stock management moved to InvoiceController
             if ($compartmentId && $oldVolume != $newVolume) {
                 $compartment = Compartment::find($compartmentId);
                 if ($compartment) {
                     $compartment->decrement('quantity', $newVolume - $oldVolume);
                 }
             }
+            */
 
             // Sync with invoice item if it exists
             $invoiceItem = InvoiceItem::where('load_id', $livraison->id)->first();
@@ -208,7 +210,7 @@ class DeliveryController extends Controller
                 $query = Load::where('status', $status);
             }
         } else {
-            $query = Load::whereIn('status', [LoadStatus::LIVRER, LoadStatus::FACTURE_PARTIELLE, LoadStatus::FACTURER, LoadStatus::PAYE]);
+            $query = Load::whereIn('status', [LoadStatus::LIVRER, LoadStatus::LIVRE_PARTIELLEMENT, LoadStatus::FACTURER, LoadStatus::PAYE]);
         }
 
         $query->with(['depot', 'city', 'client', 'compartment', 'invoiceItems.invoice.client']);
@@ -255,13 +257,17 @@ class DeliveryController extends Controller
             ...$load->toArray(),
             'invoiced_quantity' => $load->invoicedQuantity(),
             'remaining_quantity' => $load->remainingQuantity(),
-            'partial_invoice_clients' => $load->invoiceItems
+            'partial_deliveries' => $load->invoiceItems()
                 ->where('is_partial', true)
-                ->map(fn (InvoiceItem $item) => $item->invoice?->client?->nom)
-                ->filter()
-                ->unique()
-                ->values()
-                ->all(),
+                ->with('invoice.client')
+                ->get()
+                ->map(fn (InvoiceItem $item) => [
+                    'id' => $item->id,
+                    'invoice_number' => $item->invoice?->number,
+                    'invoice_date' => $item->invoice?->date,
+                    'client_name' => $item->invoice?->client?->nom,
+                    'quantity' => $item->quantity_delivered,
+                ]),
         ];
     }
 }

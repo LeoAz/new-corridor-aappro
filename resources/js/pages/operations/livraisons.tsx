@@ -70,6 +70,14 @@ interface Compartment {
     product: string;
 }
 
+interface PartialDelivery {
+    id: number;
+    invoice_number: string;
+    invoice_date: string;
+    client_name: string;
+    quantity: number;
+}
+
 interface Load {
     id: number;
     load_date: string;
@@ -82,7 +90,7 @@ interface Load {
     status: string;
     unit_price?: number | null;
     remaining_quantity?: number;
-    partial_invoice_clients?: string[];
+    partial_deliveries?: PartialDelivery[];
     client_id: number | null;
     client: Client | null;
     depot?: Depot | null;
@@ -219,12 +227,25 @@ export default function Livraisons({
                         : `${formatNumber(row.original.remaining_quantity)} L`,
             },
             {
-                accessorKey: 'partial_invoice_clients',
-                header: 'Clients facturés',
-                cell: ({ row }) =>
-                    row.original.partial_invoice_clients?.length
-                        ? row.original.partial_invoice_clients.join(', ')
-                        : '-',
+                accessorKey: 'partial_deliveries',
+                header: 'Détails Livraisons Partielles',
+                cell: ({ row }) => {
+                    const partials = row.original.partial_deliveries;
+
+                    if (!partials || partials.length === 0) {
+                        return '-';
+                    }
+
+                    return (
+                        <div className="flex flex-col gap-1 text-[10px] leading-tight">
+                            {partials.map((p) => (
+                                <div key={p.id} className="border-b pb-1 last:border-0">
+                                    <span className="font-semibold">{p.client_name}</span>: {formatNumber(p.quantity)} L ({p.invoice_number})
+                                </div>
+                            ))}
+                        </div>
+                    );
+                },
             },
             {
                 accessorKey: 'unload_location',
@@ -244,7 +265,7 @@ export default function Livraisons({
                                     ? 'bg-green-100 text-green-800'
                                     : status === 'FACTURER'
                                       ? 'bg-orange-100 text-orange-800'
-                                      : status === 'FACTURE PARTIELLE'
+                                      : status === 'LIVRE PARTIELLEMENT'
                                         ? 'bg-violet-100 text-violet-800'
                                       : status === 'LIVRER'
                                         ? 'bg-blue-100 text-blue-800'

@@ -414,7 +414,7 @@ const InvoiceForm = ({
                                                 checked === true,
                                             )
                                         }
-                                        aria-label="Facture partielle"
+                                        aria-label="Livraison partielle"
                                     />
                                 </td>
                                 <td className="px-4 py-2 text-right">

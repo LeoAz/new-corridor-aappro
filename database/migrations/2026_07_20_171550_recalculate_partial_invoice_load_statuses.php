@@ -29,7 +29,7 @@ return new class extends Migration
                 $status = match (true) {
                     $invoiceItemsCount === 0 => LoadStatus::LIVRER->value,
                     $fullInvoiceItemsCount > 0 => LoadStatus::FACTURER->value,
-                    $partialInvoicedQuantity < $volume => LoadStatus::FACTURE_PARTIELLE->value,
+                    $partialInvoicedQuantity < $volume => LoadStatus::LIVRE_PARTIELLEMENT->value,
                     default => LoadStatus::FACTURER->value,
                 };
 
@@ -42,7 +42,7 @@ return new class extends Migration
     public function down(): void
     {
         DB::table('loads')
-            ->where('status', LoadStatus::FACTURE_PARTIELLE->value)
+            ->where('status', LoadStatus::LIVRE_PARTIELLEMENT->value)
             ->update(['status' => LoadStatus::FACTURER->value]);
     }
 };

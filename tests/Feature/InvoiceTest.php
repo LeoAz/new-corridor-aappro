@@ -245,7 +245,7 @@ test('a delivery can be partially invoiced and exposes its remaining quantity', 
 
     $response->assertRedirect();
 
-    expect($load->refresh()->status)->toBe(LoadStatus::FACTURE_PARTIELLE);
+    expect($load->refresh()->status)->toBe(LoadStatus::LIVRE_PARTIELLEMENT);
     expect($load->remainingQuantity())->toBe(600.0);
 });
 
@@ -340,7 +340,7 @@ test('invoice creation cannot exceed a delivery remaining quantity', function ()
     $client = Client::factory()->create();
     $load = Load::factory()->create([
         'client_id' => $client->id,
-        'status' => LoadStatus::FACTURE_PARTIELLE,
+        'status' => LoadStatus::LIVRE_PARTIELLEMENT,
         'volume' => 1000,
     ]);
     $invoice = Invoice::factory()->create(['client_id' => $client->id]);

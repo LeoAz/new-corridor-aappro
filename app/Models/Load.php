@@ -112,7 +112,7 @@ class Load extends Model
         }
 
         if ($partialInvoicedQuantity < (float) $this->volume) {
-            $this->update(['status' => LoadStatus::FACTURE_PARTIELLE]);
+            $this->update(['status' => LoadStatus::LIVRE_PARTIELLEMENT]);
 
             return;
         }

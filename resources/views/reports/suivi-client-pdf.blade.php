@@ -383,7 +383,7 @@
                             <td class="text-right">{{ number_format($load->volume, 0, ',', ' ') }}</td>
                             <td class="text-right">{{ number_format($amount, 0, ',', ' ') }}</td>
                             <td>
-                                @if($load->status === \App\Enums\LoadStatus::FACTURE_PARTIELLE)
+                                @if($load->status === \App\Enums\LoadStatus::LIVRE_PARTIELLEMENT)
                                     <span class="badge badge-warning">PARTIELLE</span>
                                 @else
                                     <span class="badge badge-info">FACTURÉ</span>

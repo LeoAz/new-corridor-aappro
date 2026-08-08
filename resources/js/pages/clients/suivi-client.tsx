@@ -163,7 +163,7 @@ interface InvoiceLine {
 interface Stats {
     livrer: number;
     facturer: number;
-    facture_partielle: number;
+    livre_partiellement: number;
     facturer_payer: number;
 }
 
@@ -247,7 +247,7 @@ export default function SuiviClient({
     );
     const unpaidLoads = loads.filter(
         (load) =>
-            load.status === 'FACTURER' || load.status === 'FACTURE PARTIELLE',
+            load.status === 'FACTURER' || load.status === 'LIVRE PARTIELLEMENT',
     ).length;
 
     const paymentForm = useForm({
@@ -1262,7 +1262,7 @@ export default function SuiviClient({
                         checked={row.getIsSelected()}
                         onCheckedChange={(value) => row.toggleSelected(!!value)}
                         aria-label="Sélectionner la ligne"
-                        disabled={row.original.status !== 'FACTURER' && row.original.status !== 'FACTURE PARTIELLE'}
+                        disabled={row.original.status !== 'FACTURER' && row.original.status !== 'LIVRE PARTIELLEMENT'}
                     />
                 ),
                 enableSorting: false,
@@ -1323,7 +1323,7 @@ export default function SuiviClient({
                         variant = 'secondary';
                     }
 
-                    if (status === 'FACTURE PARTIELLE') {
+                    if (status === 'LIVRE PARTIELLEMENT') {
                         variant = 'outline';
                     }
 
@@ -1665,7 +1665,7 @@ export default function SuiviClient({
                                 </CardHeader>
                                 <CardContent>
                                     <div className="text-2xl font-bold">
-                                        {stats.facture_partielle}
+                                        {stats.livre_partiellement}
                                     </div>
                                 </CardContent>
                             </Card>
@@ -1787,9 +1787,9 @@ export default function SuiviClient({
                                                 <SelectItem value="FACTURER">
                                                     FACTURER
                                                 </SelectItem>
-                                                <SelectItem value="FACTURE PARTIELLE">
-                                                    FACTURE PARTIELLE
-                                                </SelectItem>
+                                                <SelectItem value="LIVRE PARTIELLEMENT">
+                            LIVRE PARTIELLEMENT
+                          </SelectItem>
                                                 <SelectItem value="FACTURER ET PAYER">
                                                     FACTURER ET PAYER
                                                 </SelectItem>
@@ -2369,7 +2369,7 @@ export default function SuiviClient({
                                                                             true,
                                                                     )
                                                                 }
-                                                                aria-label="Facture partielle"
+                                                                aria-label="Livraison partielle"
                                                             />
                                                         </td>
                                                         <td className="px-4 py-2">

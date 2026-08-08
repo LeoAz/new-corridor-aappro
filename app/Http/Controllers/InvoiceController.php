@@ -141,10 +141,30 @@ class InvoiceController extends Controller
                     $oldLoad = null;
 
                     $oldLoadId = $invoiceItem->load_id;
+                    $oldQuantity = (float) $invoiceItem->quantity_delivered;
 
                     // If the load_id has changed, refresh the old load status after the item moves.
                     if ($invoiceItem->load_id != $item['load_id']) {
                         $oldLoad = Load::find($oldLoadId);
+                        // Restore stock for the old load
+                        if ($oldLoad && $oldLoad->compartment_id) {
+                            Compartment::find($oldLoad->compartment_id)?->increment('quantity', $oldQuantity);
+                        }
+
+                        // Deduct stock for the new load
+                        $newLoad = Load::find($item['load_id']);
+                        if ($newLoad && $newLoad->compartment_id) {
+                            Compartment::find($newLoad->compartment_id)?->decrement('quantity', (float) $item['quantity_delivered']);
+                        }
+                    } else {
+                        // Same load, adjust quantity difference
+                        $diff = (float) $item['quantity_delivered'] - $oldQuantity;
+                        if ($diff != 0) {
+                            $load = Load::find($item['load_id']);
+                            if ($load && $load->compartment_id) {
+                                Compartment::find($load->compartment_id)?->decrement('quantity', $diff);
+                            }
+                        }
                     }
 
                     $invoiceItem->update([
@@ -176,7 +196,11 @@ class InvoiceController extends Controller
                     ]);
                     $keepIds[] = $newItem->id;
 
-                    $newItem->loadDetails?->refreshInvoiceStatus();
+                    $load = $newItem->loadDetails;
+                    if ($load && $load->compartment_id) {
+                        Compartment::find($load->compartment_id)?->decrement('quantity', (float) $item['quantity_delivered']);
+                    }
+                    $load?->refreshInvoiceStatus();
                 }
             }
 
@@ -187,6 +211,9 @@ class InvoiceController extends Controller
 
             foreach ($removedItems as $item) {
                 $load = $item->loadDetails;
+                if ($load && $load->compartment_id) {
+                    Compartment::find($load->compartment_id)?->increment('quantity', (float) $item->quantity_delivered);
+                }
                 $item->delete();
                 $load?->refreshInvoiceStatus();
             }
@@ -211,6 +238,10 @@ class InvoiceController extends Controller
             $loads = $invoice->items->map->loadDetails->filter();
 
             foreach ($invoice->items as $item) {
+                $load = $item->loadDetails;
+                if ($load && $load->compartment_id) {
+                    Compartment::find($load->compartment_id)?->increment('quantity', (float) $item->quantity_delivered);
+                }
                 $item->delete();
             }
 
@@ -288,7 +319,17 @@ class InvoiceController extends Controller
                     'total' => $itemTotal,
                 ]);
 
-                Load::find($item['load_id'])?->refreshInvoiceStatus();
+                $load = Load::find($item['load_id']);
+                if ($load) {
+                    // Decrement stock in compartment for delivered quantity
+                    if ($load->compartment_id) {
+                        $compartment = Compartment::find($load->compartment_id);
+                        if ($compartment) {
+                            $compartment->decrement('quantity', (float) $item['quantity_delivered']);
+                        }
+                    }
+                    $load->refreshInvoiceStatus();
+                }
             }
 
             if ($request->query('redirect_back') === 'suivi-client') {
