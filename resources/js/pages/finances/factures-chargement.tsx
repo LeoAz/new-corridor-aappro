@@ -275,9 +275,6 @@ const InvoiceForm = ({
                         <tr>
                             <th className="px-4 py-2 text-left">Véhicule</th>
                             <th className="px-4 py-2 text-left">Produit</th>
-                            <th className="w-24 px-4 py-2 text-center">
-                                Partielle
-                            </th>
                             <th className="w-32 px-4 py-2 text-right">
                                 Quantité
                             </th>
@@ -325,7 +322,7 @@ const InvoiceForm = ({
                                                                   item.load_id.toString(),
                                                           )
                                                               ?.vehicle_registration +
-                                                          ` (dispo. ${formatNumber(availableLoads.find((l: any) => l.id.toString() === item.load_id.toString())?.remaining_quantity ?? availableLoads.find((l: any) => l.id.toString() === item.load_id.toString())?.volume)} L)`
+                                                          ` (${formatNumber(availableLoads.find((l: any) => l.id.toString() === item.load_id.toString())?.volume)} L)`
                                                         : 'Choisir une livraison'}
                                                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                                 </Button>
@@ -376,18 +373,14 @@ const InvoiceForm = ({
                                                                                 }{' '}
                                                                                 -{' '}
                                                                                 {formatNumber(
-                                                                                    load.remaining_quantity ??
-                                                                                        load.volume,
+                                                                                    load.volume,
                                                                                 )}{' '}
-                                                                                L disponibles
+                                                                                L
                                                                             </span>
                                                                             <span className="text-xs text-muted-foreground">
                                                                                 {
                                                                                     load.product
                                                                                 }{' '}
-                                                                                {load.partial_invoice_clients?.length
-                                                                                    ? `(${load.partial_invoice_clients.join(', ')}) `
-                                                                                    : ''}
                                                                                 {load.bl_number
                                                                                     ? `(BL: ${load.bl_number})`
                                                                                     : ''}
@@ -404,19 +397,6 @@ const InvoiceForm = ({
                                     )}
                                 </td>
                                 <td className="px-4 py-2">{item.product}</td>
-                                <td className="px-4 py-2 text-center">
-                                    <Checkbox
-                                        checked={Boolean(item.is_partial)}
-                                        onCheckedChange={(checked) =>
-                                            handleEditItem(
-                                                index,
-                                                'is_partial',
-                                                checked === true,
-                                            )
-                                        }
-                                        aria-label="Livraison partielle"
-                                    />
-                                </td>
                                 <td className="px-4 py-2 text-right">
                                     <Input
                                         type="number"
@@ -429,6 +409,7 @@ const InvoiceForm = ({
                                             )
                                         }
                                         className="h-8 text-right"
+                                        disabled
                                     />
                                 </td>
                                 <td className="px-4 py-2 text-right">
@@ -633,16 +614,16 @@ export default function FacturesChargement({
                     ...newItems[index],
                     load_id: load.id,
                     bl_number: load.bl_number || '',
-                    quantity_delivered: load.remaining_quantity ?? load.volume,
+                    quantity_delivered: load.volume,
                     unit_price: load.unit_price || 0,
                     missing_quantity: 0,
                     is_partial: false,
                     total:
-                        (load.remaining_quantity ?? load.volume ?? 0) *
+                        (load.volume ?? 0) *
                         (load.unit_price || 0),
                     vehicle_registration: load.vehicle_registration,
                     product: load.product,
-                    remaining_quantity: load.remaining_quantity,
+                    remaining_quantity: 0,
                 };
             }
         }
@@ -690,16 +671,16 @@ export default function FacturesChargement({
             id: undefined, // Nouveau item de facture
             load_id: load.id,
             bl_number: load.bl_number || '',
-            quantity_delivered: load.remaining_quantity ?? load.volume,
+            quantity_delivered: load.volume,
             unit_price: load.unit_price || 0,
             missing_quantity: 0,
             is_partial: false,
             total:
-                (load.remaining_quantity ?? load.volume ?? 0) *
+                (load.volume ?? 0) *
                 (load.unit_price || 0),
             vehicle_registration: load.vehicle_registration,
             product: load.product,
-            remaining_quantity: load.remaining_quantity,
+            remaining_quantity: 0,
         }));
 
         const updatedItems = [...data.items, ...newItemsFromLoads];

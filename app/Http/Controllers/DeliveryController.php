@@ -119,7 +119,7 @@ class DeliveryController extends Controller
             $compartmentId = $chargement->compartment_id;
 
             if ($deliveredVolume < $originalVolume) {
-                // Partial delivery: Duplicate the load for the delivered part
+                // Partial delivery: Duplicate for the delivery
                 $delivery = $chargement->replicate();
                 $delivery->fill([
                     'unload_date' => $validated['unload_date'],
@@ -145,11 +145,19 @@ class DeliveryController extends Controller
                 }
             } else {
                 // Full delivery
-                $chargement->update([
+                // Duplicate as well to keep the parent record as "spent"
+                $delivery = $chargement->replicate();
+                $delivery->fill([
                     'unload_date' => $validated['unload_date'],
                     'unload_location' => $validated['unload_location'],
                     'client_id' => $validated['client_id'],
                     'volume' => $deliveredVolume,
+                    'status' => LoadStatus::LIVRER,
+                ]);
+                $delivery->save();
+
+                $chargement->update([
+                    'volume' => 0,
                     'status' => LoadStatus::TOTALEMENT_LIVRE,
                 ]);
 

@@ -308,26 +308,22 @@ class InvoiceController extends Controller
             foreach ($validated['items'] as $item) {
                 $itemTotal = ($item['quantity_delivered'] - ($item['missing_quantity'] ?? 0)) * $item['unit_price'];
 
-                InvoiceItem::create([
-                    'invoice_id' => $invoice->id,
-                    'bl_number' => $item['bl_number'] ?? '',
-                    'load_id' => $item['load_id'],
-                    'quantity_delivered' => $item['quantity_delivered'],
-                    'unit_price' => $item['unit_price'],
-                    'missing_quantity' => $item['missing_quantity'] ?? 0,
-                    'is_partial' => $item['is_partial'] ?? false,
-                    'total' => $itemTotal,
-                ]);
-
                 $load = Load::find($item['load_id']);
                 if ($load) {
-                    // Decrement stock in compartment for delivered quantity
-                    if ($load->compartment_id) {
-                        $compartment = Compartment::find($load->compartment_id);
-                        if ($compartment) {
-                            $compartment->decrement('quantity', (float) $item['quantity_delivered']);
-                        }
-                    }
+                    InvoiceItem::create([
+                        'invoice_id' => $invoice->id,
+                        'bl_number' => $item['bl_number'] ?? '',
+                        'load_id' => $item['load_id'],
+                        'quantity_delivered' => $item['quantity_delivered'],
+                        'unit_price' => $item['unit_price'],
+                        'missing_quantity' => $item['missing_quantity'] ?? 0,
+                        'is_partial' => false,
+                        'total' => $itemTotal,
+                    ]);
+
+                    // Update load status to FACTURER
+                    $load->update(['status' => LoadStatus::FACTURER]);
+
                     $load->refreshInvoiceStatus();
                 }
             }

@@ -97,19 +97,11 @@ class Load extends Model
 
     public function remainingQuantity(?int $exceptInvoiceId = null): float
     {
-        if ($this->status === LoadStatus::LIVRE_PARTIELLEMENT || $this->status === LoadStatus::EN_COURS) {
-            return (float) $this->volume;
-        }
-
         if ($this->status === LoadStatus::TOTALEMENT_LIVRE) {
             return 0;
         }
 
-        if ($this->hasFullInvoiceItem($exceptInvoiceId)) {
-            return 0;
-        }
-
-        return max((float) $this->volume - $this->partialInvoicedQuantity($exceptInvoiceId), 0);
+        return (float) $this->volume;
     }
 
     public function refreshInvoiceStatus(): void
@@ -120,24 +112,11 @@ class Load extends Model
             return;
         }
 
-        $partialInvoicedQuantity = $this->partialInvoicedQuantity();
-
-        if ($partialInvoicedQuantity <= 0) {
-            // Keep status as LIVRER or TOTALEMENT_LIVRE if no partial invoice items
-            if ($this->status !== LoadStatus::LIVRER && $this->status !== LoadStatus::TOTALEMENT_LIVRE) {
-                $this->update(['status' => LoadStatus::LIVRER]);
-            }
-
-            return;
+        // With duplication logic, we don't use partial invoice items on the same load anymore
+        // But we keep this for safety/compatibility
+        if ($this->status !== LoadStatus::LIVRER && $this->status !== LoadStatus::TOTALEMENT_LIVRE && $this->status !== LoadStatus::EN_COURS && $this->status !== LoadStatus::LIVRE_PARTIELLEMENT) {
+             $this->update(['status' => LoadStatus::LIVRER]);
         }
-
-        if ($partialInvoicedQuantity < (float) $this->volume) {
-            $this->update(['status' => LoadStatus::LIVRE_PARTIELLEMENT]);
-
-            return;
-        }
-
-        $this->update(['status' => LoadStatus::FACTURER]);
     }
 
     public function hasFullInvoiceItem(?int $exceptInvoiceId = null): bool
