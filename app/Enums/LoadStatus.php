@@ -9,4 +9,5 @@ enum LoadStatus: string
     case LIVRE_PARTIELLEMENT = 'LIVRE PARTIELLEMENT';
     case FACTURER = 'FACTURER';
     case PAYE = 'FACTURER ET PAYER';
+    case TOTALEMENT_LIVRE = 'TOTALEMENT LIVRER';
 }

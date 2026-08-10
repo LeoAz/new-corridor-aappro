@@ -554,8 +554,7 @@ export default function FacturesChargement({
         return availableLoads.filter(
             (load) =>
                 !selectedLoadIds.has(load.id) &&
-                (load.status === 'LIVRER' ||
-                    load.status === 'LIVRE PARTIELLEMENT'),
+                load.status === 'LIVRER',
         );
     }, [availableLoads, data.items]);
 

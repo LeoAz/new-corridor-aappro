@@ -97,6 +97,14 @@ class Load extends Model
 
     public function remainingQuantity(?int $exceptInvoiceId = null): float
     {
+        if ($this->status === LoadStatus::LIVRE_PARTIELLEMENT || $this->status === LoadStatus::EN_COURS) {
+            return (float) $this->volume;
+        }
+
+        if ($this->status === LoadStatus::TOTALEMENT_LIVRE) {
+            return 0;
+        }
+
         if ($this->hasFullInvoiceItem($exceptInvoiceId)) {
             return 0;
         }
@@ -115,7 +123,10 @@ class Load extends Model
         $partialInvoicedQuantity = $this->partialInvoicedQuantity();
 
         if ($partialInvoicedQuantity <= 0) {
-            $this->update(['status' => LoadStatus::LIVRER]);
+            // Keep status as LIVRER or TOTALEMENT_LIVRE if no partial invoice items
+            if ($this->status !== LoadStatus::LIVRER && $this->status !== LoadStatus::TOTALEMENT_LIVRE) {
+                $this->update(['status' => LoadStatus::LIVRER]);
+            }
 
             return;
         }

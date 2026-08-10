@@ -20,7 +20,7 @@ class DeliveryController extends Controller
         $invoiceable = $request->boolean('invoiceable');
 
         if ($invoiceable) {
-            $query = Load::whereIn('status', [LoadStatus::LIVRER, LoadStatus::LIVRE_PARTIELLEMENT]);
+            $query = Load::whereIn('status', [LoadStatus::LIVRER]);
         } elseif ($status) {
             if (str_contains($status, ',')) {
                 $query = Load::whereIn('status', explode(',', $status));
@@ -59,7 +59,11 @@ class DeliveryController extends Controller
         if ($request->wantsJson()) {
             if ($invoiceable) {
                 $deliveries = $deliveries
-                    ->filter(fn (Load $load) => $load->remainingQuantity() > 0)
+                    ->filter(fn (Load $load) => in_array($load->status, [
+                        LoadStatus::LIVRER,
+                        LoadStatus::FACTURER,
+                        LoadStatus::PAYE,
+                    ]))
                     ->values();
             }
 
@@ -87,7 +91,7 @@ class DeliveryController extends Controller
                 'total_volume' => $totalVolume,
             ],
             'filters' => $request->only(['product', 'date_from', 'date_to', 'load_locations']),
-            'distinct_locations' => Load::whereIn('status', [LoadStatus::LIVRER, LoadStatus::LIVRE_PARTIELLEMENT, LoadStatus::FACTURER, LoadStatus::PAYE])
+            'distinct_locations' => Load::whereIn('status', [LoadStatus::LIVRER, LoadStatus::LIVRE_PARTIELLEMENT, LoadStatus::TOTALEMENT_LIVRE, LoadStatus::FACTURER, LoadStatus::PAYE])
                 ->whereNotNull('load_location')
                 ->distinct()
                 ->pluck('load_location'),
@@ -110,30 +114,58 @@ class DeliveryController extends Controller
         }
 
         DB::transaction(function () use ($validated, $chargement) {
-            $oldVolume = (float) $chargement->volume;
+            $originalVolume = (float) $chargement->volume;
+            $deliveredVolume = (float) $validated['volume'];
             $compartmentId = $chargement->compartment_id;
 
-            $chargement->update([
-                'unload_date' => $validated['unload_date'],
-                'unload_location' => $validated['unload_location'],
-                'client_id' => $validated['client_id'],
-                'volume' => $validated['volume'],
-                'status' => LoadStatus::LIVRER,
-            ]);
+            if ($deliveredVolume < $originalVolume) {
+                // Partial delivery: Duplicate the load for the delivered part
+                $delivery = $chargement->replicate();
+                $delivery->fill([
+                    'unload_date' => $validated['unload_date'],
+                    'unload_location' => $validated['unload_location'],
+                    'client_id' => $validated['client_id'],
+                    'volume' => $deliveredVolume,
+                    'status' => LoadStatus::LIVRER,
+                ]);
+                $delivery->save();
 
-            $newVolume = (float) $chargement->volume;
+                // Update original load with remaining quantity
+                $chargement->update([
+                    'volume' => $originalVolume - $deliveredVolume,
+                    'status' => LoadStatus::LIVRE_PARTIELLEMENT,
+                ]);
 
-            if ($compartmentId && $oldVolume != $newVolume) {
-                $compartment = Compartment::find($compartmentId);
-                if ($compartment) {
-                    $compartment->decrement('quantity', $newVolume - $oldVolume);
+                // Stock management (decrement only the delivered amount)
+                if ($compartmentId) {
+                    $compartment = Compartment::find($compartmentId);
+                    if ($compartment) {
+                        $compartment->decrement('quantity', $deliveredVolume);
+                    }
+                }
+            } else {
+                // Full delivery
+                $chargement->update([
+                    'unload_date' => $validated['unload_date'],
+                    'unload_location' => $validated['unload_location'],
+                    'client_id' => $validated['client_id'],
+                    'volume' => $deliveredVolume,
+                    'status' => LoadStatus::TOTALEMENT_LIVRE,
+                ]);
+
+                // Stock management
+                if ($compartmentId) {
+                    $compartment = Compartment::find($compartmentId);
+                    if ($compartment) {
+                        $compartment->decrement('quantity', $deliveredVolume);
+                    }
                 }
             }
 
-            // Sync with invoice item if it exists
+            // Sync with invoice item if it exists (for full delivery mostly, but let's keep it robust)
             $invoiceItem = InvoiceItem::where('load_id', $chargement->id)->first();
             if ($invoiceItem) {
-                $invoiceItem->syncDeliveredQuantity($newVolume);
+                $invoiceItem->syncDeliveredQuantity($deliveredVolume);
             }
         });
 
@@ -193,6 +225,7 @@ class DeliveryController extends Controller
         $livraison->update([
             'unload_date' => null,
             'unload_location' => null,
+            'client_id' => null,
             'status' => LoadStatus::EN_COURS,
         ]);
 

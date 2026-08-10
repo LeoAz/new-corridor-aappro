@@ -120,20 +120,36 @@ export default function ReportChargements({ loads, stats, filters }: Props) {
             toUrl(reportsActions.default.chargements.download()),
             window.location.origin,
         );
+
         if (dateFrom) {
             url.searchParams.append('date_from', dateFrom);
         }
+
         if (dateTo) {
             url.searchParams.append('date_to', dateTo);
         }
+
         if (product && product !== 'all') {
             url.searchParams.append('product', product);
         }
+
         if (loadLocation) {
             url.searchParams.append('load_location', loadLocation);
         }
+
         window.location.href = url.toString();
     };
+
+    const availableLoads = useMemo(() => {
+        return loads.filter(
+            (load) =>
+                load.status === 'EN COURS' ||
+                load.status === 'LIVRE PARTIELLEMENT' ||
+                load.status === 'LIVRER' ||
+                load.status === 'FACTURER' ||
+                load.status === 'FACTURER ET PAYER',
+        );
+    }, [loads]);
 
     return (
         <>
@@ -280,10 +296,10 @@ export default function ReportChargements({ loads, stats, filters }: Props) {
                 <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
                     <DataTable
                         columns={columns}
-                        data={loads}
+                        data={availableLoads}
                         hidePagination={true}
                     />
-                    {loads.length > 0 && (
+                    {availableLoads.length > 0 && (
                         <div className="bg-muted/50 border-t border-border p-4 flex flex-col gap-2 font-black">
                             <div className="flex justify-between items-center">
                                 <span className="uppercase tracking-wider text-xs">Total Volume Initial</span>

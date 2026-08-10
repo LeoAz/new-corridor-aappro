@@ -219,35 +219,6 @@ export default function Livraisons({
                 cell: ({ row }) => formatNumber(row.original.volume) + ' L',
             },
             {
-                accessorKey: 'remaining_quantity',
-                header: 'Restant',
-                cell: ({ row }) =>
-                    row.original.remaining_quantity === undefined
-                        ? '-'
-                        : `${formatNumber(row.original.remaining_quantity)} L`,
-            },
-            {
-                accessorKey: 'partial_deliveries',
-                header: 'Détails Livraisons Partielles',
-                cell: ({ row }) => {
-                    const partials = row.original.partial_deliveries;
-
-                    if (!partials || partials.length === 0) {
-                        return '-';
-                    }
-
-                    return (
-                        <div className="flex flex-col gap-1 text-[10px] leading-tight">
-                            {partials.map((p) => (
-                                <div key={p.id} className="border-b pb-1 last:border-0">
-                                    <span className="font-semibold">{p.client_name}</span>: {formatNumber(p.quantity)} L ({p.invoice_number})
-                                </div>
-                            ))}
-                        </div>
-                    );
-                },
-            },
-            {
                 accessorKey: 'unload_location',
                 header: 'Lieu Livraison',
             },
