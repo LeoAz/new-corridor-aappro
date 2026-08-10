@@ -1,5 +1,6 @@
-import { Head, router } from '@inertiajs/react';
-import { ColumnDef } from '@tanstack/react-table';
+import type { Head } from '@inertiajs/react';
+import { router } from '@inertiajs/react';
+import type { ColumnDef } from '@tanstack/react-table';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { CalendarIcon, Download, Filter, Package, Search, Truck } from 'lucide-react';
@@ -21,6 +22,8 @@ interface Load {
     load_location: string;
     product: string;
     volume: number;
+    remaining_quantity: number;
+    status: string;
     vehicle_registration: string;
     client: { id: number; nom: string };
     depot: { id: number; name: string };
@@ -29,7 +32,8 @@ interface Load {
 interface Stats {
     total_trucks: number;
     total_volume: number;
-    by_product: Record<string, { count: number; volume: number }>;
+    total_remaining: number;
+    by_product: any[];
 }
 
 interface Props {
@@ -86,26 +90,48 @@ export default function ReportChargements({ loads, stats, filters }: Props) {
         },
         {
             accessorKey: 'volume',
-            header: () => <div className="text-right">Volume</div>,
-            cell: ({ row }) => <div className="text-right font-bold">{formatNumber(row.original.volume)} L</div>,
+            header: () => <div className="text-right">Volume (Reste)</div>,
+            cell: ({ row }) => (
+                <div className="text-right font-bold">
+                    <div>{formatNumber(row.original.volume)} L</div>
+                    {row.original.status === 'LIVRE PARTIELLEMENT' && (
+                        <div className="text-[10px] text-orange-600">Reste: {formatNumber(row.original.remaining_quantity)} L</div>
+                    )}
+                </div>
+            ),
         },
     ], []);
 
     const handleFilter = () => {
-        router.get(toUrl(reportsActions.default.chargements()), {
-            date_from: dateFrom,
-            date_to: dateTo,
-            product: product === 'all' ? '' : product,
-            load_location: loadLocation,
-        }, { preserveState: true });
+        router.get(
+            toUrl(reportsActions.default.chargements()),
+            {
+                date_from: dateFrom,
+                date_to: dateTo,
+                product: product === 'all' ? '' : product,
+                load_location: loadLocation,
+            },
+            { preserveState: true },
+        );
     };
 
     const handleDownload = () => {
-        const url = new URL(toUrl(reportsActions.default.chargements.download()), window.location.origin);
-        if (dateFrom) url.searchParams.append('date_from', dateFrom);
-        if (dateTo) url.searchParams.append('date_to', dateTo);
-        if (product && product !== 'all') url.searchParams.append('product', product);
-        if (loadLocation) url.searchParams.append('load_location', loadLocation);
+        const url = new URL(
+            toUrl(reportsActions.default.chargements.download()),
+            window.location.origin,
+        );
+        if (dateFrom) {
+            url.searchParams.append('date_from', dateFrom);
+        }
+        if (dateTo) {
+            url.searchParams.append('date_to', dateTo);
+        }
+        if (product && product !== 'all') {
+            url.searchParams.append('product', product);
+        }
+        if (loadLocation) {
+            url.searchParams.append('load_location', loadLocation);
+        }
         window.location.href = url.toString();
     };
 
@@ -219,28 +245,32 @@ export default function ReportChargements({ loads, stats, filters }: Props) {
                             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-green-100 text-green-600">
                                 <Package className="h-5 w-5" />
                             </div>
-                            <span className="text-sm font-medium text-muted-foreground">Volume Total</span>
+                            <span className="text-sm font-medium text-muted-foreground">Volume Initial</span>
                         </div>
                         <div className="mt-2 text-2xl font-bold">{formatNumber(stats.total_volume)} L</div>
                     </div>
-                    {Array.isArray(stats.by_product) ? stats.by_product.map((item: any) => (
+                    <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
+                        <div className="flex items-center gap-2">
+                            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-100 text-orange-600">
+                                <Package className="h-5 w-5" />
+                            </div>
+                            <span className="text-sm font-medium text-muted-foreground">Total Reste</span>
+                        </div>
+                        <div className="mt-2 text-2xl font-bold">{formatNumber(stats.total_remaining)} L</div>
+                    </div>
+                    {stats.by_product.map((item: any) => (
                         <div key={item.product} className="rounded-xl border border-border bg-card p-4 shadow-sm">
                             <div className="flex items-center gap-2">
                                 <div className="text-sm font-bold text-foreground">{item.product}</div>
                             </div>
-                            <div className="mt-1 flex justify-between">
-                                <span className="text-xs text-muted-foreground">{item.count} camions</span>
-                                <span className="text-xs font-bold text-foreground">{formatNumber(item.volume)} L</span>
-                            </div>
-                        </div>
-                    )) : Object.entries(stats.by_product).map(([prod, data]: [string, any]) => (
-                        <div key={prod} className="rounded-xl border border-border bg-card p-4 shadow-sm">
-                            <div className="flex items-center gap-2">
-                                <div className="text-sm font-bold text-foreground">{prod}</div>
-                            </div>
-                            <div className="mt-1 flex justify-between">
-                                <span className="text-xs text-muted-foreground">{data.count} camions</span>
-                                <span className="text-xs font-bold text-foreground">{formatNumber(data.volume)} L</span>
+                            <div className="mt-1 flex flex-col gap-1">
+                                <div className="flex justify-between">
+                                    <span className="text-xs text-muted-foreground">{item.count} camions</span>
+                                    <span className="text-xs font-bold text-foreground">Init: {formatNumber(item.volume)} L</span>
+                                </div>
+                                <div className="text-right">
+                                    <span className="text-xs font-bold text-orange-600">Reste: {formatNumber(item.remaining)} L</span>
+                                </div>
                             </div>
                         </div>
                     ))}
@@ -254,9 +284,15 @@ export default function ReportChargements({ loads, stats, filters }: Props) {
                         hidePagination={true}
                     />
                     {loads.length > 0 && (
-                        <div className="bg-muted/50 border-t border-border p-4 flex justify-between items-center font-black">
-                            <span className="uppercase tracking-wider text-xs">Total Général</span>
-                            <span className="text-lg">{formatNumber(stats.total_volume)} L</span>
+                        <div className="bg-muted/50 border-t border-border p-4 flex flex-col gap-2 font-black">
+                            <div className="flex justify-between items-center">
+                                <span className="uppercase tracking-wider text-xs">Total Volume Initial</span>
+                                <span className="text-lg">{formatNumber(stats.total_volume)} L</span>
+                            </div>
+                            <div className="flex justify-between items-center text-orange-600">
+                                <span className="uppercase tracking-wider text-xs">Total Reste à Livrer</span>
+                                <span className="text-lg">{formatNumber(stats.total_remaining)} L</span>
+                            </div>
                         </div>
                     )}
                 </div>

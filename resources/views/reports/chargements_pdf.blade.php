@@ -76,17 +76,19 @@
     <div class="stats">
         <table>
             <tr>
-                <th style="width: 20%;">Total Camions</th>
-                <th style="width: 30%;">Volume Total</th>
-                <th style="width: 50%;">Répartition par Produit</th>
+                <th style="width: 15%;">Total Camions</th>
+                <th style="width: 20%;">Volume Initial</th>
+                <th style="width: 20%;">Reste à Livrer</th>
+                <th style="width: 45%;">Répartition par Produit</th>
             </tr>
             <tr>
                 <td>{{ $loads->count() }}</td>
                 <td>{{ number_format($totalVolume, 0, '.', ' ') }} L</td>
+                <td style="color: #e65100;">{{ number_format($totalRemaining, 0, '.', ' ') }} L</td>
                 <td style="font-size: 10pt; font-weight: normal;">
                     @foreach($stats as $stat)
-                        <span class="badge {{ $stat['product'] === 'GASOIL' ? 'bg-blue' : ($stat['product'] === 'SUPER' ? 'bg-orange' : 'bg-purple') }}" style="margin-right: 5px;">
-                            {{ $stat['product'] ?: 'INCONNU' }} : {{ $stat['count'] }} ({{ number_format($stat['volume'], 0, '.', ' ') }} L)
+                        <span class="badge {{ $stat['product'] === 'GASOIL' ? 'bg-blue' : ($stat['product'] === 'SUPER' ? 'bg-orange' : 'bg-purple') }}" style="margin-right: 5px; margin-bottom: 2px; display: inline-block;">
+                            {{ $stat['product'] ?: 'INCONNU' }} : {{ $stat['count'] }} (Init: {{ number_format($stat['volume'], 0, '.', ' ') }} L | Reste: {{ number_format($stat['remaining'], 0, '.', ' ') }} L)
                         </span>
                     @endforeach
                 </td>
@@ -101,8 +103,9 @@
             <tr>
                 <th>Dépôt</th>
                 <th>Produit</th>
-                <th class="text-center">Nombre de Chargements</th>
-                <th class="text-right">Total Quantité/Volume</th>
+                <th class="text-center">Nombre</th>
+                <th class="text-right">Volume Initial</th>
+                <th class="text-right">Reste à Livrer</th>
             </tr>
             </thead>
             <tbody>
@@ -115,6 +118,7 @@
                         <td>{{ $stat['product'] }}</td>
                         <td class="text-center">{{ $stat['count'] }}</td>
                         <td class="text-right">{{ number_format($stat['volume'], 0, '.', ' ') }} L</td>
+                        <td class="text-right" style="color: #e65100;">{{ number_format($stat['remaining'], 0, '.', ' ') }} L</td>
                     </tr>
                 @endforeach
             @endforeach
@@ -130,7 +134,8 @@
                 <th style="width: 100px;">VEHICULE</th>
                 <th>DEPOT</th>
                 <th>PRODUIT</th>
-                <th class="text-right">VOLUME</th>
+                <th class="text-right">VOL. INIT</th>
+                <th class="text-right">RESTE</th>
                 <th class="text-center">STATUT</th>
             </tr>
         </thead>
@@ -147,14 +152,16 @@
                     </span>
                 </td>
                 <td class="text-right font-bold">{{ number_format($load->volume, 0, '.', ' ') }} L</td>
-                <td class="text-center">{{ $load->status }}</td>
+                <td class="text-right font-bold" style="color: #e65100;">{{ number_format($load->remaining_quantity, 0, '.', ' ') }} L</td>
+                <td class="text-center">{{ $load->status->label() }}</td>
             </tr>
             @endforeach
         </tbody>
     </table>
 
     <div style="margin-top: 30px; border-top: 3px double #333; padding-top: 10px; text-align: right;">
-        <span style="font-size: 16pt; font-weight: bold; text-transform: uppercase;">Total Général : {{ number_format($totalVolume, 0, '.', ' ') }} L</span>
+        <span style="font-size: 14pt; font-weight: bold; text-transform: uppercase;">Volume Initial : {{ number_format($totalVolume, 0, '.', ' ') }} L</span><br>
+        <span style="font-size: 16pt; font-weight: bold; text-transform: uppercase; color: #e65100;">Reste à Livrer : {{ number_format($totalRemaining, 0, '.', ' ') }} L</span>
     </div>
 
     <div class="footer">

@@ -43,14 +43,16 @@ class LoadController extends Controller
         $loads = $query->latest()->get();
 
         // Statistics
+        $totalLoads = $loads->count();
+        $totalVolume = $loads->sum('volume');
+        $totalRemaining = (float) $loads->sum(fn ($l) => $l->remaining_quantity);
+
         $statsByProduct = $loads->groupBy('product')->map(fn ($group) => [
             'product' => $group->first()->product,
             'count' => $group->count(),
             'volume' => $group->sum('volume'),
+            'remaining' => (float) $group->sum(fn ($l) => $l->remaining_quantity),
         ])->values();
-
-        $totalLoads = $loads->count();
-        $totalVolume = $loads->sum('volume');
 
         return Inertia::render('operations/chargements', [
             'loads' => $loads,
@@ -62,6 +64,7 @@ class LoadController extends Controller
                 'by_product' => $statsByProduct,
                 'total_loads' => $totalLoads,
                 'total_volume' => $totalVolume,
+                'total_remaining' => $totalRemaining,
             ],
             'filters' => $request->only(['product', 'date_from', 'date_to', 'load_locations']),
             'distinct_locations' => Load::whereIn('status', [LoadStatus::EN_COURS, LoadStatus::LIVRE_PARTIELLEMENT])->whereNotNull('load_location')->distinct()->pluck('load_location'),

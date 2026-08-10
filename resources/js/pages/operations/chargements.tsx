@@ -80,6 +80,7 @@ interface Load {
     compartment_id: number | null;
     client_name: string | null;
     status: string;
+    remaining_quantity: number;
     depot: Depot;
     city: City | null;
     client: Client | null;
@@ -90,6 +91,7 @@ interface StatByProduct {
     product: string;
     count: number;
     volume: number;
+    remaining: number;
 }
 
 interface Props {
@@ -102,6 +104,7 @@ interface Props {
         by_product: StatByProduct[];
         total_loads: number;
         total_volume: number;
+        total_remaining: number;
     };
     filters: {
         product?: string;
@@ -205,11 +208,20 @@ export default function Chargements({ loads, depots, cities, clients, filters, d
                 accessorKey: 'volume',
                 header: ({ column }) => (
                     <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}>
-                        Volume
+                        Volume (Reste)
                         <ArrowUpDown className="ml-2 h-4 w-4" />
                     </Button>
                 ),
-                cell: ({ row }) => formatNumber(row.original.volume),
+                cell: ({ row }) => (
+                    <div className="flex flex-col">
+                        <span>{formatNumber(row.original.volume)}</span>
+                        {row.original.status === 'LIVRE PARTIELLEMENT' && (
+                            <span className="text-xs font-bold text-orange-600">
+                                Reste: {formatNumber(row.original.remaining_quantity)}
+                            </span>
+                        )}
+                    </div>
+                ),
             },
             {
                 accessorKey: 'depot.name',
@@ -649,11 +661,16 @@ export default function Chargements({ loads, depots, cities, clients, filters, d
                     <Card className="p-4">
                         <div className="flex flex-col gap-1">
                             <span className="text-sm font-medium tracking-wider text-muted-foreground uppercase">
-                                Volume Total
+                                Volume Total (Reste)
                             </span>
-                            <span className="text-2xl font-bold">
-                                {formatNumber(stats.total_volume)} L
-                            </span>
+                            <div className="flex items-baseline justify-between">
+                                <span className="text-2xl font-bold">
+                                    {formatNumber(stats.total_volume)} L
+                                </span>
+                                <span className="text-xs font-bold text-orange-600">
+                                    Reste: {formatNumber(stats.total_remaining)} L
+                                </span>
+                            </div>
                         </div>
                     </Card>
                     {stats.by_product.map((s) => (
@@ -662,13 +679,20 @@ export default function Chargements({ loads, depots, cities, clients, filters, d
                                 <span className="text-sm font-medium tracking-wider text-muted-foreground uppercase">
                                     {s.product}
                                 </span>
-                                <div className="flex items-baseline justify-between">
-                                    <span className="text-2xl font-bold">
-                                        {s.count} Véhs
-                                    </span>
-                                    <span className="text-xs text-muted-foreground">
-                                        {formatNumber(s.volume)} L
-                                    </span>
+                                <div className="flex flex-col gap-0.5 w-full">
+                                    <div className="flex items-baseline justify-between">
+                                        <span className="text-2xl font-bold">
+                                            {s.count} Véhs
+                                        </span>
+                                        <span className="text-xs text-muted-foreground">
+                                            Init: {formatNumber(s.volume)} L
+                                        </span>
+                                    </div>
+                                    <div className="text-right">
+                                        <span className="text-xs font-bold text-orange-600">
+                                            Dispo: {formatNumber(s.remaining)} L
+                                        </span>
+                                    </div>
                                 </div>
                             </div>
                         </Card>

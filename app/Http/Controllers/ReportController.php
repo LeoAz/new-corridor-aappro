@@ -43,10 +43,12 @@ class ReportController extends Controller
         $stats = [
             'total_trucks' => $loads->count(),
             'total_volume' => $loads->sum('volume'),
+            'total_remaining' => (float) $loads->sum(fn ($l) => $l->remaining_quantity),
             'by_product' => $loads->groupBy('product')->map(fn ($group, $product) => [
                 'product' => $product ?: 'INCONNU',
                 'count' => $group->count(),
                 'volume' => $group->sum('volume'),
+                'remaining' => (float) $group->sum(fn ($l) => $l->remaining_quantity),
             ])->values()->toArray(),
         ];
 
@@ -90,11 +92,13 @@ class ReportController extends Controller
 
         $loads = $query->orderBy('load_date', 'desc')->get();
         $totalVolume = $loads->sum('volume');
+        $totalRemaining = (float) $loads->sum(fn ($l) => $l->remaining_quantity);
 
         $stats = $loads->groupBy('product')->map(fn ($group, $product) => [
             'product' => $product ?: 'INCONNU',
             'count' => $group->count(),
             'volume' => $group->sum('volume'),
+            'remaining' => (float) $group->sum(fn ($l) => $l->remaining_quantity),
         ])->values()->toArray();
 
         $depotStats = $loads->groupBy(fn ($load) => $load->depot->name ?? 'N/A')
@@ -103,13 +107,15 @@ class ReportController extends Controller
                     'product' => $product ?: 'INCONNU',
                     'count' => $productGroup->count(),
                     'volume' => $productGroup->sum('volume'),
+                    'remaining' => (float) $productGroup->sum(fn ($l) => $l->remaining_quantity),
                 ])
             )->toArray();
 
         $qrData = "Rapport Chargements\n";
         $qrData .= 'Date: '.now()->format('d/m/Y')."\n";
         $qrData .= 'Camions: '.$loads->count()."\n";
-        $qrData .= 'Volume: '.number_format($totalVolume, 0, '.', ' ').' L';
+        $qrData .= 'Volume Init: '.number_format($totalVolume, 0, '.', ' ').' L'."\n";
+        $qrData .= 'Reste: '.number_format($totalRemaining, 0, '.', ' ').' L';
 
         $renderer = new ImageRenderer(
             new RendererStyle(100),
@@ -125,6 +131,7 @@ class ReportController extends Controller
             'stats' => $stats,
             'depotStats' => $depotStats,
             'totalVolume' => $totalVolume,
+            'totalRemaining' => $totalRemaining,
             'filters' => $request->all(),
             'client' => $client,
             'qrcode' => $qrcode,

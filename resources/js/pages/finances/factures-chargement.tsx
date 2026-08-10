@@ -325,7 +325,7 @@ const InvoiceForm = ({
                                                                   item.load_id.toString(),
                                                           )
                                                               ?.vehicle_registration +
-                                                          ` (reste ${formatNumber(availableLoads.find((l: any) => l.id.toString() === item.load_id.toString())?.remaining_quantity ?? availableLoads.find((l: any) => l.id.toString() === item.load_id.toString())?.volume)} L)`
+                                                          ` (dispo. ${formatNumber(availableLoads.find((l: any) => l.id.toString() === item.load_id.toString())?.remaining_quantity ?? availableLoads.find((l: any) => l.id.toString() === item.load_id.toString())?.volume)} L)`
                                                         : 'Choisir une livraison'}
                                                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                                 </Button>
@@ -379,7 +379,7 @@ const InvoiceForm = ({
                                                                                     load.remaining_quantity ??
                                                                                         load.volume,
                                                                                 )}{' '}
-                                                                                L restants
+                                                                                L disponibles
                                                                             </span>
                                                                             <span className="text-xs text-muted-foreground">
                                                                                 {
@@ -552,7 +552,10 @@ export default function FacturesChargement({
         );
 
         return availableLoads.filter(
-            (load) => !selectedLoadIds.has(load.id) && load.status === 'LIVRER',
+            (load) =>
+                !selectedLoadIds.has(load.id) &&
+                (load.status === 'LIVRER' ||
+                    load.status === 'LIVRE PARTIELLEMENT'),
         );
     }, [availableLoads, data.items]);
 

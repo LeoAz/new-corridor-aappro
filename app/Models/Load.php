@@ -39,6 +39,15 @@ class Load extends Model
         'volume' => 'float',
     ];
 
+    protected $appends = [
+        'remaining_quantity',
+    ];
+
+    public function getRemainingQuantityAttribute(): float
+    {
+        return $this->remainingQuantity();
+    }
+
     public function depot(): BelongsTo
     {
         return $this->belongsTo(Depot::class);
