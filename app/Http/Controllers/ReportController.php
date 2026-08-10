@@ -38,7 +38,7 @@ class ReportController extends Controller
             $query->where('client_id', $request->client_id);
         }
 
-        $query->whereIn('status', [LoadStatus::EN_COURS, LoadStatus::LIVRE_PARTIELLEMENT, LoadStatus::LIVRER, LoadStatus::FACTURER, LoadStatus::PAYE]);
+        $query->whereIn('status', [LoadStatus::EN_COURS, LoadStatus::LIVRE_PARTIELLEMENT]);
 
         $loads = $query->orderBy('load_date', 'desc')->get();
 
@@ -92,7 +92,7 @@ class ReportController extends Controller
             $client = Client::find($request->client_id);
         }
 
-        $query->whereIn('status', [LoadStatus::EN_COURS, LoadStatus::LIVRE_PARTIELLEMENT, LoadStatus::LIVRER, LoadStatus::FACTURER, LoadStatus::PAYE]);
+        $query->whereIn('status', [LoadStatus::EN_COURS, LoadStatus::LIVRE_PARTIELLEMENT]);
 
         $loads = $query->orderBy('load_date', 'desc')->get();
         $totalVolume = $loads->sum('volume');

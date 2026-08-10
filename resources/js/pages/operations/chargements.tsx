@@ -215,7 +215,7 @@ export default function Chargements({ loads, depots, cities, clients, filters, d
                 cell: ({ row }) => (
                     <div className="flex flex-col">
                         <span>{formatNumber(row.original.volume)}</span>
-                        {row.original.status === 'LIVRE PARTIELLEMENT' && (
+                        {(row.original.status === 'LIVRE PARTIELLEMENT' || row.original.status === 'EN COURS') && (
                             <span className="text-xs font-bold text-orange-600">
                                 Reste: {formatNumber(row.original.remaining_quantity)}
                             </span>

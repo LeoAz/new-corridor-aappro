@@ -144,10 +144,7 @@ export default function ReportChargements({ loads, stats, filters }: Props) {
         return loads.filter(
             (load) =>
                 load.status === 'EN COURS' ||
-                load.status === 'LIVRE PARTIELLEMENT' ||
-                load.status === 'LIVRER' ||
-                load.status === 'FACTURER' ||
-                load.status === 'FACTURER ET PAYER',
+                load.status === 'LIVRE PARTIELLEMENT',
         );
     }, [loads]);
 
