@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\LoadStatus;
 use App\Models\Client;
 use App\Models\Depot;
 use App\Models\DepotInvoice;
