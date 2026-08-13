@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\LoadStatus;
+use App\Models\Client;
 use App\Models\Compartment;
 use App\Models\Depot;
 use App\Models\Invoice;
@@ -43,7 +44,7 @@ test('partial loads appear in both loads and deliveries lists', function () {
 
     // 2. Check LoadController index (Chargements en cours)
     $this->actingAs($user)
-        ->get(route('chargements.index'))
+        ->get(route('operations.chargements.index'))
         ->assertStatus(200)
         ->assertInertia(fn ($page) => $page
             ->has('loads', fn ($json) => $json->where('0.id', $load->id))
@@ -51,7 +52,7 @@ test('partial loads appear in both loads and deliveries lists', function () {
 
     // 3. Check DeliveryController index (Livraisons)
     $this->actingAs($user)
-        ->get(route('livraisons.index'))
+        ->get(route('operations.livraisons.index'))
         ->assertStatus(200)
         ->assertInertia(fn ($page) => $page
             ->has('deliveries', fn ($json) => $json->where('0.id', $load->id))
@@ -68,18 +69,24 @@ test('only delivered quantity leaves stock for partial deliveries', function () 
     $client = Client::factory()->create();
 
     // 1. Create a load (Should NOT decrement stock anymore upon creation)
-    $load = Load::factory()->create([
-        'depot_id' => $depot->id,
-        'compartment_id' => $compartment->id,
-        'volume' => 1000,
-        'client_id' => $client->id,
-        'status' => LoadStatus::EN_COURS,
-    ]);
+    $this->actingAs($user)
+        ->post(route('operations.chargements.store'), [
+            'load_date' => now()->format('Y-m-d'),
+            'product' => $compartment->product,
+            'volume' => 1000,
+            'vehicle_registration' => 'AB-123-CD',
+            'depot_id' => $depot->id,
+            'compartment_id' => $compartment->id,
+            'client_id' => $client->id,
+        ]);
+
+    $load = Load::latest()->first();
 
     $compartment->refresh();
-    expect($compartment->quantity)->toBe(5000.0);
+    // Now it SHOULD decrement stock upon creation
+    expect((float) $compartment->quantity)->toEqual(4000.0);
 
-    // 2. Deliver partially (Create Invoice)
+    // 2. Deliver partially (Create Invoice) - Should NOT decrement stock anymore
     $invoiceData = [
         'client_id' => $client->id,
         'date' => now()->format('Y-m-d'),
@@ -99,8 +106,8 @@ test('only delivered quantity leaves stock for partial deliveries', function () 
         ->post(route('finances.facture-chargement.store'), $invoiceData);
 
     $compartment->refresh();
-    // 5000 - 400 = 4600
-    expect($compartment->quantity)->toBe(4600.0);
+    // Still 4000.0
+    expect((float) $compartment->quantity)->toEqual(4000.0);
 
     // 3. Deliver another partial quantity
     $invoice2Data = [
@@ -122,12 +129,12 @@ test('only delivered quantity leaves stock for partial deliveries', function () 
         ->post(route('finances.facture-chargement.store'), $invoice2Data);
 
     $compartment->refresh();
-    // 4600 - 300 = 4300
-    expect($compartment->quantity)->toBe(4300.0);
+    // Still 4000.0
+    expect((float) $compartment->quantity)->toEqual(4000.0);
 
-    $load->refresh();
+    $load = $load->fresh();
     expect($load->status)->toBe(LoadStatus::LIVRE_PARTIELLEMENT);
-    expect($load->remainingQuantity())->toBe(300.0);
+    expect((float) $load->remainingQuantity())->toEqual(300.0);
 
     // 4. Update an invoice (change quantity)
     $invoice = Invoice::latest()->first();
@@ -142,14 +149,14 @@ test('only delivered quantity leaves stock for partial deliveries', function () 
         ->put(route('finances.facture-chargement.update', $invoice->id), $updateData);
 
     $compartment->refresh();
-    // 4300 - 200 = 4100
-    expect($compartment->quantity)->toBe(4100.0);
+    // Still 4000.0
+    expect((float) $compartment->quantity)->toEqual(4000.0);
 
     // 5. Delete an invoice
     $this->actingAs($user)
         ->delete(route('finances.facture-chargement.destroy', $invoice->id));
 
     $compartment->refresh();
-    // 4100 + 500 = 4600
-    expect($compartment->quantity)->toBe(4600.0);
+    // Still 4000.0
+    expect((float) $compartment->quantity)->toEqual(4000.0);
 });

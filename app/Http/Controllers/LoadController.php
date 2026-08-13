@@ -99,18 +99,12 @@ class LoadController extends Controller
         $load = DB::transaction(function () use ($validated) {
             $load = Load::create($validated);
 
-            // Note: We no longer decrement stock here because it should happen during delivery (invoice)
-            // for partial deliveries, or we need to manage "reserved" stock vs "delivered" stock.
-            // According to the new requirement: "uniquement la quantité livrée doit sortir du stock"
-
-            /*
             if (! empty($load->compartment_id)) {
                 $compartment = Compartment::find($load->compartment_id);
                 if ($compartment) {
                     $compartment->decrement('quantity', (float) $load->volume);
                 }
             }
-            */
 
             return $load;
         });
@@ -150,8 +144,6 @@ class LoadController extends Controller
             $newVolume = (float) $chargement->volume;
             $newCompartmentId = $chargement->compartment_id;
 
-            // Note: Stock management moved to InvoiceController for "uniquement la quantité livrée doit sortir du stock"
-            /*
             // Si le compartiment n'a pas changé, on ajuste la différence
             if ($oldCompartmentId == $newCompartmentId) {
                 if ($newCompartmentId) {
@@ -177,7 +169,6 @@ class LoadController extends Controller
                     }
                 }
             }
-            */
 
             // Sync with invoice item if it exists
             $invoiceItem = InvoiceItem::where('load_id', $chargement->id)->first();

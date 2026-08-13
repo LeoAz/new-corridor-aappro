@@ -146,25 +146,8 @@ class InvoiceController extends Controller
                     // If the load_id has changed, refresh the old load status after the item moves.
                     if ($invoiceItem->load_id != $item['load_id']) {
                         $oldLoad = Load::find($oldLoadId);
-                        // Restore stock for the old load
-                        if ($oldLoad && $oldLoad->compartment_id) {
-                            Compartment::find($oldLoad->compartment_id)?->increment('quantity', $oldQuantity);
-                        }
-
-                        // Deduct stock for the new load
-                        $newLoad = Load::find($item['load_id']);
-                        if ($newLoad && $newLoad->compartment_id) {
-                            Compartment::find($newLoad->compartment_id)?->decrement('quantity', (float) $item['quantity_delivered']);
-                        }
                     } else {
-                        // Same load, adjust quantity difference
-                        $diff = (float) $item['quantity_delivered'] - $oldQuantity;
-                        if ($diff != 0) {
-                            $load = Load::find($item['load_id']);
-                            if ($load && $load->compartment_id) {
-                                Compartment::find($load->compartment_id)?->decrement('quantity', $diff);
-                            }
-                        }
+                        // Same load, no stock adjustment needed here anymore
                     }
 
                     $invoiceItem->update([
@@ -197,9 +180,6 @@ class InvoiceController extends Controller
                     $keepIds[] = $newItem->id;
 
                     $load = $newItem->loadDetails;
-                    if ($load && $load->compartment_id) {
-                        Compartment::find($load->compartment_id)?->decrement('quantity', (float) $item['quantity_delivered']);
-                    }
                     $load?->refreshInvoiceStatus();
                 }
             }
@@ -211,9 +191,6 @@ class InvoiceController extends Controller
 
             foreach ($removedItems as $item) {
                 $load = $item->loadDetails;
-                if ($load && $load->compartment_id) {
-                    Compartment::find($load->compartment_id)?->increment('quantity', (float) $item->quantity_delivered);
-                }
                 $item->delete();
                 $load?->refreshInvoiceStatus();
             }
@@ -317,13 +294,12 @@ class InvoiceController extends Controller
                         'quantity_delivered' => $item['quantity_delivered'],
                         'unit_price' => $item['unit_price'],
                         'missing_quantity' => $item['missing_quantity'] ?? 0,
-                        'is_partial' => false,
+                        'is_partial' => $item['is_partial'] ?? false,
                         'total' => $itemTotal,
                     ]);
 
-                    // Update load status to FACTURER
-                    $load->update(['status' => LoadStatus::FACTURER]);
-
+                    // Update load status
+                    $load = $load->fresh();
                     $load->refreshInvoiceStatus();
                 }
             }

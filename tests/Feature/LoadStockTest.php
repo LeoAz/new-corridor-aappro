@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\LoadStatus;
 use App\Models\Compartment;
 use App\Models\Depot;
 use App\Models\Load;
@@ -138,4 +139,100 @@ test('quantity is restored to compartment when a load is deleted', function () {
 
     $response->assertRedirect();
     expect($compartment->fresh()->quantity)->toEqual(10000.0);
+});
+
+test('quantity is not deducted again during delivery (full or partial)', function () {
+    $depot = Depot::factory()->create();
+    $compartment = Compartment::factory()->create([
+        'depot_id' => $depot->id,
+        'quantity' => 10000,
+    ]);
+
+    // 1. Création du chargement (doit déduire 2000)
+    $this->post(route('operations.chargements.store'), [
+        'load_date' => now()->format('Y-m-d'),
+        'product' => $compartment->product,
+        'volume' => 2000,
+        'vehicle_registration' => 'AB-123-CD',
+        'depot_id' => $depot->id,
+        'compartment_id' => $compartment->id,
+    ]);
+
+    $load = Load::latest()->first();
+    expect($compartment->fresh()->quantity)->toEqual(8000.0);
+
+    // 2. Livraison partielle de 500 (ne doit PAS déduire davantage)
+    $this->post(route('operations.chargements.deliver', $load->id), [
+        'unload_date' => now()->format('Y-m-d'),
+        'unload_location' => 'Client Site',
+        'client_name' => 'Test Client',
+        'volume' => 500,
+    ]);
+
+    // Le stock doit rester à 8000 car les 2000 ont déjà été sortis
+    expect($compartment->fresh()->quantity)->toEqual(8000.0);
+
+    // Le chargement original doit avoir 1500 restants
+    $originalLoad = Load::find($load->id);
+    expect($originalLoad->volume)->toEqual(1500.0);
+
+    // La nouvelle livraison doit avoir 500
+    $delivery = Load::where('status', LoadStatus::LIVRER)->latest()->first();
+    expect($delivery->volume)->toEqual(500.0);
+
+    // 3. Livraison du reste (1500)
+    $this->post(route('operations.chargements.deliver', $originalLoad->id), [
+        'unload_date' => now()->format('Y-m-d'),
+        'unload_location' => 'Client Site',
+        'client_name' => 'Test Client',
+        'volume' => 1500,
+    ]);
+
+    // Le stock doit TOUJOURS être à 8000
+    expect($compartment->fresh()->quantity)->toEqual(8000.0);
+});
+
+test('updating a delivery volume updates the stock correctly', function () {
+    $depot = Depot::factory()->create();
+    $compartment = Compartment::factory()->create([
+        'depot_id' => $depot->id,
+        'quantity' => 10000,
+    ]);
+
+    // 1. Création du chargement (doit déduire 2000)
+    $this->post(route('operations.chargements.store'), [
+        'load_date' => now()->format('Y-m-d'),
+        'product' => $compartment->product,
+        'volume' => 2000,
+        'vehicle_registration' => 'AB-123-CD',
+        'depot_id' => $depot->id,
+        'compartment_id' => $compartment->id,
+    ]);
+
+    $load = Load::latest()->first();
+    expect($compartment->fresh()->quantity)->toEqual(8000.0);
+
+    // 2. Livraison de 2000
+    $this->post(route('operations.chargements.deliver', $load->id), [
+        'unload_date' => now()->format('Y-m-d'),
+        'unload_location' => 'Client Site',
+        'client_name' => 'Test Client',
+        'volume' => 2000,
+    ]);
+
+    $delivery = Load::where('status', LoadStatus::LIVRER)->latest()->first();
+    expect($compartment->fresh()->quantity)->toEqual(8000.0);
+
+    // 3. Mise à jour de la livraison pour passer à 2500
+    // Comme le chargement original est à 0 (totalement livré),
+    // l'augmentation de la livraison doit sortir davantage de stock.
+    $this->put(route('operations.livraisons.update', $delivery->id), [
+        'unload_date' => now()->format('Y-m-d'),
+        'unload_location' => 'Client Site',
+        'client_name' => 'Test Client',
+        'volume' => 2500,
+    ]);
+
+    // 10000 - 2500 = 7500
+    expect($compartment->fresh()->quantity)->toEqual(7500.0);
 });

@@ -135,14 +135,6 @@ class DeliveryController extends Controller
                     'volume' => $originalVolume - $deliveredVolume,
                     'status' => LoadStatus::LIVRE_PARTIELLEMENT,
                 ]);
-
-                // Stock management (decrement only the delivered amount)
-                if ($compartmentId) {
-                    $compartment = Compartment::find($compartmentId);
-                    if ($compartment) {
-                        $compartment->decrement('quantity', $deliveredVolume);
-                    }
-                }
             } else {
                 // Full delivery
                 // Duplicate as well to keep the parent record as "spent"
@@ -160,14 +152,6 @@ class DeliveryController extends Controller
                     'volume' => 0,
                     'status' => LoadStatus::TOTALEMENT_LIVRE,
                 ]);
-
-                // Stock management
-                if ($compartmentId) {
-                    $compartment = Compartment::find($compartmentId);
-                    if ($compartment) {
-                        $compartment->decrement('quantity', $deliveredVolume);
-                    }
-                }
             }
 
             // Sync with invoice item if it exists (for full delivery mostly, but let's keep it robust)
@@ -208,14 +192,13 @@ class DeliveryController extends Controller
 
             $newVolume = (float) $livraison->volume;
 
-            /* Stock management moved to InvoiceController
+            // If the volume of a delivery is updated, we adjust the stock via its compartment.
             if ($compartmentId && $oldVolume != $newVolume) {
                 $compartment = Compartment::find($compartmentId);
                 if ($compartment) {
                     $compartment->decrement('quantity', $newVolume - $oldVolume);
                 }
             }
-            */
 
             // Sync with invoice item if it exists
             $invoiceItem = InvoiceItem::where('load_id', $livraison->id)->first();
