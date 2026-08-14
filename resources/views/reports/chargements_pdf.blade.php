@@ -29,6 +29,8 @@
         .bg-blue { background: #e1f5fe; color: #01579b; }
         .bg-orange { background: #fff3e0; color: #e65100; }
         .bg-purple { background: #f3e5f5; color: #4a148c; }
+        .bg-green { background: #e8f5e9; color: #2e7d32; }
+        .bg-gray { background: #f5f5f5; color: #616161; }
         .page-break { page-break-after: always; }
     </style>
 </head>
@@ -153,7 +155,27 @@
                 </td>
                 <td class="text-right font-bold">{{ number_format($load->volume, 0, '.', ' ') }} L</td>
                 <td class="text-right font-bold" style="color: #e65100;">{{ number_format($load->remaining_quantity, 0, '.', ' ') }} L</td>
-                <td class="text-center">{{ $load->status->label() }}</td>
+                <td class="text-center">
+                    @php
+                        $statusClass = 'bg-gray';
+                        $statusLabel = $load->status->label();
+
+                        if ($load->status->value === \App\Enums\LoadStatus::EN_COURS->value) {
+                            $statusClass = 'bg-blue';
+                        } elseif ($load->status->value === \App\Enums\LoadStatus::LIVRE_PARTIELLEMENT->value) {
+                            $statusClass = 'bg-orange';
+                        } elseif ($load->status->value === \App\Enums\LoadStatus::FACTURER->value) {
+                            $statusClass = 'bg-blue';
+                        } elseif ($load->status->value === \App\Enums\LoadStatus::PAYE->value) {
+                            $statusClass = 'bg-green';
+                        } elseif ($load->status->value === \App\Enums\LoadStatus::TOTALEMENT_LIVRE->value) {
+                            $statusClass = 'bg-green';
+                        }
+                    @endphp
+                    <span class="badge {{ $statusClass }}">
+                        {{ $statusLabel }}
+                    </span>
+                </td>
             </tr>
             @endforeach
         </tbody>

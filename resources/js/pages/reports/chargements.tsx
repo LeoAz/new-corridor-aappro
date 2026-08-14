@@ -96,6 +96,15 @@ export default function ReportChargements({ loads, stats, filters }: Props) {
                     {row.original.status === 'LIVRE PARTIELLEMENT' && (
                         <div className="text-[10px] text-orange-600">Reste: {formatNumber(row.original.remaining_quantity)} L</div>
                     )}
+                    {row.original.status === 'FACTURER ET PAYER' && (
+                        <div className="text-[10px] text-green-600">PAYÉ</div>
+                    )}
+                    {row.original.status === 'FACTURER' && (
+                        <div className="text-[10px] text-blue-600">FACTURÉ</div>
+                    )}
+                    {row.original.status === 'TOTALEMENT LIVRER' && (
+                        <div className="text-[10px] text-green-600 font-bold italic">LIVRÉ</div>
+                    )}
                 </div>
             ),
         },
@@ -140,11 +149,7 @@ export default function ReportChargements({ loads, stats, filters }: Props) {
     };
 
     const availableLoads = useMemo(() => {
-        return loads.filter(
-            (load) =>
-                load.status === 'EN COURS' ||
-                load.status === 'LIVRE PARTIELLEMENT',
-        );
+        return loads;
     }, [loads]);
 
     return (
