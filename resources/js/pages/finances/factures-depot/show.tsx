@@ -9,11 +9,7 @@ import { DataTable } from '@/components/ui/data-table';
 import AppLayout from '@/layouts/app-layout';
 import { formatNumber } from '@/lib/utils';
 import * as finances from '@/routes/finances';
-
-interface Compartment {
-    id: number;
-    product: string;
-}
+import type { Compartment } from '@/types';
 
 interface InvoiceItem {
     id: number;

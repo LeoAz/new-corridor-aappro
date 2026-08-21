@@ -36,6 +36,30 @@ test('quantity is deducted from compartment when a load is created', function ()
     expect($compartment->fresh()->quantity)->toEqual(8000.0);
 });
 
+test('quantity is deducted from compartment when a load is created without an explicit compartment_id', function () {
+    $depot = Depot::factory()->create();
+    $compartment = Compartment::factory()->create([
+        'depot_id' => $depot->id,
+        'quantity' => 10000,
+    ]);
+
+    $loadData = [
+        'load_date' => now()->format('Y-m-d'),
+        'product' => $compartment->product,
+        'volume' => 2000,
+        'vehicle_registration' => 'AB-123-CD',
+        'depot_id' => $depot->id,
+    ];
+
+    $response = $this->post(route('operations.chargements.store'), $loadData);
+
+    $response->assertRedirect();
+    expect($compartment->fresh()->quantity)->toEqual(8000.0);
+
+    $load = Load::latest()->first();
+    expect($load->compartment_id)->toEqual($compartment->id);
+});
+
 test('quantity is adjusted in compartment when a load is updated', function () {
     $depot = Depot::factory()->create();
     $compartment = Compartment::factory()->create([

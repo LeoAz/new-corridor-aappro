@@ -3,12 +3,14 @@
 namespace App\Http\Controllers;
 
 use App\Enums\LoadStatus;
+use App\Http\Requests\LoadRequest;
 use App\Models\City;
 use App\Models\Client;
 use App\Models\Compartment;
 use App\Models\Depot;
 use App\Models\InvoiceItem;
 use App\Models\Load;
+use App\Services\StockAdjustmentService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -17,9 +19,11 @@ use Inertia\Response;
 
 class LoadController extends Controller
 {
+    public function __construct(private readonly StockAdjustmentService $stock) {}
+
     public function index(Request $request): Response
     {
-        $query = Load::whereIn('status', [LoadStatus::EN_COURS, LoadStatus::LIVRE_PARTIELLEMENT])
+        $query = Load::whereIn('status', LoadStatus::activeLoads())
             ->with(['depot', 'city', 'client', 'compartment']);
 
         // Filters
@@ -67,24 +71,13 @@ class LoadController extends Controller
                 'total_remaining' => $totalRemaining,
             ],
             'filters' => $request->only(['product', 'date_from', 'date_to', 'load_locations']),
-            'distinct_locations' => Load::whereIn('status', [LoadStatus::EN_COURS, LoadStatus::LIVRE_PARTIELLEMENT])->whereNotNull('load_location')->distinct()->pluck('load_location'),
+            'distinct_locations' => Load::whereIn('status', LoadStatus::activeLoads())->whereNotNull('load_location')->distinct()->pluck('load_location'),
         ]);
     }
 
-    public function store(Request $request)
+    public function store(LoadRequest $request)
     {
-        $validated = $request->validate([
-            'load_date' => 'required|date',
-            'load_location' => 'nullable|string|max:255',
-            'product' => 'required|string|max:255',
-            'volume' => 'required|numeric|min:0',
-            'vehicle_registration' => 'required|string|max:255',
-            'depot_id' => 'nullable|exists:depots,id',
-            'city_id' => 'nullable|exists:cities,id',
-            'client_id' => 'nullable|exists:clients,id',
-            'compartment_id' => 'nullable|exists:compartments,id',
-            'client_name' => 'nullable|string|max:255',
-        ]);
+        $validated = $request->validated();
 
         if (empty($validated['depot_id'])) {
             $validated['depot_id'] = null;
@@ -99,11 +92,14 @@ class LoadController extends Controller
         $load = DB::transaction(function () use ($validated) {
             $load = Load::create($validated);
 
-            if (! empty($load->compartment_id)) {
-                $compartment = Compartment::find($load->compartment_id);
-                if ($compartment) {
-                    $compartment->decrement('quantity', (float) $load->volume);
+            $compartment = $this->resolveCompartment($load);
+
+            if ($compartment) {
+                if (empty($load->compartment_id)) {
+                    $load->update(['compartment_id' => $compartment->id]);
                 }
+
+                $this->stock->decrement($compartment->id, (float) $load->volume);
             }
 
             return $load;
@@ -112,20 +108,9 @@ class LoadController extends Controller
         return back()->with('message', 'Chargement créé avec succès');
     }
 
-    public function update(Request $request, Load $chargement)
+    public function update(LoadRequest $request, Load $chargement)
     {
-        $validated = $request->validate([
-            'load_date' => 'required|date',
-            'load_location' => 'nullable|string|max:255',
-            'product' => 'required|string|max:255',
-            'volume' => 'required|numeric|min:0',
-            'vehicle_registration' => 'required|string|max:255',
-            'depot_id' => 'nullable|exists:depots,id',
-            'city_id' => 'nullable|exists:cities,id',
-            'client_id' => 'nullable|exists:clients,id',
-            'compartment_id' => 'nullable|exists:compartments,id',
-            'client_name' => 'nullable|string|max:255',
-        ]);
+        $validated = $request->validated();
 
         if (empty($validated['depot_id'])) {
             $validated['depot_id'] = null;
@@ -141,33 +126,23 @@ class LoadController extends Controller
 
             $chargement->update($validated);
 
+            if (empty($chargement->compartment_id)) {
+                $resolvedCompartment = $this->resolveCompartment($chargement);
+                if ($resolvedCompartment) {
+                    $chargement->update(['compartment_id' => $resolvedCompartment->id]);
+                }
+            }
+
             $newVolume = (float) $chargement->volume;
             $newCompartmentId = $chargement->compartment_id;
 
             // Si le compartiment n'a pas changé, on ajuste la différence
             if ($oldCompartmentId == $newCompartmentId) {
-                if ($newCompartmentId) {
-                    $compartment = Compartment::find($newCompartmentId);
-                    if ($compartment) {
-                        $compartment->decrement('quantity', $newVolume - $oldVolume);
-                    }
-                }
+                $this->stock->decrement($newCompartmentId, $newVolume - $oldVolume);
             } else {
-                // Si le compartiment a changé
-                // 1. Restaurer dans l'ancien
-                if ($oldCompartmentId) {
-                    $oldCompartment = Compartment::find($oldCompartmentId);
-                    if ($oldCompartment) {
-                        $oldCompartment->increment('quantity', $oldVolume);
-                    }
-                }
-                // 2. Déduire du nouveau
-                if ($newCompartmentId) {
-                    $newCompartment = Compartment::find($newCompartmentId);
-                    if ($newCompartment) {
-                        $newCompartment->decrement('quantity', $newVolume);
-                    }
-                }
+                // Si le compartiment a changé : restaurer l'ancien, déduire du nouveau
+                $this->stock->increment($oldCompartmentId, $oldVolume);
+                $this->stock->decrement($newCompartmentId, $newVolume);
             }
 
             // Sync with invoice item if it exists
@@ -180,6 +155,26 @@ class LoadController extends Controller
         return back()->with('message', 'Chargement mis à jour avec succès');
     }
 
+    /**
+     * Résout le compartiment de stock associé à un chargement. Si aucun compartiment
+     * n'est explicitement renseigné, on le retrouve via le dépôt et le produit
+     * (ex: sélection manuelle du produit côté formulaire sans passer par le select du compartiment).
+     */
+    private function resolveCompartment(Load $load): ?Compartment
+    {
+        if (! empty($load->compartment_id)) {
+            return Compartment::find($load->compartment_id);
+        }
+
+        if (empty($load->depot_id)) {
+            return null;
+        }
+
+        return Compartment::where('depot_id', $load->depot_id)
+            ->where('product', $load->product)
+            ->first();
+    }
+
     public function destroy(Load $chargement)
     {
         DB::transaction(function () use ($chargement) {
@@ -188,12 +183,7 @@ class LoadController extends Controller
 
             $chargement->delete();
 
-            if ($compartmentId) {
-                $compartment = Compartment::find($compartmentId);
-                if ($compartment) {
-                    $compartment->increment('quantity', $volume);
-                }
-            }
+            $this->stock->increment($compartmentId, $volume);
         });
 
         return back()->with('message', 'Chargement supprimé avec succès');
@@ -201,7 +191,7 @@ class LoadController extends Controller
 
     public function downloadPdf(Request $request)
     {
-        $query = Load::whereIn('status', [LoadStatus::EN_COURS, LoadStatus::LIVRE_PARTIELLEMENT])
+        $query = Load::whereIn('status', LoadStatus::activeLoads())
             ->with(['depot', 'city', 'client', 'compartment']);
 
         if ($request->filled('product')) {

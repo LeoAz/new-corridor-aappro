@@ -54,48 +54,10 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { SimpleAutocomplete } from '@/components/ui/simple-autocomplete';
+import { LOAD_STATUS } from '@/lib/load-status';
 import { cn, formatNumber } from '@/lib/utils';
 import * as operations from '@/routes/operations';
-
-interface Client {
-    id: number;
-    nom: string;
-}
-
-interface Depot {
-    name: string;
-}
-
-interface Compartment {
-    product: string;
-}
-
-interface PartialDelivery {
-    id: number;
-    invoice_number: string;
-    invoice_date: string;
-    client_name: string;
-    quantity: number;
-}
-
-interface Load {
-    id: number;
-    load_date: string;
-    load_location: string | null;
-    product: string;
-    volume: number;
-    vehicle_registration: string;
-    unload_date: string;
-    unload_location: string;
-    status: string;
-    unit_price?: number | null;
-    remaining_quantity?: number;
-    partial_deliveries?: PartialDelivery[];
-    client_id: number | null;
-    client: Client | null;
-    depot?: Depot | null;
-    compartment?: Compartment | null;
-}
+import type { Client, Load } from '@/types';
 
 interface StatByProduct {
     product: string;
@@ -232,13 +194,13 @@ export default function Livraisons({
                         <div
                             className={cn(
                                 'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold',
-                                status === 'FACTURER ET PAYER'
+                                status === LOAD_STATUS.PAYE
                                     ? 'bg-green-100 text-green-800'
-                                    : status === 'FACTURER'
+                                    : status === LOAD_STATUS.FACTURER
                                       ? 'bg-orange-100 text-orange-800'
-                                      : status === 'LIVRE PARTIELLEMENT'
+                                      : status === LOAD_STATUS.LIVRE_PARTIELLEMENT
                                         ? 'bg-violet-100 text-violet-800'
-                                      : status === 'LIVRER'
+                                      : status === LOAD_STATUS.LIVRER
                                         ? 'bg-blue-100 text-blue-800'
                                         : 'bg-gray-100 text-gray-800',
                             )}

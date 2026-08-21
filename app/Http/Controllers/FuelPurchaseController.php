@@ -2,9 +2,9 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Compartment;
 use App\Models\Depot;
 use App\Models\FuelPurchase;
+use App\Services\StockAdjustmentService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -13,6 +13,8 @@ use Inertia\Response;
 
 class FuelPurchaseController extends Controller
 {
+    public function __construct(private readonly StockAdjustmentService $stock) {}
+
     public function index(Request $request): Response
     {
         $query = FuelPurchase::with(['depot', 'compartment']);
@@ -53,10 +55,7 @@ class FuelPurchaseController extends Controller
         DB::transaction(function () use ($validated) {
             $purchase = FuelPurchase::create($validated);
 
-            $compartment = Compartment::find($purchase->compartment_id);
-            if ($compartment) {
-                $compartment->increment('quantity', (float) $purchase->quantity);
-            }
+            $this->stock->increment($purchase->compartment_id, (float) $purchase->quantity);
         });
 
         return back()->with('message', 'Achat de carburant enregistré avec succès');
@@ -84,21 +83,11 @@ class FuelPurchaseController extends Controller
             $newCompartmentId = $achat_carburant->compartment_id;
 
             if ($oldCompartmentId == $newCompartmentId) {
-                $compartment = Compartment::find($newCompartmentId);
-                if ($compartment) {
-                    $compartment->increment('quantity', $newQuantity - $oldQuantity);
-                }
+                $this->stock->increment($newCompartmentId, $newQuantity - $oldQuantity);
             } else {
-                // 1. Déduire de l'ancien
-                $oldCompartment = Compartment::find($oldCompartmentId);
-                if ($oldCompartment) {
-                    $oldCompartment->decrement('quantity', $oldQuantity);
-                }
-                // 2. Ajouter au nouveau
-                $newCompartment = Compartment::find($newCompartmentId);
-                if ($newCompartment) {
-                    $newCompartment->increment('quantity', $newQuantity);
-                }
+                // 1. Déduire de l'ancien, 2. Ajouter au nouveau
+                $this->stock->decrement($oldCompartmentId, $oldQuantity);
+                $this->stock->increment($newCompartmentId, $newQuantity);
             }
         });
 
@@ -113,10 +102,7 @@ class FuelPurchaseController extends Controller
 
             $achat_carburant->delete();
 
-            $compartment = Compartment::find($compartmentId);
-            if ($compartment) {
-                $compartment->decrement('quantity', $quantity);
-            }
+            $this->stock->decrement($compartmentId, $quantity);
         });
 
         return back()->with('message', 'Achat de carburant supprimé avec succès');

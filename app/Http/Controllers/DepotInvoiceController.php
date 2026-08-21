@@ -3,10 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Models\Client;
-use App\Models\Compartment;
 use App\Models\Depot;
 use App\Models\DepotInvoice;
 use App\Models\DepotInvoiceItem;
+use App\Services\StockAdjustmentService;
 use BaconQrCode\Renderer\Image\SvgImageBackEnd;
 use BaconQrCode\Renderer\ImageRenderer;
 use BaconQrCode\Renderer\RendererStyle\RendererStyle;
@@ -18,6 +18,8 @@ use Inertia\Inertia;
 
 class DepotInvoiceController extends Controller
 {
+    public function __construct(private readonly StockAdjustmentService $stock) {}
+
     public function downloadPdf($id)
     {
         $invoice = DepotInvoice::with(['client', 'depot', 'items.compartment'])->findOrFail($id);
@@ -151,8 +153,7 @@ class DepotInvoiceController extends Controller
                 ]);
 
                 // Decrement stock in compartment
-                $compartment = Compartment::lockForUpdate()->find($item['compartment_id']);
-                $compartment->decrement('quantity', $item['quantity']);
+                $this->stock->decrement($item['compartment_id'], (float) $item['quantity']);
             }
 
             if ($request->query('redirect_back') === 'suivi-client') {
@@ -185,7 +186,7 @@ class DepotInvoiceController extends Controller
         return DB::transaction(function () use ($validated, $invoice, $request) {
             // Restore old quantities to compartments
             foreach ($invoice->items as $oldItem) {
-                Compartment::where('id', $oldItem->compartment_id)->increment('quantity', $oldItem->quantity);
+                $this->stock->increment($oldItem->compartment_id, (float) $oldItem->quantity);
             }
 
             $invoice->update([
@@ -218,7 +219,7 @@ class DepotInvoiceController extends Controller
                 }
 
                 // Apply new quantities
-                Compartment::where('id', $item['compartment_id'])->decrement('quantity', $item['quantity']);
+                $this->stock->decrement($item['compartment_id'], (float) $item['quantity']);
             }
 
             // Remove items that are no longer in the list
@@ -242,7 +243,7 @@ class DepotInvoiceController extends Controller
         return DB::transaction(function () use ($invoice, $request) {
             $clientId = $invoice->client_id;
             foreach ($invoice->items as $item) {
-                Compartment::where('id', $item->compartment_id)->increment('quantity', $item->quantity);
+                $this->stock->increment($item->compartment_id, (float) $item->quantity);
             }
 
             $invoice->delete();

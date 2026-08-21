@@ -22,18 +22,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import AppLayout from '@/layouts/app-layout';
 import { cn, formatNumber, toUrl } from '@/lib/utils';
 import * as stocksActions from '@/routes/stocks';
-
-interface Compartment {
-    id: number;
-    product: string;
-    quantity: number;
-}
-
-interface Depot {
-    id: number;
-    name: string;
-    compartments: Compartment[];
-}
+import type { Compartment, Depot, Load } from '@/types';
 
 interface Purchase {
     id: number;
@@ -43,17 +32,6 @@ interface Purchase {
     unit_price: number;
     total_price: number;
     compartment: Compartment;
-}
-
-interface Load {
-    id: number;
-    load_date: string;
-    vehicle_registration: string;
-    product: string;
-    volume: number;
-    client: { nom: string };
-    compartment: Compartment;
-    status: string;
 }
 
 interface DepotSale {
@@ -404,7 +382,7 @@ export default function SuiviStock({ depots, selectedDepot, purchases, chargemen
                                         >
                                             {compartmentId === 'all'
                                                 ? "Tous les produits"
-                                                : selectedDepot?.compartments.find(c => c.id.toString() === compartmentId)?.product || "Tous les produits"}
+                                                : (selectedDepot?.compartments ?? []).find(c => c.id.toString() === compartmentId)?.product || "Tous les produits"}
                                             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                         </Button>
                                     </PopoverTrigger>
@@ -426,7 +404,7 @@ export default function SuiviStock({ depots, selectedDepot, purchases, chargemen
                                                         />
                                                         Tous les produits
                                                     </CommandItem>
-                                                    {selectedDepot?.compartments.map((comp) => (
+                                                    {(selectedDepot?.compartments ?? []).map((comp) => (
                                                         <CommandItem
                                                             key={comp.id}
                                                             value={comp.product}
@@ -519,7 +497,7 @@ export default function SuiviStock({ depots, selectedDepot, purchases, chargemen
                         {activeTab === 'situation' && (
                             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
                                 <div className="grid gap-4 md:grid-cols-3">
-                                    {selectedDepot.compartments
+                                    {(selectedDepot.compartments ?? [])
                                         .filter(comp => compartmentId === 'all' || comp.id.toString() === compartmentId)
                                         .map((comp) => (
                                             <Card key={comp.id} className={cn(

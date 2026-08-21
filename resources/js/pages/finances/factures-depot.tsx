@@ -47,23 +47,7 @@ import {
 } from '@/components/ui/select';
 import { cn, formatNumber } from '@/lib/utils';
 import * as finances from '@/routes/finances';
-
-interface Compartment {
-    id: number;
-    product: string;
-    quantity: number;
-}
-
-interface Depot {
-    id: number;
-    name: string;
-    compartments: Compartment[];
-}
-
-interface Client {
-    id: number;
-    nom: string;
-}
+import type { Client, Depot } from '@/types';
 
 interface InvoiceItem {
     id?: number;
@@ -540,7 +524,7 @@ export default function FacturesDepot({
                                                         <SelectValue placeholder="Produit" />
                                                     </SelectTrigger>
                                                     <SelectContent>
-                                                        {currentDepot?.compartments.map(
+                                                        {(currentDepot?.compartments ?? []).map(
                                                             (c) => (
                                                                 <SelectItem
                                                                     key={c.id}

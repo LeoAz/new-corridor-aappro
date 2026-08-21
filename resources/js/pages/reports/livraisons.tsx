@@ -13,19 +13,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { LOAD_STATUS } from '@/lib/load-status';
 import { cn, formatNumber, toUrl } from '@/lib/utils';
 import * as reportsActions from '@/routes/rapports';
+import type { Load } from '@/types';
 
-interface Load {
-    id: number;
+interface DeliveredLoad extends Load {
     unload_date: string;
     unload_location: string;
-    product: string;
-    volume: number;
-    vehicle_registration: string;
-    status: string;
-    client: { id: number; nom: string };
-    depot: { id: number; name: string };
 }
 
 interface Stats {
@@ -35,7 +30,7 @@ interface Stats {
 }
 
 interface Props {
-    loads: Load[];
+    loads: DeliveredLoad[];
     stats: Stats;
     clients: { id: number; nom: string }[];
     filters: {
@@ -54,7 +49,7 @@ export default function ReportLivraisons({ loads = [], stats = { total_trucks: 0
     const [unloadLocation, setUnloadLocation] = useState<string>(filters?.unload_location || '');
     const [clientId, setClientId] = useState<string>(filters?.client_id || 'all');
 
-    const columns = useMemo<ColumnDef<Load>[]>(() => [
+    const columns = useMemo<ColumnDef<DeliveredLoad>[]>(() => [
         {
             accessorKey: 'unload_date',
             header: 'Date',
@@ -81,9 +76,9 @@ export default function ReportLivraisons({ loads = [], stats = { total_trucks: 0
             cell: ({ row }) => (
                 <span className={cn(
                     "rounded-full px-2 py-0.5 text-[10px] font-bold",
-                    row.original.status === 'FACTURER ET PAYER' ? 'bg-green-100 text-green-700' :
-                    row.original.status === 'FACTURER' ? 'bg-orange-100 text-orange-700' :
-                    row.original.status === 'LIVRER' ? 'bg-blue-100 text-blue-700' :
+                    row.original.status === LOAD_STATUS.PAYE ? 'bg-green-100 text-green-700' :
+                    row.original.status === LOAD_STATUS.FACTURER ? 'bg-orange-100 text-orange-700' :
+                    row.original.status === LOAD_STATUS.LIVRER ? 'bg-blue-100 text-blue-700' :
                     'bg-slate-100 text-slate-700'
                 )}>
                     {row.original.status}

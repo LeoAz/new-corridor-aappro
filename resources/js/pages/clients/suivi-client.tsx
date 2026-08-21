@@ -61,6 +61,7 @@ import {
     SheetTitle,
 } from '@/components/ui/sheet';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { LOAD_STATUS } from '@/lib/load-status';
 import { cn, formatNumber } from '@/lib/utils';
 import tracking from '@/routes/clients/suivi-client';
 import * as finances from '@/routes/finances';
@@ -247,7 +248,7 @@ export default function SuiviClient({
     );
     const unpaidLoads = loads.filter(
         (load) =>
-            load.status === 'FACTURER' || load.status === 'LIVRE PARTIELLEMENT',
+            load.status === LOAD_STATUS.FACTURER || load.status === LOAD_STATUS.LIVRE_PARTIELLEMENT,
     ).length;
 
     const paymentForm = useForm({
@@ -1262,7 +1263,7 @@ export default function SuiviClient({
                         checked={row.getIsSelected()}
                         onCheckedChange={(value) => row.toggleSelected(!!value)}
                         aria-label="Sélectionner la ligne"
-                        disabled={row.original.status !== 'FACTURER' && row.original.status !== 'LIVRE PARTIELLEMENT'}
+                        disabled={row.original.status !== LOAD_STATUS.FACTURER && row.original.status !== LOAD_STATUS.LIVRE_PARTIELLEMENT}
                     />
                 ),
                 enableSorting: false,
@@ -1315,15 +1316,15 @@ export default function SuiviClient({
                         'outline' | 'default' | 'secondary' | 'destructive' =
                         'outline';
 
-                    if (status === 'FACTURER ET PAYER') {
+                    if (status === LOAD_STATUS.PAYE) {
                         variant = 'default';
                     }
 
-                    if (status === 'FACTURER') {
+                    if (status === LOAD_STATUS.FACTURER) {
                         variant = 'secondary';
                     }
 
-                    if (status === 'LIVRE PARTIELLEMENT') {
+                    if (status === LOAD_STATUS.LIVRE_PARTIELLEMENT) {
                         variant = 'outline';
                     }
 
@@ -1336,7 +1337,7 @@ export default function SuiviClient({
                 cell: ({ row }) => {
                     const load = row.original;
 
-                    if (load.status !== 'FACTURER ET PAYER') {
+                    if (load.status !== LOAD_STATUS.PAYE) {
                         return null;
                     }
 
@@ -1784,14 +1785,14 @@ export default function SuiviClient({
                                                 <SelectItem value="all">
                                                     Tous les statuts
                                                 </SelectItem>
-                                                <SelectItem value="FACTURER">
-                                                    FACTURER
+                                                <SelectItem value={LOAD_STATUS.FACTURER}>
+                                                    {LOAD_STATUS.FACTURER}
                                                 </SelectItem>
-                                                <SelectItem value="LIVRE PARTIELLEMENT">
-                            LIVRE PARTIELLEMENT
-                          </SelectItem>
-                                                <SelectItem value="FACTURER ET PAYER">
-                                                    FACTURER ET PAYER
+                                                <SelectItem value={LOAD_STATUS.LIVRE_PARTIELLEMENT}>
+                                                    {LOAD_STATUS.LIVRE_PARTIELLEMENT}
+                                                </SelectItem>
+                                                <SelectItem value={LOAD_STATUS.PAYE}>
+                                                    {LOAD_STATUS.PAYE}
                                                 </SelectItem>
                                             </SelectContent>
                                         </Select>

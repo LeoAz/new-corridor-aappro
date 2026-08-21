@@ -12,21 +12,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { LOAD_STATUS } from '@/lib/load-status';
 import { cn, formatNumber, toUrl } from '@/lib/utils';
 import * as reportsActions from '@/routes/rapports';
-
-interface Load {
-    id: number;
-    load_date: string;
-    load_location: string;
-    product: string;
-    volume: number;
-    remaining_quantity: number;
-    status: string;
-    vehicle_registration: string;
-    client: { id: number; nom: string };
-    depot: { id: number; name: string };
-}
+import type { Load } from '@/types';
 
 interface Stats {
     total_trucks: number;
@@ -93,16 +82,16 @@ export default function ReportChargements({ loads, stats, filters }: Props) {
             cell: ({ row }) => (
                 <div className="text-right font-bold">
                     <div>{formatNumber(row.original.volume)} L</div>
-                    {row.original.status === 'LIVRE PARTIELLEMENT' && (
+                    {row.original.status === LOAD_STATUS.LIVRE_PARTIELLEMENT && (
                         <div className="text-[10px] text-orange-600">Reste: {formatNumber(row.original.remaining_quantity)} L</div>
                     )}
-                    {row.original.status === 'FACTURER ET PAYER' && (
+                    {row.original.status === LOAD_STATUS.PAYE && (
                         <div className="text-[10px] text-green-600">PAYÉ</div>
                     )}
-                    {row.original.status === 'FACTURER' && (
+                    {row.original.status === LOAD_STATUS.FACTURER && (
                         <div className="text-[10px] text-blue-600">FACTURÉ</div>
                     )}
-                    {row.original.status === 'TOTALEMENT LIVRER' && (
+                    {row.original.status === LOAD_STATUS.TOTALEMENT_LIVRE && (
                         <div className="text-[10px] text-green-600 font-bold italic">LIVRÉ</div>
                     )}
                 </div>

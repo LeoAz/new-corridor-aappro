@@ -42,19 +42,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn, formatNumber } from '@/lib/utils';
 import * as achatCarburant from '@/routes/finances/achat-carburant';
-
-interface Compartment {
-    id: number;
-    product: string;
-    depot_id: number;
-    quantity: number;
-}
-
-interface Depot {
-    id: number;
-    name: string;
-    compartments?: Compartment[];
-}
+import type { Compartment, Depot } from '@/types';
 
 interface FuelPurchase {
     id: number;

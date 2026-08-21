@@ -14,29 +14,20 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn, formatNumber, toUrl } from '@/lib/utils';
 import * as reportsActions from '@/routes/rapports';
+import type { Client, Depot } from '@/types';
 
 interface Invoice {
     id: number;
     number: string;
     date: string;
     total_amount: number;
-    client: { id: number; nom: string };
-    depot: { id: number; name: string };
+    client: Client;
+    depot: Depot;
 }
 
 interface Stats {
     total_amount: number;
     total_invoices: number;
-}
-
-interface Client {
-    id: number;
-    nom: string;
-}
-
-interface Depot {
-    id: number;
-    name: string;
 }
 
 interface Props {

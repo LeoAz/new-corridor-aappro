@@ -8,19 +8,12 @@ import type { DateRange } from 'react-day-picker';
 import { toast } from 'sonner';
 
 import AlertError from '@/components/alert-error';
+import CompartmentProductSelect from '@/components/compartment-product-select';
+import DepotCombobox from '@/components/depot-combobox';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Card } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
-
-import {
-    Command,
-    CommandEmpty,
-    CommandGroup,
-    CommandInput,
-    CommandItem,
-    CommandList,
-} from '@/components/ui/command';
 import { DataTable } from '@/components/ui/data-table';
 import {
     Dialog,
@@ -42,50 +35,10 @@ import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { SimpleAutocomplete } from '@/components/ui/simple-autocomplete';
+import { LOAD_STATUS } from '@/lib/load-status';
 import { cn, formatNumber } from '@/lib/utils';
 import * as operations from '@/routes/operations';
-
-interface City {
-    id: number;
-    name: string;
-}
-
-interface Client {
-    id: number;
-    nom: string;
-}
-
-interface Compartment {
-    id: number;
-    product: string;
-    depot_id: number | null;
-}
-
-interface Depot {
-    id: number;
-    name: string;
-    compartments?: Compartment[];
-}
-
-interface Load {
-    id: number;
-    load_date: string;
-    load_location: string;
-    product: string;
-    volume: number;
-    vehicle_registration: string;
-    depot_id: number | null;
-    city_id: number | null;
-    client_id: number | null;
-    compartment_id: number | null;
-    client_name: string | null;
-    status: string;
-    remaining_quantity: number;
-    depot: Depot;
-    city: City | null;
-    client: Client | null;
-    compartment: Compartment | null;
-}
+import type { City, Client, Compartment, Depot, Load } from '@/types';
 
 interface StatByProduct {
     product: string;
@@ -121,8 +74,6 @@ export default function Chargements({ loads, depots, cities, clients, filters, d
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [isDeliverModalOpen, setIsDeliverModalOpen] = useState(false);
     const [selectedLoad, setSelectedLoad] = useState<Load | null>(null);
-
-    const [isDepotComboboxOpen, setIsDepotComboboxOpen] = useState(false);
 
     const initialDateRange: DateRange | undefined = useMemo(() => {
         if (filters.date_from && filters.date_to) {
@@ -215,7 +166,7 @@ export default function Chargements({ loads, depots, cities, clients, filters, d
                 cell: ({ row }) => (
                     <div className="flex flex-col">
                         <span>{formatNumber(row.original.volume)}</span>
-                        {(row.original.status === 'LIVRE PARTIELLEMENT' || row.original.status === 'EN COURS') && (
+                        {(row.original.status === LOAD_STATUS.LIVRE_PARTIELLEMENT || row.original.status === LOAD_STATUS.EN_COURS) && (
                             <span className="text-xs font-bold text-orange-600">
                                 Reste: {formatNumber(row.original.remaining_quantity)}
                             </span>
@@ -555,7 +506,6 @@ export default function Chargements({ loads, depots, cities, clients, filters, d
                                     align="start"
                                 >
                                     <Calendar
-                                        initialFocus
                                         mode="range"
                                         defaultMonth={
                                             localFilters.dateRange?.from
@@ -617,7 +567,6 @@ export default function Chargements({ loads, depots, cities, clients, filters, d
                                                                 checked={localFilters.load_locations.includes(
                                                                     location,
                                                                 )}
-                                                                readOnly
                                                             />
                                                             <span className="text-sm">
                                                                 {location}
@@ -781,7 +730,6 @@ export default function Chargements({ loads, depots, cities, clients, filters, d
                                                             : '',
                                                     )
                                                 }
-                                                initialFocus
                                                 locale={fr}
                                             />
                                         </PopoverContent>
@@ -816,174 +764,36 @@ export default function Chargements({ loads, depots, cities, clients, filters, d
                             </div>
 
                             <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                                <div className="space-y-2">
-                                    <Label htmlFor="depot_id">Dépôt</Label>
-                                    <Popover
-                                        open={isDepotComboboxOpen}
-                                        onOpenChange={setIsDepotComboboxOpen}
-                                    >
-                                        <PopoverTrigger asChild>
-                                            <Button
-                                                variant="outline"
-                                                role="combobox"
-                                                aria-expanded={
-                                                    isDepotComboboxOpen
-                                                }
-                                                className="w-full justify-between"
-                                            >
-                                                {data.depot_id
-                                                    ? depots.find(
-                                                          (d) =>
-                                                              d.id?.toString() ===
-                                                              data.depot_id?.toString(),
-                                                      )?.name
-                                                    : 'Sélectionner un dépôt (facultatif)...'}
-                                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                            </Button>
-                                        </PopoverTrigger>
-                                        <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
-                                            <Command>
-                                                <CommandInput placeholder="Rechercher un dépôt..." />
-                                                <CommandList>
-                                                    <CommandEmpty>
-                                                        Aucun dépôt trouvé.
-                                                    </CommandEmpty>
-                                                    <CommandGroup>
-                                                        <CommandItem
-                                                            value="none"
-                                                            onSelect={() => {
-                                                                setData(
-                                                                    (
-                                                                        prev,
-                                                                    ) => ({
-                                                                        ...prev,
-                                                                        depot_id:
-                                                                            '',
-                                                                        compartment_id:
-                                                                            '',
-                                                                    }),
-                                                                );
-                                                                setIsDepotComboboxOpen(
-                                                                    false,
-                                                                );
-                                                            }}
-                                                        >
-                                                            <Check
-                                                                className={cn(
-                                                                    'mr-2 h-4 w-4',
-                                                                    !data.depot_id
-                                                                        ? 'opacity-100'
-                                                                        : 'opacity-0',
-                                                                )}
-                                                            />
-                                                            Aucun dépôt
-                                                        </CommandItem>
-                                                        {depots.map((depot) => (
-                                                            <CommandItem
-                                                                key={depot.id}
-                                                                value={
-                                                                    depot.name
-                                                                }
-                                                                keywords={[
-                                                                    depot.name,
-                                                                ]}
-                                                                onSelect={() => {
-                                                                    setData(
-                                                                        (
-                                                                            prev,
-                                                                        ) => ({
-                                                                            ...prev,
-                                                                            depot_id:
-                                                                                depot.id.toString(),
-                                                                            compartment_id:
-                                                                                '',
-                                                                            product:
-                                                                                '',
-                                                                        }),
-                                                                    );
-                                                                    setIsDepotComboboxOpen(
-                                                                        false,
-                                                                    );
-                                                                }}
-                                                            >
-                                                                <Check
-                                                                    className={cn(
-                                                                        'mr-2 h-4 w-4',
-                                                                        data.depot_id?.toString() ===
-                                                                            depot.id?.toString()
-                                                                            ? 'opacity-100'
-                                                                            : 'opacity-0',
-                                                                    )}
-                                                                />
-                                                                {depot.name}
-                                                            </CommandItem>
-                                                        ))}
-                                                    </CommandGroup>
-                                                </CommandList>
-                                            </Command>
-                                        </PopoverContent>
-                                    </Popover>
-                                    {errors.depot_id && (
-                                        <p className="text-sm text-destructive">
-                                            {errors.depot_id}
-                                        </p>
-                                    )}
-                                </div>
+                                <DepotCombobox
+                                    id="depot_id"
+                                    depots={depots}
+                                    value={data.depot_id}
+                                    onChange={(depotId) =>
+                                        setData((prev) => ({
+                                            ...prev,
+                                            depot_id: depotId,
+                                            compartment_id: '',
+                                            product: '',
+                                        }))
+                                    }
+                                    error={errors.depot_id}
+                                />
 
-                                <div className="space-y-2">
-                                    <Label htmlFor="compartment_id">
-                                        Produit (Compartiment)
-                                    </Label>
-                                    <Select
-                                        value={data.compartment_id}
-                                        onValueChange={(v) => {
-                                            const comp =
-                                                selectedDepot?.compartments?.find(
-                                                    (c) =>
-                                                        c.id?.toString() === v,
-                                                );
-                                            setData((prev) => ({
-                                                ...prev,
-                                                compartment_id: v.startsWith('manual:') ? '' : v,
-                                                product: comp?.product || v.replace('manual:', ''),
-                                            }));
-                                        }}
-                                    >
-                                        <SelectTrigger>
-                                            <SelectValue
-                                                placeholder="Sélectionner un produit"
-                                            />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {data.depot_id ? (
-                                                selectedDepot?.compartments?.map(
-                                                    (comp) => (
-                                                        <SelectItem
-                                                            key={comp.id}
-                                                            value={comp.id?.toString() || ''}
-                                                        >
-                                                            {comp.product}
-                                                        </SelectItem>
-                                                    ),
-                                                )
-                                            ) : (
-                                                allProducts.map((product) => (
-                                                    <SelectItem
-                                                        key={product}
-                                                        value={`manual:${product}`}
-                                                    >
-                                                        {product}
-                                                    </SelectItem>
-                                                ))
-                                            )}
-                                        </SelectContent>
-                                    </Select>
-                                    {errors.compartment_id && (
-                                        <p className="text-sm text-destructive">
-                                            {errors.compartment_id}
-                                        </p>
-                                    )}
-                                </div>
+                                <CompartmentProductSelect
+                                    id="compartment_id"
+                                    selectedDepot={selectedDepot}
+                                    hasDepot={!!data.depot_id}
+                                    allProducts={allProducts}
+                                    value={data.compartment_id}
+                                    onChange={(compartmentId, product) =>
+                                        setData((prev) => ({
+                                            ...prev,
+                                            compartment_id: compartmentId,
+                                            product,
+                                        }))
+                                    }
+                                    error={errors.compartment_id}
+                                />
                             </div>
 
                             <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
@@ -1146,7 +956,6 @@ export default function Chargements({ loads, depots, cities, clients, filters, d
                                                             : '',
                                                     )
                                                 }
-                                                initialFocus
                                                 locale={fr}
                                             />
                                         </PopoverContent>
@@ -1211,176 +1020,38 @@ export default function Chargements({ loads, depots, cities, clients, filters, d
                                         </p>
                                     )}
                                 </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="edit_depot_id">Dépôt</Label>
-                                    <Popover
-                                        open={isDepotComboboxOpen}
-                                        onOpenChange={setIsDepotComboboxOpen}
-                                    >
-                                        <PopoverTrigger asChild>
-                                            <Button
-                                                variant="outline"
-                                                role="combobox"
-                                                aria-expanded={
-                                                    isDepotComboboxOpen
-                                                }
-                                                className="w-full justify-between"
-                                            >
-                                                {data.depot_id
-                                                    ? depots.find(
-                                                          (d) =>
-                                                              d.id?.toString() ===
-                                                              data.depot_id?.toString(),
-                                                      )?.name
-                                                    : 'Sélectionner un dépôt (facultatif)...'}
-                                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                            </Button>
-                                        </PopoverTrigger>
-                                        <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
-                                            <Command>
-                                                <CommandInput placeholder="Rechercher un dépôt..." />
-                                                <CommandList>
-                                                    <CommandEmpty>
-                                                        Aucun dépôt trouvé.
-                                                    </CommandEmpty>
-                                                    <CommandGroup>
-                                                        <CommandItem
-                                                            value="none"
-                                                            onSelect={() => {
-                                                                setData(
-                                                                    (
-                                                                        prev,
-                                                                    ) => ({
-                                                                        ...prev,
-                                                                        depot_id:
-                                                                            '',
-                                                                        compartment_id:
-                                                                            '',
-                                                                    }),
-                                                                );
-                                                                setIsDepotComboboxOpen(
-                                                                    false,
-                                                                );
-                                                            }}
-                                                        >
-                                                            <Check
-                                                                className={cn(
-                                                                    'mr-2 h-4 w-4',
-                                                                    !data.depot_id
-                                                                        ? 'opacity-100'
-                                                                        : 'opacity-0',
-                                                                )}
-                                                            />
-                                                            Aucun dépôt
-                                                        </CommandItem>
-                                                        {depots.map((depot) => (
-                                                            <CommandItem
-                                                                key={depot.id}
-                                                                value={
-                                                                    depot.name
-                                                                }
-                                                                keywords={[
-                                                                    depot.name,
-                                                                ]}
-                                                                onSelect={() => {
-                                                                    setData(
-                                                                        (
-                                                                            prev,
-                                                                        ) => ({
-                                                                            ...prev,
-                                                                            depot_id:
-                                                                                depot.id.toString(),
-                                                                            compartment_id:
-                                                                                '',
-                                                                            product:
-                                                                                '',
-                                                                        }),
-                                                                    );
-                                                                    setIsDepotComboboxOpen(
-                                                                        false,
-                                                                    );
-                                                                }}
-                                                            >
-                                                                <Check
-                                                                    className={cn(
-                                                                        'mr-2 h-4 w-4',
-                                                                        data.depot_id?.toString() ===
-                                                                            depot.id?.toString()
-                                                                            ? 'opacity-100'
-                                                                            : 'opacity-0',
-                                                                    )}
-                                                                />
-                                                                {depot.name}
-                                                            </CommandItem>
-                                                        ))}
-                                                    </CommandGroup>
-                                                </CommandList>
-                                            </Command>
-                                        </PopoverContent>
-                                    </Popover>
-                                    {errors.depot_id && (
-                                        <p className="text-sm text-destructive">
-                                            {errors.depot_id}
-                                        </p>
-                                    )}
-                                </div>
+                                <DepotCombobox
+                                    id="edit_depot_id"
+                                    depots={depots}
+                                    value={data.depot_id}
+                                    onChange={(depotId) =>
+                                        setData((prev) => ({
+                                            ...prev,
+                                            depot_id: depotId,
+                                            compartment_id: '',
+                                            product: '',
+                                        }))
+                                    }
+                                    error={errors.depot_id}
+                                />
                             </div>
 
                             <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                                <div className="space-y-2">
-                                    <Label htmlFor="edit_compartment_id">
-                                        Produit (Compartiment)
-                                    </Label>
-                                    <Select
-                                        value={data.compartment_id}
-                                        onValueChange={(v) => {
-                                            const comp =
-                                                selectedDepot?.compartments?.find(
-                                                    (c) =>
-                                                        c.id?.toString() === v,
-                                                );
-                                            setData((prev) => ({
-                                                ...prev,
-                                                compartment_id: v.startsWith('manual:') ? '' : v,
-                                                product: comp?.product || v.replace('manual:', ''),
-                                            }));
-                                        }}
-                                    >
-                                        <SelectTrigger>
-                                            <SelectValue
-                                                placeholder="Sélectionner un produit"
-                                            />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {data.depot_id ? (
-                                                selectedDepot?.compartments?.map(
-                                                    (comp) => (
-                                                        <SelectItem
-                                                            key={comp.id}
-                                                            value={comp.id?.toString() || ''}
-                                                        >
-                                                            {comp.product}
-                                                        </SelectItem>
-                                                    ),
-                                                )
-                                            ) : (
-                                                allProducts.map((product) => (
-                                                    <SelectItem
-                                                        key={product}
-                                                        value={`manual:${product}`}
-                                                    >
-                                                        {product}
-                                                    </SelectItem>
-                                                ))
-                                            )}
-                                        </SelectContent>
-                                    </Select>
-                                    {errors.compartment_id && (
-                                        <p className="text-sm text-destructive">
-                                            {errors.compartment_id}
-                                        </p>
-                                    )}
-                                </div>
+                                <CompartmentProductSelect
+                                    id="edit_compartment_id"
+                                    selectedDepot={selectedDepot}
+                                    hasDepot={!!data.depot_id}
+                                    allProducts={allProducts}
+                                    value={data.compartment_id}
+                                    onChange={(compartmentId, product) =>
+                                        setData((prev) => ({
+                                            ...prev,
+                                            compartment_id: compartmentId,
+                                            product,
+                                        }))
+                                    }
+                                    error={errors.compartment_id}
+                                />
                                 <div className="space-y-2">
                                     <Label htmlFor="edit_volume">Volume</Label>
                                     <Input
@@ -1571,7 +1242,6 @@ export default function Chargements({ loads, depots, cities, clients, filters, d
                                                         : '',
                                                 )
                                             }
-                                            initialFocus
                                             locale={fr}
                                         />
                                     </PopoverContent>
@@ -1644,7 +1314,7 @@ export default function Chargements({ loads, depots, cities, clients, filters, d
                                     step="0.01"
                                     value={data.volume}
                                     onChange={(e) =>
-                                        setData('volume', e.target.value)
+                                        setData('volume', parseFloat(e.target.value))
                                     }
                                 />
                                 {errors.volume && (

@@ -4,9 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Enums\LoadStatus;
 use App\Models\Client;
-use App\Models\Compartment;
 use App\Models\InvoiceItem;
 use App\Models\Load;
+use App\Services\StockAdjustmentService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -14,6 +14,8 @@ use Inertia\Inertia;
 
 class DeliveryController extends Controller
 {
+    public function __construct(private readonly StockAdjustmentService $stock) {}
+
     public function index(Request $request)
     {
         $status = $request->input('status');
@@ -28,7 +30,7 @@ class DeliveryController extends Controller
                 $query = Load::where('status', $status);
             }
         } else {
-            $query = Load::whereIn('status', [LoadStatus::LIVRER, LoadStatus::LIVRE_PARTIELLEMENT, LoadStatus::FACTURER, LoadStatus::PAYE]);
+            $query = Load::whereIn('status', LoadStatus::deliveryTracking());
         }
 
         $query->with(['depot', 'city', 'client', 'compartment', 'invoiceItems.invoice.client']);
@@ -59,11 +61,7 @@ class DeliveryController extends Controller
         if ($request->wantsJson()) {
             if ($invoiceable) {
                 $deliveries = $deliveries
-                    ->filter(fn (Load $load) => in_array($load->status, [
-                        LoadStatus::LIVRER,
-                        LoadStatus::FACTURER,
-                        LoadStatus::PAYE,
-                    ]))
+                    ->filter(fn (Load $load) => in_array($load->status, LoadStatus::deliveredForInvoicing()))
                     ->values();
             }
 
@@ -192,13 +190,8 @@ class DeliveryController extends Controller
 
             $newVolume = (float) $livraison->volume;
 
-            // If the volume of a delivery is updated, we adjust the stock via its compartment.
-            if ($compartmentId && $oldVolume != $newVolume) {
-                $compartment = Compartment::find($compartmentId);
-                if ($compartment) {
-                    $compartment->decrement('quantity', $newVolume - $oldVolume);
-                }
-            }
+            // Si le volume de la livraison change, on ajuste le stock du compartiment.
+            $this->stock->decrement($compartmentId, $newVolume - $oldVolume);
 
             // Sync with invoice item if it exists
             $invoiceItem = InvoiceItem::where('load_id', $livraison->id)->first();
@@ -234,7 +227,7 @@ class DeliveryController extends Controller
                 $query = Load::where('status', $status);
             }
         } else {
-            $query = Load::whereIn('status', [LoadStatus::LIVRER, LoadStatus::LIVRE_PARTIELLEMENT, LoadStatus::FACTURER, LoadStatus::PAYE]);
+            $query = Load::whereIn('status', LoadStatus::deliveryTracking());
         }
 
         $query->with(['depot', 'city', 'client', 'compartment', 'invoiceItems.invoice.client']);

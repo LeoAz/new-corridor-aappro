@@ -214,11 +214,9 @@ class InvoiceController extends Controller
             $clientId = $invoice->client_id;
             $loads = $invoice->items->map->loadDetails->filter();
 
+            // La facturation ne modifie jamais le stock physique : celui-ci n'est décrémenté
+            // qu'à la création du chargement (cf. LoadController::store, LoadStockTest).
             foreach ($invoice->items as $item) {
-                $load = $item->loadDetails;
-                if ($load && $load->compartment_id) {
-                    Compartment::find($load->compartment_id)?->increment('quantity', (float) $item->quantity_delivered);
-                }
                 $item->delete();
             }
 
