@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Concerns\FiltersByDateRange;
+use App\Concerns\GeneratesPdf;
+use App\Http\Requests\FuelPurchaseRequest;
 use App\Models\Depot;
 use App\Models\FuelPurchase;
 use App\Services\StockAdjustmentService;
-use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -13,23 +15,16 @@ use Inertia\Response;
 
 class FuelPurchaseController extends Controller
 {
+    use FiltersByDateRange;
+    use GeneratesPdf;
+
     public function __construct(private readonly StockAdjustmentService $stock) {}
 
     public function index(Request $request): Response
     {
-        $query = FuelPurchase::with(['depot', 'compartment']);
-
-        if ($request->filled('product')) {
-            $query->where('product', $request->product);
-        }
-
-        if ($request->filled('date_from')) {
-            $query->whereDate('purchase_date', '>=', $request->date_from);
-        }
-
-        if ($request->filled('date_to')) {
-            $query->whereDate('purchase_date', '<=', $request->date_to);
-        }
+        $query = FuelPurchase::with(['depot', 'compartment'])
+            ->when($request->filled('product'), fn ($q) => $q->where('product', $request->product));
+        $query = $this->applyDateRange($query, $request, 'purchase_date');
 
         $purchases = $query->latest()->get();
 
@@ -40,17 +35,9 @@ class FuelPurchaseController extends Controller
         ]);
     }
 
-    public function store(Request $request)
+    public function store(FuelPurchaseRequest $request)
     {
-        $validated = $request->validate([
-            'purchase_date' => 'required|date',
-            'product' => 'required|string|max:255',
-            'quantity' => 'required|numeric|min:0',
-            'unit_price' => 'required|numeric|min:0',
-            'total_price' => 'required|numeric|min:0',
-            'depot_id' => 'required|exists:depots,id',
-            'compartment_id' => 'required|exists:compartments,id',
-        ]);
+        $validated = $request->validated();
 
         DB::transaction(function () use ($validated) {
             $purchase = FuelPurchase::create($validated);
@@ -61,17 +48,9 @@ class FuelPurchaseController extends Controller
         return back()->with('message', 'Achat de carburant enregistré avec succès');
     }
 
-    public function update(Request $request, FuelPurchase $achat_carburant)
+    public function update(FuelPurchaseRequest $request, FuelPurchase $achat_carburant)
     {
-        $validated = $request->validate([
-            'purchase_date' => 'required|date',
-            'product' => 'required|string|max:255',
-            'quantity' => 'required|numeric|min:0',
-            'unit_price' => 'required|numeric|min:0',
-            'total_price' => 'required|numeric|min:0',
-            'depot_id' => 'required|exists:depots,id',
-            'compartment_id' => 'required|exists:compartments,id',
-        ]);
+        $validated = $request->validated();
 
         DB::transaction(function () use ($validated, $achat_carburant) {
             $oldQuantity = (float) $achat_carburant->quantity;
@@ -110,29 +89,15 @@ class FuelPurchaseController extends Controller
 
     public function downloadPdf(Request $request)
     {
-        $query = FuelPurchase::with(['depot', 'compartment']);
-
-        if ($request->filled('product')) {
-            $query->where('product', $request->product);
-        }
-
-        if ($request->filled('date_from')) {
-            $query->whereDate('purchase_date', '>=', $request->date_from);
-        }
-
-        if ($request->filled('date_to')) {
-            $query->whereDate('purchase_date', '<=', $request->date_to);
-        }
+        $query = FuelPurchase::with(['depot', 'compartment'])
+            ->when($request->filled('product'), fn ($q) => $q->where('product', $request->product));
+        $query = $this->applyDateRange($query, $request, 'purchase_date');
 
         $purchases = $query->latest()->get();
 
-        ini_set('memory_limit', '512M');
-
-        $pdf = Pdf::loadView('finances.fuel_purchases_pdf', [
+        return $this->downloadPdfView('finances.fuel_purchases_pdf', [
             'purchases' => $purchases,
             'filters' => $request->only(['product', 'date_from', 'date_to']),
-        ]);
-
-        return $pdf->download('achats_carburant_'.date('Ymd_His').'.pdf');
+        ], 'achats_carburant_'.date('Ymd_His').'.pdf');
     }
 }

@@ -101,9 +101,17 @@ class Load extends Model
             return 0;
         }
 
-        $invoiced = (float) $this->invoiceItems()
-            ->when($exceptInvoiceId, fn ($query) => $query->where('invoice_id', '!=', $exceptInvoiceId))
-            ->sum('quantity_delivered');
+        // Si la relation est déjà chargée (ex: eager loading côté contrôleur), on
+        // calcule en mémoire pour éviter une requête par appel (évite un N+1).
+        if ($this->relationLoaded('invoiceItems')) {
+            $invoiced = (float) $this->invoiceItems
+                ->when($exceptInvoiceId, fn ($items) => $items->where('invoice_id', '!=', $exceptInvoiceId))
+                ->sum('quantity_delivered');
+        } else {
+            $invoiced = (float) $this->invoiceItems()
+                ->when($exceptInvoiceId, fn ($query) => $query->where('invoice_id', '!=', $exceptInvoiceId))
+                ->sum('quantity_delivered');
+        }
 
         return round(max((float) $this->volume - $invoiced, 0), 2);
     }

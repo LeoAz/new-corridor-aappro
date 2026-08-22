@@ -2,15 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Concerns\GeneratesPdf;
 use App\Models\Client;
 use App\Models\Invoice;
 use App\Models\InvoiceItem;
 use App\Models\Load;
-use BaconQrCode\Renderer\Image\SvgImageBackEnd;
-use BaconQrCode\Renderer\ImageRenderer;
-use BaconQrCode\Renderer\RendererStyle\RendererStyle;
-use BaconQrCode\Writer;
-use Barryvdh\DomPDF\Facade\Pdf;
+use App\Services\InvoiceNumberGenerator;
+use App\Services\QrCodeGenerator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -18,6 +16,8 @@ use Inertia\Inertia;
 
 class InvoiceController extends Controller
 {
+    use GeneratesPdf;
+
     public function downloadPdf($id)
     {
         $invoice = Invoice::with(['client', 'items.loadDetails'])->findOrFail($id);
@@ -39,18 +39,13 @@ class InvoiceController extends Controller
             $invoice->items->count()
         );
 
-        $renderer = new ImageRenderer(
-            new RendererStyle(200),
-            new SvgImageBackEnd
+        $qrCode = QrCodeGenerator::svg($qrData);
+
+        return $this->downloadPdfView(
+            'invoices.pdf',
+            compact('invoice', 'vehicleCounts', 'qrCode'),
+            "Facture_{$invoice->number}.pdf"
         );
-        $writer = new Writer($renderer);
-        $qrCode = $writer->writeString($qrData);
-
-        ini_set('memory_limit', '512M');
-
-        $pdf = Pdf::loadView('invoices.pdf', compact('invoice', 'vehicleCounts', 'qrCode'));
-
-        return $pdf->download("Facture_{$invoice->number}.pdf");
     }
 
     public function index(Request $request)
@@ -255,20 +250,7 @@ class InvoiceController extends Controller
         $this->validateInvoiceableQuantities($validated['items']);
 
         return DB::transaction(function () use ($validated, $request) {
-            $year = date('Y', strtotime($validated['date']));
-
-            // Generate invoice number: FAC-YYYY-XXXXX
-            $lastInvoice = Invoice::whereYear('date', $year)
-                ->orderBy('id', 'desc')
-                ->first();
-
-            $nextNumber = 1;
-            if ($lastInvoice) {
-                $lastNumber = (int) substr($lastInvoice->number, -5);
-                $nextNumber = $lastNumber + 1;
-            }
-
-            $invoiceNumber = sprintf('FAC-%s-%05d', $year, $nextNumber);
+            $invoiceNumber = InvoiceNumberGenerator::next(Invoice::class, 'FAC', $validated['date']);
 
             $invoice = Invoice::create([
                 'client_id' => $validated['client_id'],

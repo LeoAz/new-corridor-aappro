@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Client;
+use App\Models\Load;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
@@ -65,6 +66,17 @@ test('on peut supprimer un client', function () {
 
     $response->assertStatus(302);
     $this->assertDatabaseMissing('clients', ['id' => $client->id]);
+});
+
+test('on ne peut pas supprimer un client ayant un historique', function () {
+    $client = Client::factory()->create();
+    Load::factory()->create(['client_id' => $client->id]);
+
+    $response = $this->delete(route('clients.gestion.destroy', $client));
+
+    $response->assertStatus(302);
+    $response->assertSessionHas('error');
+    $this->assertDatabaseHas('clients', ['id' => $client->id]);
 });
 
 test('le relevé de compte affiche correctement le solde initial négatif au débit', function () {

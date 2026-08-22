@@ -2,21 +2,20 @@
 
 namespace App\Http\Controllers;
 
+use App\Concerns\GeneratesPdf;
 use App\Enums\LoadStatus;
 use App\Models\Depot;
 use App\Models\DepotInvoiceItem;
 use App\Models\FuelPurchase;
 use App\Models\Load;
-use BaconQrCode\Renderer\Image\SvgImageBackEnd;
-use BaconQrCode\Renderer\ImageRenderer;
-use BaconQrCode\Renderer\RendererStyle\RendererStyle;
-use BaconQrCode\Writer;
-use Barryvdh\DomPDF\Facade\Pdf;
+use App\Services\QrCodeGenerator;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
 class StockTrackingController extends Controller
 {
+    use GeneratesPdf;
+
     public function index(Request $request)
     {
         $depots = Depot::with('compartments')->get();
@@ -151,14 +150,9 @@ class StockTrackingController extends Controller
         $filteredProduct = $compartmentId ? $depot->compartments->firstWhere('id', $compartmentId)?->product : null;
 
         $qrData = "Suivi Stock - Depot: {$depot->name} ".($filteredProduct ? "($filteredProduct) " : '')." - Période: {$dateFrom} au {$dateTo}";
-        $qrCode = base64_encode((new Writer(new ImageRenderer(
-            new RendererStyle(100),
-            new SvgImageBackEnd
-        )))->writeString($qrData));
+        $qrCode = QrCodeGenerator::base64($qrData);
 
-        ini_set('memory_limit', '512M');
-
-        $pdf = Pdf::loadView('stocks.suivi_stock_pdf', [
+        return $this->downloadPdfView('stocks.suivi_stock_pdf', [
             'depot' => $depot,
             'purchases' => $purchases,
             'chargements' => $chargements,
@@ -169,8 +163,6 @@ class StockTrackingController extends Controller
             'qrCode' => $qrCode,
             'compartment_id' => $compartmentId,
             'filteredProduct' => $filteredProduct,
-        ]);
-
-        return $pdf->download("Suivi_Stock_{$depot->name}_{$dateFrom}_{$dateTo}.pdf");
+        ], "Suivi_Stock_{$depot->name}_{$dateFrom}_{$dateTo}.pdf");
     }
 }

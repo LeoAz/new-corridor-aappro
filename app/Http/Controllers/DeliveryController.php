@@ -2,18 +2,20 @@
 
 namespace App\Http\Controllers;
 
+use App\Concerns\GeneratesPdf;
 use App\Enums\LoadStatus;
 use App\Models\Client;
 use App\Models\InvoiceItem;
 use App\Models\Load;
 use App\Services\StockAdjustmentService;
-use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class DeliveryController extends Controller
 {
+    use GeneratesPdf;
+
     public function __construct(private readonly StockAdjustmentService $stock) {}
 
     public function index(Request $request)
@@ -255,14 +257,10 @@ class DeliveryController extends Controller
 
         $deliveries = $query->latest('unload_date')->get();
 
-        ini_set('memory_limit', '512M');
-
-        $pdf = Pdf::loadView('operations.deliveries_pdf', [
+        return $this->downloadPdfView('operations.deliveries_pdf', [
             'deliveries' => $deliveries,
             'filters' => $request->only(['product', 'date_from', 'date_to', 'load_locations', 'client_id']),
-        ]);
-
-        return $pdf->download('livraisons_'.date('Ymd_His').'.pdf');
+        ], 'livraisons_'.date('Ymd_His').'.pdf');
     }
 
     /**

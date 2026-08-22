@@ -2,27 +2,29 @@ import { Head, router, useForm } from '@inertiajs/react';
 import type { ColumnDef } from '@tanstack/react-table';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { ArrowUpDown, CalendarIcon, Check, ChevronsUpDown, Download, Edit, Filter, MoreHorizontal, Plus, Search, Trash, X } from 'lucide-react';
+import {
+    ArrowUpDown,
+    CalendarIcon,
+    Check,
+    ChevronsUpDown,
+    Download,
+    Edit,
+    Filter,
+    MoreHorizontal,
+    Plus,
+    Search,
+    Trash,
+    X,
+} from 'lucide-react';
 import { useMemo, useState } from 'react';
 import type { DateRange } from 'react-day-picker';
 import { toast } from 'sonner';
 
-import AlertError from '@/components/alert-error';
-import CompartmentProductSelect from '@/components/compartment-product-select';
-import DepotCombobox from '@/components/depot-combobox';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Card } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { DataTable } from '@/components/ui/data-table';
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from '@/components/ui/dialog';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -30,15 +32,28 @@ import {
     DropdownMenuLabel,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { SimpleAutocomplete } from '@/components/ui/simple-autocomplete';
+import {
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+} from '@/components/ui/popover';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import { LOAD_STATUS } from '@/lib/load-status';
 import { cn, formatNumber } from '@/lib/utils';
 import * as operations from '@/routes/operations';
 import type { City, Client, Compartment, Depot, Load } from '@/types';
+
+import CreateLoadDialog from './chargements/CreateLoadDialog';
+import DeleteLoadDialog from './chargements/DeleteLoadDialog';
+import DeliverLoadDialog from './chargements/DeliverLoadDialog';
+import EditLoadDialog from './chargements/EditLoadDialog';
 
 interface StatByProduct {
     product: string;
@@ -68,7 +83,15 @@ interface Props {
     distinct_locations: string[];
 }
 
-export default function Chargements({ loads, depots, cities, clients, filters, distinct_locations, stats }: Props) {
+export default function Chargements({
+    loads,
+    depots,
+    cities,
+    clients,
+    filters,
+    distinct_locations,
+    stats,
+}: Props) {
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -91,7 +114,9 @@ export default function Chargements({ loads, depots, cities, clients, filters, d
             return [];
         }
 
-        return Array.isArray(filters.load_locations) ? filters.load_locations : filters.load_locations.split(',');
+        return Array.isArray(filters.load_locations)
+            ? filters.load_locations
+            : filters.load_locations.split(',');
     }, [filters.load_locations]);
 
     const [localFilters, setLocalFilters] = useState({
@@ -106,8 +131,14 @@ export default function Chargements({ loads, depots, cities, clients, filters, d
                 id: 'select',
                 header: ({ table }) => (
                     <Checkbox
-                        checked={table.getIsAllPageRowsSelected() || (table.getIsSomePageRowsSelected() && 'indeterminate')}
-                        onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+                        checked={
+                            table.getIsAllPageRowsSelected() ||
+                            (table.getIsSomePageRowsSelected() &&
+                                'indeterminate')
+                        }
+                        onCheckedChange={(value) =>
+                            table.toggleAllPageRowsSelected(!!value)
+                        }
                         aria-label="Sélectionner tout"
                     />
                 ),
@@ -125,40 +156,72 @@ export default function Chargements({ loads, depots, cities, clients, filters, d
                 accessorKey: 'load_date',
                 header: ({ column }) => {
                     return (
-                        <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}>
+                        <Button
+                            variant="ghost"
+                            onClick={() =>
+                                column.toggleSorting(
+                                    column.getIsSorted() === 'asc',
+                                )
+                            }
+                        >
                             Date
                             <ArrowUpDown className="ml-2 h-4 w-4" />
                         </Button>
                     );
                 },
-                cell: ({ row }) => format(new Date(row.getValue('load_date')), 'dd/MM/yyyy'),
+                cell: ({ row }) =>
+                    format(new Date(row.getValue('load_date')), 'dd/MM/yyyy'),
             },
             {
                 accessorKey: 'vehicle_registration',
                 header: ({ column }) => {
                     return (
-                        <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}>
+                        <Button
+                            variant="ghost"
+                            onClick={() =>
+                                column.toggleSorting(
+                                    column.getIsSorted() === 'asc',
+                                )
+                            }
+                        >
                             Véhicule
                             <ArrowUpDown className="ml-2 h-4 w-4" />
                         </Button>
                     );
                 },
-                cell: ({ row }) => <div className="font-medium">{row.getValue('vehicle_registration')}</div>,
+                cell: ({ row }) => (
+                    <div className="font-medium">
+                        {row.getValue('vehicle_registration')}
+                    </div>
+                ),
             },
             {
                 accessorKey: 'product',
                 header: ({ column }) => (
-                    <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}>
+                    <Button
+                        variant="ghost"
+                        onClick={() =>
+                            column.toggleSorting(column.getIsSorted() === 'asc')
+                        }
+                    >
                         Produit
                         <ArrowUpDown className="ml-2 h-4 w-4" />
                     </Button>
                 ),
-                cell: ({ row }) => row.original.compartment?.product || row.original.product || '-',
+                cell: ({ row }) =>
+                    row.original.compartment?.product ||
+                    row.original.product ||
+                    '-',
             },
             {
                 accessorKey: 'volume',
                 header: ({ column }) => (
-                    <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}>
+                    <Button
+                        variant="ghost"
+                        onClick={() =>
+                            column.toggleSorting(column.getIsSorted() === 'asc')
+                        }
+                    >
                         Volume (Reste)
                         <ArrowUpDown className="ml-2 h-4 w-4" />
                     </Button>
@@ -166,9 +229,12 @@ export default function Chargements({ loads, depots, cities, clients, filters, d
                 cell: ({ row }) => (
                     <div className="flex flex-col">
                         <span>{formatNumber(row.original.volume)}</span>
-                        {(row.original.status === LOAD_STATUS.LIVRE_PARTIELLEMENT || row.original.status === LOAD_STATUS.EN_COURS) && (
+                        {(row.original.status ===
+                            LOAD_STATUS.LIVRE_PARTIELLEMENT ||
+                            row.original.status === LOAD_STATUS.EN_COURS) && (
                             <span className="text-xs font-bold text-orange-600">
-                                Reste: {formatNumber(row.original.remaining_quantity)}
+                                Reste:{' '}
+                                {formatNumber(row.original.remaining_quantity)}
                             </span>
                         )}
                     </div>
@@ -177,7 +243,12 @@ export default function Chargements({ loads, depots, cities, clients, filters, d
             {
                 accessorKey: 'depot.name',
                 header: ({ column }) => (
-                    <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}>
+                    <Button
+                        variant="ghost"
+                        onClick={() =>
+                            column.toggleSorting(column.getIsSorted() === 'asc')
+                        }
+                    >
                         Dépôt
                         <ArrowUpDown className="ml-2 h-4 w-4" />
                     </Button>
@@ -187,7 +258,12 @@ export default function Chargements({ loads, depots, cities, clients, filters, d
             {
                 accessorKey: 'load_location',
                 header: ({ column }) => (
-                    <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}>
+                    <Button
+                        variant="ghost"
+                        onClick={() =>
+                            column.toggleSorting(column.getIsSorted() === 'asc')
+                        }
+                    >
                         Lieu
                         <ArrowUpDown className="ml-2 h-4 w-4" />
                     </Button>
@@ -202,21 +278,38 @@ export default function Chargements({ loads, depots, cities, clients, filters, d
                         <div className="text-right">
                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
-                                    <Button variant="ghost" className="h-8 w-8 p-0">
-                                        <span className="sr-only">Ouvrir le menu</span>
+                                    <Button
+                                        variant="ghost"
+                                        className="h-8 w-8 p-0"
+                                    >
+                                        <span className="sr-only">
+                                            Ouvrir le menu
+                                        </span>
                                         <MoreHorizontal className="h-4 w-4" />
                                     </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">
-                                    <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                    <DropdownMenuItem onClick={() => openDeliverModal(load)}>
-                                        <Check className="mr-2 h-4 w-4" /> Livrer
+                                    <DropdownMenuLabel>
+                                        Actions
+                                    </DropdownMenuLabel>
+                                    <DropdownMenuItem
+                                        onClick={() => openDeliverModal(load)}
+                                    >
+                                        <Check className="mr-2 h-4 w-4" />{' '}
+                                        Livrer
                                     </DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => openEditModal(load)}>
-                                        <Edit className="mr-2 h-4 w-4" /> Modifier
+                                    <DropdownMenuItem
+                                        onClick={() => openEditModal(load)}
+                                    >
+                                        <Edit className="mr-2 h-4 w-4" />{' '}
+                                        Modifier
                                     </DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => openDeleteModal(load)} className="text-destructive">
-                                        <Trash className="mr-2 h-4 w-4" /> Supprimer
+                                    <DropdownMenuItem
+                                        onClick={() => openDeleteModal(load)}
+                                        className="text-destructive"
+                                    >
+                                        <Trash className="mr-2 h-4 w-4" />{' '}
+                                        Supprimer
                                     </DropdownMenuItem>
                                 </DropdownMenuContent>
                             </DropdownMenu>
@@ -228,7 +321,17 @@ export default function Chargements({ loads, depots, cities, clients, filters, d
         [],
     );
 
-    const { data, setData, post, put, delete: destroy, processing, errors, reset, clearErrors } = useForm({
+    const {
+        data,
+        setData,
+        post,
+        put,
+        delete: destroy,
+        processing,
+        errors,
+        reset,
+        clearErrors,
+    } = useForm({
         load_date: format(new Date(), 'yyyy-MM-dd'),
         load_location: '',
         product: '',
@@ -244,7 +347,9 @@ export default function Chargements({ loads, depots, cities, clients, filters, d
     });
 
     const selectedDepot = useMemo(() => {
-        return depots.find((d) => d.id?.toString() === data.depot_id?.toString());
+        return depots.find(
+            (d) => d.id?.toString() === data.depot_id?.toString(),
+        );
     }, [data.depot_id, depots]);
 
     const openCreateModal = () => {
@@ -349,9 +454,16 @@ export default function Chargements({ loads, depots, cities, clients, filters, d
             operations.default.chargements.index().url,
             {
                 product: localFilters.product,
-                date_from: localFilters.dateRange?.from ? format(localFilters.dateRange.from, 'yyyy-MM-dd') : '',
-                date_to: localFilters.dateRange?.to ? format(localFilters.dateRange.to, 'yyyy-MM-dd') : '',
-                load_locations: localFilters.load_locations.length > 0 ? localFilters.load_locations.join(',') : '',
+                date_from: localFilters.dateRange?.from
+                    ? format(localFilters.dateRange.from, 'yyyy-MM-dd')
+                    : '',
+                date_to: localFilters.dateRange?.to
+                    ? format(localFilters.dateRange.to, 'yyyy-MM-dd')
+                    : '',
+                load_locations:
+                    localFilters.load_locations.length > 0
+                        ? localFilters.load_locations.join(',')
+                        : '',
             },
             { preserveState: true, replace: true },
         );
@@ -363,7 +475,11 @@ export default function Chargements({ loads, depots, cities, clients, filters, d
             dateRange: undefined,
             load_locations: [],
         });
-        router.get(operations.default.chargements.index().url, {}, { preserveState: true, replace: true });
+        router.get(
+            operations.default.chargements.index().url,
+            {},
+            { preserveState: true, replace: true },
+        );
     };
 
     const toggleLocationFilter = (location: string) => {
@@ -371,9 +487,17 @@ export default function Chargements({ loads, depots, cities, clients, filters, d
             const isSelected = prev.load_locations.includes(location);
 
             if (isSelected) {
-                return { ...prev, load_locations: prev.load_locations.filter((l) => l !== location) };
+                return {
+                    ...prev,
+                    load_locations: prev.load_locations.filter(
+                        (l) => l !== location,
+                    ),
+                };
             } else {
-                return { ...prev, load_locations: [...prev.load_locations, location] };
+                return {
+                    ...prev,
+                    load_locations: [...prev.load_locations, location],
+                };
             }
         });
     };
@@ -403,22 +527,46 @@ export default function Chargements({ loads, depots, cities, clients, filters, d
                                 const params = new URLSearchParams();
 
                                 if (localFilters.product) {
-                                    params.append('product', localFilters.product);
+                                    params.append(
+                                        'product',
+                                        localFilters.product,
+                                    );
                                 }
 
                                 if (localFilters.dateRange?.from) {
-                                    params.append('date_from', format(localFilters.dateRange.from, 'yyyy-MM-dd'));
+                                    params.append(
+                                        'date_from',
+                                        format(
+                                            localFilters.dateRange.from,
+                                            'yyyy-MM-dd',
+                                        ),
+                                    );
                                 }
 
                                 if (localFilters.dateRange?.to) {
-                                    params.append('date_to', format(localFilters.dateRange.to, 'yyyy-MM-dd'));
+                                    params.append(
+                                        'date_to',
+                                        format(
+                                            localFilters.dateRange.to,
+                                            'yyyy-MM-dd',
+                                        ),
+                                    );
                                 }
 
                                 if (localFilters.load_locations.length > 0) {
-                                    params.append('load_locations', localFilters.load_locations.join(','));
+                                    params.append(
+                                        'load_locations',
+                                        localFilters.load_locations.join(','),
+                                    );
                                 }
 
-                                window.open(operations.default.chargements.download().url + '?' + params.toString(), '_blank');
+                                window.open(
+                                    operations.default.chargements.download()
+                                        .url +
+                                        '?' +
+                                        params.toString(),
+                                    '_blank',
+                                );
                             }}
                         >
                             <Download className="mr-2 h-4 w-4" /> Export PDF
@@ -617,7 +765,8 @@ export default function Chargements({ loads, depots, cities, clients, filters, d
                                     {formatNumber(stats.total_volume)} L
                                 </span>
                                 <span className="text-xs font-bold text-orange-600">
-                                    Reste: {formatNumber(stats.total_remaining)} L
+                                    Reste: {formatNumber(stats.total_remaining)}{' '}
+                                    L
                                 </span>
                             </div>
                         </div>
@@ -628,7 +777,7 @@ export default function Chargements({ loads, depots, cities, clients, filters, d
                                 <span className="text-sm font-medium tracking-wider text-muted-foreground uppercase">
                                     {s.product}
                                 </span>
-                                <div className="flex flex-col gap-0.5 w-full">
+                                <div className="flex w-full flex-col gap-0.5">
                                     <div className="flex items-baseline justify-between">
                                         <span className="text-2xl font-bold">
                                             {s.count} Véhs
@@ -658,687 +807,53 @@ export default function Chargements({ loads, depots, cities, clients, filters, d
                 />
             </div>
 
-            {/* Create Modal */}
-            <Dialog
+            <CreateLoadDialog
                 open={isCreateModalOpen}
                 onOpenChange={setIsCreateModalOpen}
-            >
-                <DialogContent className="max-w-7xl sm:max-w-7xl">
-                    <form onSubmit={handleCreate}>
-                        <DialogHeader>
-                            <DialogTitle>Nouveau chargement</DialogTitle>
-                            <DialogDescription>
-                                Remplissez les informations pour créer un
-                                nouveau chargement.
-                            </DialogDescription>
-                        </DialogHeader>
+                data={data}
+                setData={setData}
+                errors={errors}
+                processing={processing}
+                onSubmit={handleCreate}
+                depots={depots}
+                cities={cities}
+                selectedDepot={selectedDepot}
+                allProducts={allProducts}
+            />
 
-                        {Object.keys(errors).length > 0 && (
-                            <div className="px-6 pt-4">
-                                <AlertError errors={Object.values(errors)} />
-                            </div>
-                        )}
+            <EditLoadDialog
+                open={isEditModalOpen}
+                onOpenChange={setIsEditModalOpen}
+                data={data}
+                setData={setData}
+                errors={errors}
+                processing={processing}
+                onSubmit={handleUpdate}
+                depots={depots}
+                cities={cities}
+                clients={clients}
+                selectedDepot={selectedDepot}
+                allProducts={allProducts}
+            />
 
-                        <div className="grid gap-6 py-4 px-6">
-                            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                                <div className="space-y-2">
-                                    <Label>Date de chargement</Label>
-                                    <Popover>
-                                        <PopoverTrigger asChild>
-                                            <Button
-                                                variant={'outline'}
-                                                className={cn(
-                                                    'w-full justify-start text-left font-normal',
-                                                    !data.load_date &&
-                                                        'text-muted-foreground',
-                                                )}
-                                            >
-                                                <CalendarIcon className="mr-2 h-4 w-4" />
-                                                {data.load_date ? (
-                                                    format(
-                                                        new Date(
-                                                            data.load_date,
-                                                        ),
-                                                        'dd MMMM yyyy',
-                                                        { locale: fr },
-                                                    )
-                                                ) : (
-                                                    <span>
-                                                        Choisir une date
-                                                    </span>
-                                                )}
-                                            </Button>
-                                        </PopoverTrigger>
-                                        <PopoverContent className="w-auto p-0">
-                                            <Calendar
-                                                mode="single"
-                                                selected={
-                                                    data.load_date
-                                                        ? new Date(
-                                                              data.load_date,
-                                                          )
-                                                        : undefined
-                                                }
-                                                onSelect={(d) =>
-                                                    setData(
-                                                        'load_date',
-                                                        d
-                                                            ? format(
-                                                                  d,
-                                                                  'yyyy-MM-dd',
-                                                              )
-                                                            : '',
-                                                    )
-                                                }
-                                                locale={fr}
-                                            />
-                                        </PopoverContent>
-                                    </Popover>
-                                    {errors.load_date && (
-                                        <p className="text-sm text-destructive">
-                                            {errors.load_date}
-                                        </p>
-                                    )}
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="vehicle_registration">
-                                        Immatriculation
-                                    </Label>
-                                    <Input
-                                        id="vehicle_registration"
-                                        placeholder="AB-123-CD"
-                                        value={data.vehicle_registration}
-                                        onChange={(e) =>
-                                            setData(
-                                                'vehicle_registration',
-                                                e.target.value,
-                                            )
-                                        }
-                                    />
-                                    {errors.vehicle_registration && (
-                                        <p className="text-sm text-destructive">
-                                            {errors.vehicle_registration}
-                                        </p>
-                                    )}
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                                <DepotCombobox
-                                    id="depot_id"
-                                    depots={depots}
-                                    value={data.depot_id}
-                                    onChange={(depotId) =>
-                                        setData((prev) => ({
-                                            ...prev,
-                                            depot_id: depotId,
-                                            compartment_id: '',
-                                            product: '',
-                                        }))
-                                    }
-                                    error={errors.depot_id}
-                                />
-
-                                <CompartmentProductSelect
-                                    id="compartment_id"
-                                    selectedDepot={selectedDepot}
-                                    hasDepot={!!data.depot_id}
-                                    allProducts={allProducts}
-                                    value={data.compartment_id}
-                                    onChange={(compartmentId, product) =>
-                                        setData((prev) => ({
-                                            ...prev,
-                                            compartment_id: compartmentId,
-                                            product,
-                                        }))
-                                    }
-                                    error={errors.compartment_id}
-                                />
-                            </div>
-
-                            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                                <div className="space-y-2">
-                                    <Label htmlFor="volume">Volume</Label>
-                                    <Input
-                                        id="volume"
-                                        type="number"
-                                        value={data.volume}
-                                        onChange={(e) =>
-                                            setData(
-                                                'volume',
-                                                parseFloat(e.target.value),
-                                            )
-                                        }
-                                    />
-                                    {errors.volume && (
-                                        <p className="text-sm text-destructive">
-                                            {errors.volume}
-                                        </p>
-                                    )}
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="city_id">
-                                        Ville de destination
-                                    </Label>
-                                    <Select
-                                        value={data.city_id}
-                                        onValueChange={(v) =>
-                                            setData('city_id', v)
-                                        }
-                                    >
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Sélectionner une ville" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {cities.map((city) => (
-                                                <SelectItem
-                                                    key={city.id}
-                                                    value={city.id?.toString() || ''}
-                                                >
-                                                    {city.name}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                    {errors.city_id && (
-                                        <p className="text-sm text-destructive">
-                                            {errors.city_id}
-                                        </p>
-                                    )}
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                                <div className="space-y-2">
-                                    <Label htmlFor="load_location">
-                                        Lieu de chargement
-                                    </Label>
-                                    <Input
-                                        id="load_location"
-                                        placeholder="Ex: Port Autonome"
-                                        value={data.load_location}
-                                        onChange={(e) =>
-                                            setData(
-                                                'load_location',
-                                                e.target.value,
-                                            )
-                                        }
-                                    />
-                                    {errors.load_location && (
-                                        <p className="text-sm text-destructive">
-                                            {errors.load_location}
-                                        </p>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-                        <DialogFooter>
-                            <Button
-                                type="button"
-                                variant="outline"
-                                onClick={() => setIsCreateModalOpen(false)}
-                            >
-                                Annuler
-                            </Button>
-                            <Button type="submit" disabled={processing}>
-                                Créer le chargement
-                            </Button>
-                        </DialogFooter>
-                    </form>
-                </DialogContent>
-            </Dialog>
-
-            {/* Edit Modal */}
-            <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
-                <DialogContent className="max-w-7xl sm:max-w-7xl">
-                    <form onSubmit={handleUpdate}>
-                        <DialogHeader>
-                            <DialogTitle>Modifier le chargement</DialogTitle>
-                            <DialogDescription>
-                                Modifiez les informations du chargement.
-                            </DialogDescription>
-                        </DialogHeader>
-
-                        {Object.keys(errors).length > 0 && (
-                            <div className="px-6 pt-4">
-                                <AlertError errors={Object.values(errors)} />
-                            </div>
-                        )}
-
-                        <div className="grid gap-6 py-4 px-6">
-                            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                                <div className="space-y-2">
-                                    <Label>Date de chargement</Label>
-                                    <Popover>
-                                        <PopoverTrigger asChild>
-                                            <Button
-                                                variant={'outline'}
-                                                className={cn(
-                                                    'w-full justify-start text-left font-normal',
-                                                    !data.load_date &&
-                                                        'text-muted-foreground',
-                                                )}
-                                            >
-                                                <CalendarIcon className="mr-2 h-4 w-4" />
-                                                {data.load_date ? (
-                                                    format(
-                                                        new Date(
-                                                            data.load_date,
-                                                        ),
-                                                        'dd MMMM yyyy',
-                                                        { locale: fr },
-                                                    )
-                                                ) : (
-                                                    <span>
-                                                        Choisir une date
-                                                    </span>
-                                                )}
-                                            </Button>
-                                        </PopoverTrigger>
-                                        <PopoverContent className="w-auto p-0">
-                                            <Calendar
-                                                mode="single"
-                                                selected={
-                                                    data.load_date
-                                                        ? new Date(
-                                                              data.load_date,
-                                                          )
-                                                        : undefined
-                                                }
-                                                onSelect={(d) =>
-                                                    setData(
-                                                        'load_date',
-                                                        d
-                                                            ? format(
-                                                                  d,
-                                                                  'yyyy-MM-dd',
-                                                              )
-                                                            : '',
-                                                    )
-                                                }
-                                                locale={fr}
-                                            />
-                                        </PopoverContent>
-                                    </Popover>
-                                    {errors.load_date && (
-                                        <p className="text-sm text-destructive">
-                                            {errors.load_date}
-                                        </p>
-                                    )}
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="edit_vehicle_registration">
-                                        Immatriculation
-                                    </Label>
-                                    <Input
-                                        id="edit_vehicle_registration"
-                                        placeholder="AB-123-CD"
-                                        value={data.vehicle_registration}
-                                        onChange={(e) =>
-                                            setData(
-                                                'vehicle_registration',
-                                                e.target.value,
-                                            )
-                                        }
-                                    />
-                                    {errors.vehicle_registration && (
-                                        <p className="text-sm text-destructive">
-                                            {errors.vehicle_registration}
-                                        </p>
-                                    )}
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                                <div className="space-y-2">
-                                    <Label htmlFor="edit_client_id">
-                                        Client
-                                    </Label>
-                                    <SimpleAutocomplete
-                                        options={clients.map((c) => ({
-                                            value: c.id?.toString() || '',
-                                            label: c.nom,
-                                        }))}
-                                        value={data.client_id || ''}
-                                        onValueChange={(v) =>
-                                            setData('client_id', v)
-                                        }
-                                        onLabelChange={(l) =>
-                                            setData('client_name', l)
-                                        }
-                                        placeholder="Sélectionner un client..."
-                                        emptyMessage="Aucun client trouvé."
-                                    />
-                                    {errors.client_id && (
-                                        <p className="text-sm text-destructive">
-                                            {errors.client_id}
-                                        </p>
-                                    )}
-                                    {errors.client_name && (
-                                        <p className="text-sm text-destructive">
-                                            {errors.client_name}
-                                        </p>
-                                    )}
-                                </div>
-                                <DepotCombobox
-                                    id="edit_depot_id"
-                                    depots={depots}
-                                    value={data.depot_id}
-                                    onChange={(depotId) =>
-                                        setData((prev) => ({
-                                            ...prev,
-                                            depot_id: depotId,
-                                            compartment_id: '',
-                                            product: '',
-                                        }))
-                                    }
-                                    error={errors.depot_id}
-                                />
-                            </div>
-
-                            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                                <CompartmentProductSelect
-                                    id="edit_compartment_id"
-                                    selectedDepot={selectedDepot}
-                                    hasDepot={!!data.depot_id}
-                                    allProducts={allProducts}
-                                    value={data.compartment_id}
-                                    onChange={(compartmentId, product) =>
-                                        setData((prev) => ({
-                                            ...prev,
-                                            compartment_id: compartmentId,
-                                            product,
-                                        }))
-                                    }
-                                    error={errors.compartment_id}
-                                />
-                                <div className="space-y-2">
-                                    <Label htmlFor="edit_volume">Volume</Label>
-                                    <Input
-                                        id="edit_volume"
-                                        type="number"
-                                        value={data.volume}
-                                        onChange={(e) =>
-                                            setData(
-                                                'volume',
-                                                parseFloat(e.target.value),
-                                            )
-                                        }
-                                    />
-                                    {errors.volume && (
-                                        <p className="text-sm text-destructive">
-                                            {errors.volume}
-                                        </p>
-                                    )}
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                                <div className="space-y-2">
-                                    <Label htmlFor="edit_city_id">
-                                        Ville de destination
-                                    </Label>
-                                    <Select
-                                        value={data.city_id}
-                                        onValueChange={(v) =>
-                                            setData('city_id', v)
-                                        }
-                                    >
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Sélectionner une ville" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {cities.map((city) => (
-                                                <SelectItem
-                                                    key={city.id}
-                                                    value={city.id?.toString() || ''}
-                                                >
-                                                    {city.name}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                    {errors.city_id && (
-                                        <p className="text-sm text-destructive">
-                                            {errors.city_id}
-                                        </p>
-                                    )}
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="edit_load_location">
-                                        Lieu de chargement
-                                    </Label>
-                                    <Input
-                                        id="edit_load_location"
-                                        value={data.load_location}
-                                        onChange={(e) =>
-                                            setData(
-                                                'load_location',
-                                                e.target.value,
-                                            )
-                                        }
-                                    />
-                                    {errors.load_location && (
-                                        <p className="text-sm text-destructive">
-                                            {errors.load_location}
-                                        </p>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-                        <DialogFooter>
-                            <Button
-                                type="button"
-                                variant="outline"
-                                onClick={() => setIsEditModalOpen(false)}
-                            >
-                                Annuler
-                            </Button>
-                            <Button type="submit" disabled={processing}>
-                                Enregistrer
-                            </Button>
-                        </DialogFooter>
-                    </form>
-                </DialogContent>
-            </Dialog>
-
-            {/* Delete Modal */}
-            <Dialog
+            <DeleteLoadDialog
                 open={isDeleteModalOpen}
                 onOpenChange={setIsDeleteModalOpen}
-            >
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Supprimer le chargement</DialogTitle>
-                        <DialogDescription>
-                            Êtes-vous sûr de vouloir supprimer ce chargement ?
-                            Cette action est irréversible.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <DialogFooter>
-                        <Button
-                            variant="outline"
-                            onClick={() => setIsDeleteModalOpen(false)}
-                        >
-                            Annuler
-                        </Button>
-                        <Button
-                            variant="destructive"
-                            onClick={handleDelete}
-                            disabled={processing}
-                        >
-                            Supprimer
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+                processing={processing}
+                onConfirm={handleDelete}
+            />
 
-            {/* Deliver Modal */}
-            <Dialog
+            <DeliverLoadDialog
                 open={isDeliverModalOpen}
                 onOpenChange={setIsDeliverModalOpen}
-            >
-                <DialogContent className="max-w-2xl">
-                    <form onSubmit={handleDeliver}>
-                        <DialogHeader>
-                            <DialogTitle>Effectuer la livraison</DialogTitle>
-                            <DialogDescription>
-                                Saisissez les informations de livraison pour le
-                                véhicule{' '}
-                                <span className="font-bold">
-                                    {selectedLoad?.vehicle_registration}
-                                </span>
-                                .
-                            </DialogDescription>
-                        </DialogHeader>
-
-                        {Object.keys(errors).length > 0 && (
-                            <div className="px-6 pt-4">
-                                <AlertError errors={Object.values(errors)} />
-                            </div>
-                        )}
-
-                        <div className="grid gap-4 py-4 px-6">
-                            <div className="space-y-2">
-                                <Label>Date de livraison</Label>
-                                <Popover>
-                                    <PopoverTrigger asChild>
-                                        <Button
-                                            variant={'outline'}
-                                            className={cn(
-                                                'w-full justify-start text-left font-normal',
-                                                !data.unload_date &&
-                                                    'text-muted-foreground',
-                                            )}
-                                        >
-                                            <CalendarIcon className="mr-2 h-4 w-4" />
-                                            {data.unload_date ? (
-                                                format(
-                                                    new Date(data.unload_date),
-                                                    'dd MMMM yyyy',
-                                                    { locale: fr },
-                                                )
-                                            ) : (
-                                                <span>Choisir une date</span>
-                                            )}
-                                        </Button>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-auto p-0">
-                                        <Calendar
-                                            mode="single"
-                                            selected={
-                                                data.unload_date
-                                                    ? new Date(data.unload_date)
-                                                    : undefined
-                                            }
-                                            onSelect={(d) =>
-                                                setData(
-                                                    'unload_date',
-                                                    d
-                                                        ? format(
-                                                              d,
-                                                              'yyyy-MM-dd',
-                                                          )
-                                                        : '',
-                                                )
-                                            }
-                                            locale={fr}
-                                        />
-                                    </PopoverContent>
-                                </Popover>
-                                {errors.unload_date && (
-                                    <p className="text-sm text-destructive">
-                                        {errors.unload_date}
-                                    </p>
-                                )}
-                            </div>
-
-                            <div className="space-y-2">
-                                <Label htmlFor="unload_location">
-                                    Lieu de livraison
-                                </Label>
-                                <Input
-                                    id="unload_location"
-                                    placeholder="Ex: Chantier X, Ville Y"
-                                    value={data.unload_location}
-                                    onChange={(e) =>
-                                        setData(
-                                            'unload_location',
-                                            e.target.value,
-                                        )
-                                    }
-                                />
-                                {errors.unload_location && (
-                                    <p className="text-sm text-destructive">
-                                        {errors.unload_location}
-                                    </p>
-                                )}
-                            </div>
-
-                            <div className="space-y-2">
-                                <Label htmlFor="deliver_client_id">
-                                    Client
-                                </Label>
-                                <SimpleAutocomplete
-                                    options={clients.map((c) => ({
-                                        value: c.id?.toString() || '',
-                                        label: c.nom,
-                                    }))}
-                                    value={data.client_id || ''}
-                                    onValueChange={(v) =>
-                                        setData('client_id', v)
-                                    }
-                                    onLabelChange={(l) =>
-                                        setData('client_name', l)
-                                    }
-                                    placeholder="Sélectionner un client..."
-                                    emptyMessage="Aucun client trouvé."
-                                />
-                                {errors.client_id && (
-                                    <p className="text-sm text-destructive">
-                                        {errors.client_id}
-                                    </p>
-                                )}
-                                {errors.client_name && (
-                                    <p className="text-sm text-destructive">
-                                        {errors.client_name}
-                                    </p>
-                                )}
-                            </div>
-
-                            <div className="space-y-2">
-                                <Label htmlFor="deliver_volume">Volume livré</Label>
-                                <Input
-                                    id="deliver_volume"
-                                    type="number"
-                                    step="0.01"
-                                    value={data.volume}
-                                    onChange={(e) =>
-                                        setData('volume', parseFloat(e.target.value))
-                                    }
-                                />
-                                {errors.volume && (
-                                    <p className="text-sm text-destructive">
-                                        {errors.volume}
-                                    </p>
-                                )}
-                            </div>
-                        </div>
-                        <DialogFooter>
-                            <Button
-                                type="button"
-                                variant="outline"
-                                onClick={() => setIsDeliverModalOpen(false)}
-                            >
-                                Annuler
-                            </Button>
-                            <Button type="submit" disabled={processing}>
-                                Valider la livraison
-                            </Button>
-                        </DialogFooter>
-                    </form>
-                </DialogContent>
-            </Dialog>
+                data={data}
+                setData={setData}
+                errors={errors}
+                processing={processing}
+                onSubmit={handleDeliver}
+                clients={clients}
+                selectedLoad={selectedLoad}
+            />
         </>
     );
 }
@@ -1346,6 +861,9 @@ export default function Chargements({ loads, depots, cities, clients, filters, d
 Chargements.layout = {
     breadcrumbs: [
         { title: 'Opérations', href: '#' },
-        { title: 'Chargements', href: operations.default.chargements.index().url },
+        {
+            title: 'Chargements',
+            href: operations.default.chargements.index().url,
+        },
     ],
 };

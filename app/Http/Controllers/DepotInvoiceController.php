@@ -2,22 +2,22 @@
 
 namespace App\Http\Controllers;
 
+use App\Concerns\GeneratesPdf;
 use App\Models\Client;
 use App\Models\Depot;
 use App\Models\DepotInvoice;
 use App\Models\DepotInvoiceItem;
+use App\Services\InvoiceNumberGenerator;
+use App\Services\QrCodeGenerator;
 use App\Services\StockAdjustmentService;
-use BaconQrCode\Renderer\Image\SvgImageBackEnd;
-use BaconQrCode\Renderer\ImageRenderer;
-use BaconQrCode\Renderer\RendererStyle\RendererStyle;
-use BaconQrCode\Writer;
-use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class DepotInvoiceController extends Controller
 {
+    use GeneratesPdf;
+
     public function __construct(private readonly StockAdjustmentService $stock) {}
 
     public function downloadPdf($id)
@@ -41,20 +41,13 @@ class DepotInvoiceController extends Controller
             number_format($invoice->total_amount, 0, ',', ' ')
         );
 
-        $renderer = new ImageRenderer(
-            new RendererStyle(200),
-            new SvgImageBackEnd
+        $qrCode = QrCodeGenerator::svg($qrData);
+
+        return $this->downloadPdfView(
+            'invoices.depot_pdf',
+            compact('invoice', 'productSummary', 'qrCode'),
+            "Facture_Depot_{$invoice->number}.pdf"
         );
-        $writer = new Writer($renderer);
-        $qrCode = $writer->writeString($qrData);
-
-        ini_set('memory_limit', '512M');
-
-        // Reuse the same template but adapt it if necessary.
-        // For now, let's use a similar approach to InvoiceController
-        $pdf = Pdf::loadView('invoices.depot_pdf', compact('invoice', 'productSummary', 'qrCode'));
-
-        return $pdf->download("Facture_Depot_{$invoice->number}.pdf");
     }
 
     public function index(Request $request)
@@ -118,21 +111,7 @@ class DepotInvoiceController extends Controller
         ]);
 
         return DB::transaction(function () use ($validated, $request) {
-            $year = date('Y', strtotime($validated['date']));
-
-            // Generate invoice number: FAC-DEP-YYYY-XXXXX
-            $lastInvoice = DepotInvoice::whereYear('date', $year)
-                ->orderBy('id', 'desc')
-                ->first();
-
-            $nextNumber = 1;
-            if ($lastInvoice) {
-                // Handle different format if necessary, or just extract last 5 digits
-                preg_match('/(\d+)$/', $lastInvoice->number, $matches);
-                $nextNumber = isset($matches[1]) ? (int) $matches[1] + 1 : 1;
-            }
-
-            $invoiceNumber = sprintf('FAC-DEP-%s-%05d', $year, $nextNumber);
+            $invoiceNumber = InvoiceNumberGenerator::next(DepotInvoice::class, 'FAC-DEP', $validated['date']);
 
             $invoice = DepotInvoice::create([
                 'client_id' => $validated['client_id'],

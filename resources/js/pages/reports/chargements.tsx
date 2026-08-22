@@ -137,10 +137,6 @@ export default function ReportChargements({ loads, stats, filters }: Props) {
         window.location.href = url.toString();
     };
 
-    const availableLoads = useMemo(() => {
-        return loads;
-    }, [loads]);
-
     return (
         <>
             <Head title="Rapport Chargements" />
@@ -286,10 +282,10 @@ export default function ReportChargements({ loads, stats, filters }: Props) {
                 <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
                     <DataTable
                         columns={columns}
-                        data={availableLoads}
+                        data={loads}
                         hidePagination={true}
                     />
-                    {availableLoads.length > 0 && (
+                    {loads.length > 0 && (
                         <div className="bg-muted/50 border-t border-border p-4 flex flex-col gap-2 font-black">
                             <div className="flex justify-between items-center">
                                 <span className="uppercase tracking-wider text-xs">Total Volume Initial</span>

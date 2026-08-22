@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Concerns\FiltersByDateRange;
+use App\Concerns\GeneratesPdf;
 use App\Enums\LoadStatus;
 use App\Models\Client;
 use App\Models\ClientPayment;
@@ -9,7 +11,6 @@ use App\Models\Depot;
 use App\Models\Invoice;
 use App\Models\InvoiceItem;
 use App\Models\Load;
-use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -18,6 +19,9 @@ use Inertia\Response;
 
 class ClientTrackingController extends Controller
 {
+    use FiltersByDateRange;
+    use GeneratesPdf;
+
     public function index(Request $request): Response
     {
         $clients = Client::orderBy('nom')->get();
@@ -79,13 +83,7 @@ class ClientTrackingController extends Controller
                     ]);
 
                 // Règlements
-                $paymentsQuery = ClientPayment::where('client_id', $clientId);
-                if ($startDate) {
-                    $paymentsQuery->where('date', '>=', $startDate);
-                }
-                if ($endDate) {
-                    $paymentsQuery->where('date', '<=', $endDate);
-                }
+                $paymentsQuery = $this->applyDateRange(ClientPayment::where('client_id', $clientId), $request, 'date', 'start_date', 'end_date');
                 $data['payments'] = $paymentsQuery->orderBy('date', 'desc')->get();
                 $data['total_payments'] = (float) $data['payments']->sum('amount');
 
@@ -97,13 +95,7 @@ class ClientTrackingController extends Controller
                         ->whereIn('status', [LoadStatus::LIVRE_PARTIELLEMENT, LoadStatus::FACTURER, LoadStatus::PAYE]);
                 })
                     ->with(['invoiceItems.invoice']);
-
-                if ($startDate) {
-                    $loadsQuery->whereDate('unload_date', '>=', $startDate);
-                }
-                if ($endDate) {
-                    $loadsQuery->whereDate('unload_date', '<=', $endDate);
-                }
+                $loadsQuery = $this->applyDateRange($loadsQuery, $request, 'unload_date', 'start_date', 'end_date');
 
                 $loads = $loadsQuery->orderBy('unload_date', 'desc')->get();
 
@@ -180,13 +172,7 @@ class ClientTrackingController extends Controller
             $query->where('client_id', $clientId)
                 ->orWhereHas('invoiceItems.invoice', fn ($query) => $query->where('client_id', $clientId));
         })->with('invoiceItems');
-
-        if ($startDate) {
-            $loadsQuery->whereDate('unload_date', '>=', $startDate);
-        }
-        if ($endDate) {
-            $loadsQuery->whereDate('unload_date', '<=', $endDate);
-        }
+        $loadsQuery = $this->applyDateRange($loadsQuery, $request, 'unload_date', 'start_date', 'end_date');
 
         if ($request->filled('search')) {
             $search = $request->search;
@@ -203,36 +189,26 @@ class ClientTrackingController extends Controller
         }
 
         if ($request->filled('status_filter') && $request->status_filter !== 'all') {
-            if ($request->status_filter === 'FACTURER ET PAYER') {
+            if ($request->status_filter === LoadStatus::PAYE->value) {
                 $loadsQuery->where('status', LoadStatus::PAYE);
-            } elseif ($request->status_filter === 'LIVRE PARTIELLEMENT') {
+            } elseif ($request->status_filter === LoadStatus::LIVRE_PARTIELLEMENT->value) {
                 $loadsQuery->where('status', LoadStatus::LIVRE_PARTIELLEMENT);
-            } elseif ($request->status_filter === 'FACTURER') {
+            } elseif ($request->status_filter === LoadStatus::FACTURER->value) {
                 $loadsQuery->where('status', LoadStatus::FACTURER);
             }
         }
 
         $allLoads = $loadsQuery->orderBy('unload_date', 'desc')->get();
 
-        $loadsFacturer = $allLoads->filter(fn($l) => $l->status === LoadStatus::FACTURER || $l->status === LoadStatus::LIVRE_PARTIELLEMENT);
+        $loadsFacturer = $allLoads->filter(fn ($l) => $l->status === LoadStatus::FACTURER || $l->status === LoadStatus::LIVRE_PARTIELLEMENT);
         $loadsFacturerPayer = $allLoads->where('status', LoadStatus::PAYE);
         $loadsLivrer = $allLoads->where('status', LoadStatus::LIVRER);
 
         // Liste des règlements
-        $paymentsQuery = ClientPayment::where('client_id', $clientId);
-
-        if ($startDate) {
-            $paymentsQuery->whereDate('date', '>=', $startDate);
-        }
-        if ($endDate) {
-            $paymentsQuery->whereDate('date', '<=', $endDate);
-        }
-
+        $paymentsQuery = $this->applyDateRange(ClientPayment::where('client_id', $clientId), $request, 'date', 'start_date', 'end_date');
         $payments = $paymentsQuery->orderBy('date', 'desc')->get();
 
-        ini_set('memory_limit', '512M');
-
-        $pdf = Pdf::loadView('reports.suivi-client-pdf', [
+        return $this->downloadPdfView('reports.suivi-client-pdf', [
             'client' => $client,
             'startDate' => $startDate,
             'endDate' => $endDate,
@@ -247,9 +223,7 @@ class ClientTrackingController extends Controller
             'loadsFacturerPayer' => $loadsFacturerPayer,
             'loadsLivrer' => $loadsLivrer,
             'payments' => $payments,
-        ]);
-
-        return $pdf->download("suivi-client-{$client->nom}.pdf");
+        ], "suivi-client-{$client->nom}.pdf");
     }
 
     public function processPayment(Request $request)
@@ -308,7 +282,7 @@ class ClientTrackingController extends Controller
     {
         return response()->json([
             'load_invoices' => $client->invoices()
-                ->with(['items.loadDetails'])
+                ->with(['items.loadDetails.invoiceItems'])
                 ->orderBy('date', 'desc')
                 ->get()
                 ->map(fn ($invoice) => [

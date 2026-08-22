@@ -2,9 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\DepotRequest;
 use App\Models\Depot;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -18,14 +18,9 @@ class DepotController extends Controller
         ]);
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(DepotRequest $request): RedirectResponse
     {
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'compartments' => 'nullable|array',
-            'compartments.*.product' => 'required|string|max:255',
-            'compartments.*.quantity' => 'nullable|numeric|min:0',
-        ]);
+        $validated = $request->validated();
 
         DB::transaction(function () use ($validated) {
             $depot = Depot::create(['name' => $validated['name']]);
@@ -43,15 +38,9 @@ class DepotController extends Controller
         return redirect()->back();
     }
 
-    public function update(Request $request, Depot $depot): RedirectResponse
+    public function update(DepotRequest $request, Depot $depot): RedirectResponse
     {
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'compartments' => 'nullable|array',
-            'compartments.*.id' => 'nullable|exists:compartments,id',
-            'compartments.*.product' => 'required|string|max:255',
-            'compartments.*.quantity' => 'nullable|numeric|min:0',
-        ]);
+        $validated = $request->validated();
 
         DB::transaction(function () use ($depot, $validated) {
             $depot->update(['name' => $validated['name']]);

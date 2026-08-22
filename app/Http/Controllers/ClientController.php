@@ -2,9 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\ClientRequest;
 use App\Models\Client;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -23,16 +23,9 @@ class ClientController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request): RedirectResponse
+    public function store(ClientRequest $request): RedirectResponse
     {
-        $validated = $request->validate([
-            'nom' => 'required|string|max:255',
-            'contact' => 'nullable|string|max:255',
-            'address' => 'nullable|string|max:255',
-            'initial_balance' => 'required|numeric',
-        ]);
-
-        Client::create($validated);
+        Client::create($request->validated());
 
         return redirect()->back()->with('success', 'Client créé avec succès.');
     }
@@ -40,16 +33,9 @@ class ClientController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, Client $client): RedirectResponse
+    public function update(ClientRequest $request, Client $client): RedirectResponse
     {
-        $validated = $request->validate([
-            'nom' => 'required|string|max:255',
-            'contact' => 'nullable|string|max:255',
-            'address' => 'nullable|string|max:255',
-            'initial_balance' => 'required|numeric',
-        ]);
-
-        $client->update($validated);
+        $client->update($request->validated());
 
         return redirect()->back()->with('success', 'Client mis à jour avec succès.');
     }
@@ -59,7 +45,18 @@ class ClientController extends Controller
      */
     public function destroy(Client $client): RedirectResponse
     {
-        // On pourrait ajouter des vérifications ici (si le client a des factures, etc.)
+        $hasHistory = $client->loads()->exists()
+            || $client->invoices()->exists()
+            || $client->depotInvoices()->exists()
+            || $client->payments()->exists();
+
+        if ($hasHistory) {
+            return redirect()->back()->with(
+                'error',
+                'Ce client a des chargements, factures ou règlements associés et ne peut pas être supprimé.',
+            );
+        }
+
         $client->delete();
 
         return redirect()->back()->with('success', 'Client supprimé avec succès.');

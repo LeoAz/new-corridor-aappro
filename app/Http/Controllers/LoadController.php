@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Concerns\GeneratesPdf;
 use App\Enums\LoadStatus;
 use App\Http\Requests\LoadRequest;
 use App\Models\City;
@@ -11,7 +12,6 @@ use App\Models\Depot;
 use App\Models\InvoiceItem;
 use App\Models\Load;
 use App\Services\StockAdjustmentService;
-use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -19,6 +19,8 @@ use Inertia\Response;
 
 class LoadController extends Controller
 {
+    use GeneratesPdf;
+
     public function __construct(private readonly StockAdjustmentService $stock) {}
 
     public function index(Request $request): Response
@@ -213,13 +215,9 @@ class LoadController extends Controller
 
         $loads = $query->latest()->get();
 
-        ini_set('memory_limit', '512M');
-
-        $pdf = Pdf::loadView('operations.loads_pdf', [
+        return $this->downloadPdfView('operations.loads_pdf', [
             'loads' => $loads,
             'filters' => $request->only(['product', 'date_from', 'date_to', 'load_locations']),
-        ]);
-
-        return $pdf->download('chargements_en_cours_'.date('Ymd_His').'.pdf');
+        ], 'chargements_en_cours_'.date('Ymd_His').'.pdf');
     }
 }

@@ -2,24 +2,16 @@ import { Head, router, useForm } from '@inertiajs/react';
 import type { ColumnDef } from '@tanstack/react-table';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { ArrowUpDown, CalendarIcon, Check, ChevronsUpDown, Download, Edit, MoreHorizontal, Plus, Search, Trash, X } from 'lucide-react';
+import { ArrowUpDown, CalendarIcon, Download, Edit, MoreHorizontal, Plus, Search, Trash, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import type { DateRange } from 'react-day-picker';
 import { toast } from 'sonner';
 
 import AlertError from '@/components/alert-error';
+import DepotCombobox from '@/components/depot-combobox';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Card } from '@/components/ui/card';
-
-import {
-    Command,
-    CommandEmpty,
-    CommandGroup,
-    CommandInput,
-    CommandItem,
-    CommandList,
-} from '@/components/ui/command';
 import { DataTable } from '@/components/ui/data-table';
 import {
     Dialog,
@@ -72,8 +64,6 @@ export default function AchatCarburant({ purchases, depots, filters }: Props) {
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [selectedPurchase, setSelectedPurchase] = useState<FuelPurchase | null>(null);
-
-    const [isDepotComboboxOpen, setIsDepotComboboxOpen] = useState(false);
 
     const initialDateRange: DateRange | undefined = useMemo(() => {
         if (filters.date_from && filters.date_to) {
@@ -464,56 +454,20 @@ export default function AchatCarburant({ purchases, depots, filters }: Props) {
                                     </Popover>
                                     {errors.purchase_date && <p className="text-sm text-destructive">{errors.purchase_date}</p>}
                                 </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="depot_id">Dépôt</Label>
-                                    <Popover open={isDepotComboboxOpen} onOpenChange={setIsDepotComboboxOpen}>
-                                        <PopoverTrigger asChild>
-                                            <Button
-                                                variant="outline"
-                                                role="combobox"
-                                                aria-expanded={isDepotComboboxOpen}
-                                                className="w-full justify-between"
-                                            >
-                                                {data.depot_id ? depots.find((d) => d.id.toString() === data.depot_id)?.name : 'Sélectionner un dépôt...'}
-                                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                            </Button>
-                                        </PopoverTrigger>
-                                        <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
-                                            <Command>
-                                                <CommandInput placeholder="Rechercher un dépôt..." />
-                                                <CommandList>
-                                                    <CommandEmpty>Aucun dépôt trouvé.</CommandEmpty>
-                                                    <CommandGroup>
-                                                        {depots.map((depot) => (
-                                                            <CommandItem
-                                                                key={depot.id}
-                                                                value={depot.name}
-                                                                onSelect={() => {
-                                                                    setData((prev) => ({
-                                                                        ...prev,
-                                                                        depot_id: depot.id.toString(),
-                                                                        compartment_id: '',
-                                                                        product: '',
-                                                                    }));
-                                                                    setIsDepotComboboxOpen(false);
-                                                                }}
-                                                            >
-                                                                <Check
-                                                                    className={cn(
-                                                                        'mr-2 h-4 w-4',
-                                                                        data.depot_id === depot.id.toString() ? 'opacity-100' : 'opacity-0',
-                                                                    )}
-                                                                />
-                                                                {depot.name}
-                                                            </CommandItem>
-                                                        ))}
-                                                    </CommandGroup>
-                                                </CommandList>
-                                            </Command>
-                                        </PopoverContent>
-                                    </Popover>
-                                    {errors.depot_id && <p className="text-sm text-destructive">{errors.depot_id}</p>}
-                                </div>
+                                <DepotCombobox
+                                    id="depot_id"
+                                    depots={depots}
+                                    value={data.depot_id}
+                                    onChange={(depotId) =>
+                                        setData((prev) => ({
+                                            ...prev,
+                                            depot_id: depotId,
+                                            compartment_id: '',
+                                            product: '',
+                                        }))
+                                    }
+                                    error={errors.depot_id}
+                                />
                             </div>
 
                             <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
@@ -639,56 +593,20 @@ export default function AchatCarburant({ purchases, depots, filters }: Props) {
                                     </Popover>
                                     {errors.purchase_date && <p className="text-sm text-destructive">{errors.purchase_date}</p>}
                                 </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="edit_depot_id">Dépôt</Label>
-                                    <Popover open={isDepotComboboxOpen} onOpenChange={setIsDepotComboboxOpen}>
-                                        <PopoverTrigger asChild>
-                                            <Button
-                                                variant="outline"
-                                                role="combobox"
-                                                aria-expanded={isDepotComboboxOpen}
-                                                className="w-full justify-between"
-                                            >
-                                                {data.depot_id ? depots.find((d) => d.id.toString() === data.depot_id)?.name : 'Sélectionner un dépôt...'}
-                                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                            </Button>
-                                        </PopoverTrigger>
-                                        <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
-                                            <Command>
-                                                <CommandInput placeholder="Rechercher un dépôt..." />
-                                                <CommandList>
-                                                    <CommandEmpty>Aucun dépôt trouvé.</CommandEmpty>
-                                                    <CommandGroup>
-                                                        {depots.map((depot) => (
-                                                            <CommandItem
-                                                                key={depot.id}
-                                                                value={depot.name}
-                                                                onSelect={() => {
-                                                                    setData((prev) => ({
-                                                                        ...prev,
-                                                                        depot_id: depot.id.toString(),
-                                                                        compartment_id: '',
-                                                                        product: '',
-                                                                    }));
-                                                                    setIsDepotComboboxOpen(false);
-                                                                }}
-                                                            >
-                                                                <Check
-                                                                    className={cn(
-                                                                        'mr-2 h-4 w-4',
-                                                                        data.depot_id === depot.id.toString() ? 'opacity-100' : 'opacity-0',
-                                                                    )}
-                                                                />
-                                                                {depot.name}
-                                                            </CommandItem>
-                                                        ))}
-                                                    </CommandGroup>
-                                                </CommandList>
-                                            </Command>
-                                        </PopoverContent>
-                                    </Popover>
-                                    {errors.depot_id && <p className="text-sm text-destructive">{errors.depot_id}</p>}
-                                </div>
+                                <DepotCombobox
+                                    id="edit_depot_id"
+                                    depots={depots}
+                                    value={data.depot_id}
+                                    onChange={(depotId) =>
+                                        setData((prev) => ({
+                                            ...prev,
+                                            depot_id: depotId,
+                                            compartment_id: '',
+                                            product: '',
+                                        }))
+                                    }
+                                    error={errors.depot_id}
+                                />
                             </div>
 
                             <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
