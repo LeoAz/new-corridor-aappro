@@ -20,33 +20,15 @@ test('a user can access chargements report', function () {
     $response->assertStatus(200);
 });
 
-test('chargements report only shows loads still in progress', function () {
+test('chargements report includes loads of every status', function () {
     $user = User::factory()->create();
     $client = Client::factory()->create();
 
-    $enCours = Load::factory()->create([
+    $loads = collect(LoadStatus::cases())->map(fn (LoadStatus $status) => Load::factory()->create([
         'client_id' => $client->id,
-        'status' => LoadStatus::EN_COURS,
+        'status' => $status,
         'load_date' => now(),
-    ]);
-
-    $partiellementLivre = Load::factory()->create([
-        'client_id' => $client->id,
-        'status' => LoadStatus::LIVRE_PARTIELLEMENT,
-        'load_date' => now(),
-    ]);
-
-    Load::factory()->create([
-        'client_id' => $client->id,
-        'status' => LoadStatus::TOTALEMENT_LIVRE,
-        'load_date' => now(),
-    ]);
-
-    Load::factory()->create([
-        'client_id' => $client->id,
-        'status' => LoadStatus::PAYE,
-        'load_date' => now(),
-    ]);
+    ]));
 
     $response = $this->actingAs($user)->get(route('rapports.chargements'));
 
@@ -54,7 +36,7 @@ test('chargements report only shows loads still in progress', function () {
 
     $loadIds = collect($response->viewData('page')['props']['loads'])->pluck('id')->sort()->values();
 
-    expect($loadIds->all())->toBe(collect([$enCours->id, $partiellementLivre->id])->sort()->values()->all());
+    expect($loadIds->all())->toBe($loads->pluck('id')->sort()->values()->all());
 });
 
 test('a user can download chargements report pdf', function () {
