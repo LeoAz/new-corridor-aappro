@@ -67,7 +67,9 @@ class ReportController extends Controller
 
     public function chargements(Request $request)
     {
-        $loads = $this->chargementsQuery($request)->orderBy('load_date', 'desc')->get();
+        $loads = $this->chargementsQuery($request)->orderBy('load_date', 'desc')->get()
+            ->filter(fn ($load) => $load->remaining_quantity > 0)
+            ->values();
 
         $stats = [
             'total_trucks' => $loads->count(),
@@ -94,7 +96,9 @@ class ReportController extends Controller
     {
         $client = $request->filled('client_id') ? Client::find($request->client_id) : null;
 
-        $loads = $this->chargementsQuery($request)->orderBy('load_date', 'desc')->get();
+        $loads = $this->chargementsQuery($request)->orderBy('load_date', 'desc')->get()
+            ->filter(fn ($load) => $load->remaining_quantity > 0)
+            ->values();
         $totalVolume = $loads->sum('volume');
         $totalRemaining = (float) $loads->sum(fn ($l) => $l->remaining_quantity);
 
