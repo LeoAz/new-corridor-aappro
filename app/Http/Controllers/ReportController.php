@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Concerns\FiltersByDateRange;
 use App\Concerns\GeneratesPdf;
+use App\Enums\LoadStatus;
 use App\Models\Client;
 use App\Models\Depot;
 use App\Models\DepotInvoice;
@@ -27,7 +28,7 @@ class ReportController extends Controller
      */
     private function chargementsQuery(Request $request): Builder
     {
-        $query = Load::query()->with(['client', 'depot', 'invoiceItems']);
+        $query = Load::query()->whereIn('status', LoadStatus::activeLoads())->with(['client', 'depot', 'invoiceItems']);
         $query = $this->applyDateRange($query, $request, 'load_date');
 
         return $query

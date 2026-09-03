@@ -158,7 +158,7 @@
                 <td class="text-center">
                     @php
                         $statusClass = 'bg-gray';
-                        $statusLabel = $load->status->label();
+                        $statusLabel = $load->status->value;
 
                         if ($load->status->value === \App\Enums\LoadStatus::EN_COURS->value) {
                             $statusClass = 'bg-blue';
