@@ -13,12 +13,12 @@
         .title { font-size: 16px; font-weight: bold; margin-top: 5px; color: #666; }
         .info { margin-bottom: 20px; clear: both; padding-top: 10px; }
         table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-        th { background-color: #f2f2f2; padding: 8px; border: 1px solid #ddd; text-align: left; text-transform: uppercase; font-size: 9px; }
-        td { padding: 8px; border: 1px solid #ddd; }
+        th { background-color: #f2f2f2; padding: 8px; border: 1.5px solid #333; text-align: left; text-transform: uppercase; font-size: 9px; font-weight: bold; }
+        td { padding: 6px 8px; border: 1px solid #444; }
         .text-right { text-align: right; }
         .footer { position: fixed; bottom: 20px; width: 100%; text-align: center; font-size: 9px; color: #999; }
         .total-section { margin-top: 10px; border-top: 2px solid #000; padding-top: 10px; }
-        .total-table { width: 300px; float: right; }
+        .total-table { width: 300px; float: right; border: none; }
         .total-table td { border: none; padding: 4px; }
         .total-label { font-weight: bold; }
         .total-value { font-weight: bold; font-size: 14px; text-align: right; }

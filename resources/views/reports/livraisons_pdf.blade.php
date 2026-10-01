@@ -13,13 +13,15 @@
         .info { margin-bottom: 20px; }
         .info table { width: 100%; }
         .info td { vertical-align: top; }
-        .stats { margin-bottom: 20px; background: #f9f9f9; padding: 15px; border-radius: 5px; }
+        .stats { margin-bottom: 20px; background: #f9f9f9; padding: 15px; border-radius: 5px; border: 1px solid #ccc; }
         .stats table { width: 100%; border-collapse: collapse; }
         .stats th { text-align: left; font-size: 9pt; color: #666; text-transform: uppercase; }
         .stats td { font-size: 14pt; font-weight: bold; }
-        .table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-        .table th { background: #00695c; color: white; padding: 8px; border: 1px solid #004d40; font-size: 8pt; text-transform: uppercase; text-align: left; }
-        .table td { padding: 8px; border: 1px solid #ddd; font-size: 9pt; }
+        .table { width: 100%; border-collapse: collapse; margin-bottom: 20px; border: 1.5px solid #004d40; }
+        .table th { background: #00695c; color: white; padding: 8px; border: 1.5px solid #004d40; font-size: 8pt; text-transform: uppercase; text-align: left; font-weight: bold; }
+        .table td { padding: 6px 8px; border: 1px solid #444; font-size: 9pt; }
+        .table tfoot tr { border-top: 2px solid #004d40; }
+        .table tfoot td { border: 1px solid #444; border-top: 2px solid #004d40; }
         .text-right { text-align: right; }
         .text-center { text-align: center; }
         .font-bold { font-weight: bold; }
