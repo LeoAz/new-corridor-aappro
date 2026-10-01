@@ -13,6 +13,7 @@ use App\Services\QrCodeGenerator;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Inertia\Inertia;
 
 class ReportController extends Controller
@@ -45,6 +46,36 @@ class ReportController extends Controller
             ->when($request->filled('product'), fn ($q) => $q->where('product', $request->product))
             ->when($request->filled('unload_location'), fn ($q) => $q->where('unload_location', 'like', '%'.$request->unload_location.'%'))
             ->when($request->filled('client_id'), fn ($q) => $q->where('client_id', $request->client_id));
+    }
+
+    /**
+     * Nombre de camions par client et par produit, sous forme de tableau croisé.
+     *
+     * @return array{products: array<int, string>, rows: array<int, array{client: string, counts: array<string, int>, total: int}>}
+     */
+    private function truckCountsByClientAndProduct(Collection $loads): array
+    {
+        $products = $loads->pluck('product')->map(fn ($product) => $product ?: 'INCONNU')->unique()->sort()->values();
+
+        $rows = $loads
+            ->groupBy(fn ($load) => $load->client->nom ?? 'Sans Client')
+            ->map(function ($clientLoads, $clientName) use ($products) {
+                $byProduct = $clientLoads->groupBy(fn ($load) => $load->product ?: 'INCONNU');
+
+                return [
+                    'client' => $clientName,
+                    'counts' => $products->mapWithKeys(fn ($product) => [$product => $byProduct->get($product, collect())->count()])->toArray(),
+                    'total' => $clientLoads->count(),
+                ];
+            })
+            ->sortByDesc('total')
+            ->values()
+            ->toArray();
+
+        return [
+            'products' => $products->toArray(),
+            'rows' => $rows,
+        ];
     }
 
     private function ventesChargementQuery(Request $request): Builder
@@ -152,6 +183,7 @@ class ReportController extends Controller
                 'count' => $group->count(),
                 'volume' => $group->sum('volume'),
             ])->values()->toArray(),
+            'by_client_product' => $this->truckCountsByClientAndProduct($loads),
         ];
 
         return Inertia::render('reports/livraisons', [
@@ -191,6 +223,8 @@ class ReportController extends Controller
             });
         });
 
+        $clientProductStats = $this->truckCountsByClientAndProduct($loads);
+
         $qrData = "Rapport Livraisons\n";
         $qrData .= 'Date: '.now()->format('d/m/Y')."\n";
         $qrData .= 'Camions: '.$loads->count()."\n";
@@ -203,6 +237,7 @@ class ReportController extends Controller
             'groupedLoads' => $groupedLoads,
             'stats' => $stats,
             'clientStats' => $clientStats,
+            'clientProductStats' => $clientProductStats,
             'totalVolume' => $totalVolume,
             'filters' => $request->all(),
             'client' => $client,

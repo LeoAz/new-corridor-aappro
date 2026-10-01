@@ -1,12 +1,12 @@
-import * as citiesActions from '@/actions/App/Http/Controllers/CityController';
 import { Head, useForm } from '@inertiajs/react';
 import type { ColumnDef } from '@tanstack/react-table';
 import { Edit, MoreHorizontal, Plus, Trash } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import * as citiesActions from '@/actions/App/Http/Controllers/CityController';
 
+import AlertError from '@/components/alert-error';
 import { Button } from '@/components/ui/button';
 import { DataTable } from '@/components/ui/data-table';
-import AlertError from '@/components/alert-error';
 import {
     Dialog,
     DialogContent,

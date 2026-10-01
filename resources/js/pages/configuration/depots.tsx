@@ -4,9 +4,9 @@ import { Edit, MoreHorizontal, Plus, Trash, Trash2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
+import AlertError from '@/components/alert-error';
 import { Button } from '@/components/ui/button';
 import { DataTable } from '@/components/ui/data-table';
-import AlertError from '@/components/alert-error';
 import {
     Dialog,
     DialogContent,

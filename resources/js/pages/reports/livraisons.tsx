@@ -27,6 +27,10 @@ interface Stats {
     total_trucks: number;
     total_volume: number;
     by_product: Record<string, { count: number; volume: number }>;
+    by_client_product: {
+        products: string[];
+        rows: { client: string; counts: Record<string, number>; total: number }[];
+    };
 }
 
 interface Props {
@@ -42,7 +46,7 @@ interface Props {
     };
 }
 
-export default function ReportLivraisons({ loads = [], stats = { total_trucks: 0, total_volume: 0, by_product: {} }, clients = [], filters }: Props) {
+export default function ReportLivraisons({ loads = [], stats = { total_trucks: 0, total_volume: 0, by_product: {}, by_client_product: { products: [], rows: [] } }, clients = [], filters }: Props) {
     const [dateFrom, setDateFrom] = useState<string>(filters?.date_from || '');
     const [dateTo, setDateTo] = useState<string>(filters?.date_to || '');
     const [product, setProduct] = useState<string>(filters?.product || 'all');
@@ -280,6 +284,50 @@ export default function ReportLivraisons({ loads = [], stats = { total_trucks: 0
                         </div>
                     ))}
                 </div>
+
+                {/* Récap camions par client et par produit */}
+                {stats.by_client_product.rows.length > 0 && (
+                    <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
+                        <div className="p-4 pb-0">
+                            <h2 className="text-sm font-bold uppercase tracking-wider text-foreground">Nombre de camions par client et par produit</h2>
+                        </div>
+                        <div className="overflow-x-auto p-4">
+                            <table className="w-full text-sm">
+                                <thead>
+                                    <tr className="border-b border-border">
+                                        <th className="py-2 pr-4 text-left font-bold uppercase text-xs text-muted-foreground">Client</th>
+                                        {stats.by_client_product.products.map((product) => (
+                                            <th key={product} className="py-2 px-4 text-right font-bold uppercase text-xs text-muted-foreground">{product}</th>
+                                        ))}
+                                        <th className="py-2 pl-4 text-right font-bold uppercase text-xs text-muted-foreground">Total</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {stats.by_client_product.rows.map((row) => (
+                                        <tr key={row.client} className="border-b border-border/50">
+                                            <td className="py-2 pr-4 font-medium">{row.client}</td>
+                                            {stats.by_client_product.products.map((product) => (
+                                                <td key={product} className="py-2 px-4 text-right">{row.counts[product] ?? 0}</td>
+                                            ))}
+                                            <td className="py-2 pl-4 text-right font-bold">{row.total}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                                <tfoot>
+                                    <tr className="font-black">
+                                        <td className="py-2 pr-4 uppercase text-xs">Total</td>
+                                        {stats.by_client_product.products.map((product) => (
+                                            <td key={product} className="py-2 px-4 text-right">
+                                                {stats.by_client_product.rows.reduce((sum, row) => sum + (row.counts[product] ?? 0), 0)}
+                                            </td>
+                                        ))}
+                                        <td className="py-2 pl-4 text-right">{stats.total_trucks}</td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    </div>
+                )}
 
                 {/* Liste des livraisons */}
                 <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">

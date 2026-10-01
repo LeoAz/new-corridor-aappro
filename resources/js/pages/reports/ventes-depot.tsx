@@ -1,5 +1,5 @@
 import { Head, router } from '@inertiajs/react';
-import { ColumnDef } from '@tanstack/react-table';
+import type { ColumnDef } from '@tanstack/react-table';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { Banknote, CalendarIcon, Download, Filter, Search } from 'lucide-react';

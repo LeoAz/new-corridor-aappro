@@ -161,6 +161,43 @@
         </table>
     </div>
 
+    @if(count($clientProductStats['rows']) > 0)
+    <div style="margin-bottom: 20px;">
+        <h4 style="margin: 0 0 10px 0; color: #00695c; text-transform: uppercase; font-size: 9pt;">Nombre de camions par client et par produit</h4>
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Client</th>
+                    @foreach($clientProductStats['products'] as $product)
+                    <th class="text-center">{{ $product }}</th>
+                    @endforeach
+                    <th class="text-center">Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach($clientProductStats['rows'] as $row)
+                <tr>
+                    <td class="font-bold">{{ $row['client'] }}</td>
+                    @foreach($clientProductStats['products'] as $product)
+                    <td class="text-center">{{ $row['counts'][$product] ?? 0 }}</td>
+                    @endforeach
+                    <td class="text-center font-bold">{{ $row['total'] }}</td>
+                </tr>
+                @endforeach
+            </tbody>
+            <tfoot>
+                <tr style="background: #f0f0f0;">
+                    <td class="font-bold">TOTAL</td>
+                    @foreach($clientProductStats['products'] as $product)
+                    <td class="text-center font-bold">{{ collect($clientProductStats['rows'])->sum(fn ($row) => $row['counts'][$product] ?? 0) }}</td>
+                    @endforeach
+                    <td class="text-center font-bold">{{ $loads->count() }}</td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+    @endif
+
     @foreach($groupedLoads as $date => $clients)
         <h3 style="background: #00695c; color: white; padding: 8px; margin-top: 20px;">Date : {{ \Carbon\Carbon::parse($date)->format('d/m/Y') }}</h3>
 
