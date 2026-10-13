@@ -64,3 +64,19 @@ test('can delete a depot', function () {
     $this->assertDatabaseMissing('depots', ['id' => $depot->id]);
     $this->assertDatabaseMissing('compartments', ['depot_id' => $depot->id]);
 });
+
+test('can update a depot with negative compartment quantities', function () {
+    $depot = Depot::create(['name' => 'Depot']);
+    $comp = $depot->compartments()->create(['product' => 'Essence', 'quantity' => 500]);
+
+    $response = $this->put(route('configuration.depots.update', $depot), [
+        'name' => 'Depot',
+        'compartments' => [
+            ['id' => $comp->id, 'product' => 'Essence', 'quantity' => -250.5],
+        ],
+    ]);
+
+    $response->assertRedirect();
+    $response->assertSessionHasNoErrors();
+    $this->assertDatabaseHas('compartments', ['id' => $comp->id, 'quantity' => -250.5]);
+});

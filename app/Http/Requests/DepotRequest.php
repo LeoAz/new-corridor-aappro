@@ -16,7 +16,7 @@ class DepotRequest extends FormRequest
             'compartments' => 'nullable|array',
             'compartments.*.id' => 'nullable|exists:compartments,id',
             'compartments.*.product' => 'required|string|max:255',
-            'compartments.*.quantity' => 'nullable|numeric|min:0',
+            'compartments.*.quantity' => 'nullable|numeric',
         ];
     }
 }
