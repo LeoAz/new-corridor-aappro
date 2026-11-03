@@ -13,6 +13,7 @@
         .title { font-size: 16px; font-weight: bold; margin-top: 5px; color: #666; }
         .info { margin-bottom: 10px; clear: both; padding-top: 10px; }
         table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+        table.detail { margin-bottom: 0; }
         th { background-color: #f2f2f2; padding: 8px; border: 1px solid #ddd; text-align: left; text-transform: uppercase; font-size: 9px; }
         td { padding: 8px; border: 1px solid #ddd; }
         .text-right { text-align: right; }
@@ -65,7 +66,9 @@
             <div style="clear: both;"></div>
         </div>
 
-        <table>
+        {{-- Découpé en tableaux de 50 lignes : un tableau unique de plusieurs milliers de lignes épuise la mémoire de dompdf. --}}
+        @foreach($loads->chunk(50) as $chunk)
+        <table class="detail">
             <thead>
                 <tr>
                     <th style="width: 25px;">N°</th>
@@ -78,9 +81,9 @@
                 </tr>
             </thead>
             <tbody>
-                @foreach($loads as $load)
+                @foreach($chunk as $index => $load)
                 <tr>
-                    <td>{{ $loop->iteration }}</td>
+                    <td>{{ $index + 1 }}</td>
                     <td>{{ \Carbon\Carbon::parse($load->load_date)->format('d/m/Y') }}</td>
                     <td>{{ $load->vehicle_registration }}</td>
                     <td>{{ $load->compartment->product ?? ($load->product ?? 'N/A') }}</td>
@@ -91,6 +94,7 @@
                 @endforeach
             </tbody>
         </table>
+        @endforeach
 
         <div class="footer">
             CORRIDOR APPRO - Système de Gestion de Carburant

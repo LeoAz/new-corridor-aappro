@@ -90,13 +90,10 @@ export default function ReportVentesDepot({ invoices, stats, filters, clients, d
     const handleDownload = () => {
         const url = new URL(toUrl(reportsActions.default.venteDepot.download()), window.location.origin);
 
-        if (dateFrom) {
-            url.searchParams.append('date_from', dateFrom);
-        }
-
-        if (dateTo) {
-            url.searchParams.append('date_to', dateTo);
-        }
+        // Toujours envoyées, même vides : une période vide signifie « toutes les dates »,
+        // alors qu'une absence de période applique le mois en cours côté serveur.
+        url.searchParams.append('date_from', dateFrom);
+        url.searchParams.append('date_to', dateTo);
 
         if (clientId && clientId !== 'all') {
             url.searchParams.append('client_id', clientId.toString());

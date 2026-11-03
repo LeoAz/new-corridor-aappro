@@ -232,7 +232,7 @@ class DeliveryController extends Controller
             $query = Load::whereIn('status', LoadStatus::deliveryTracking());
         }
 
-        $query->with(['depot', 'city', 'client', 'compartment', 'invoiceItems.invoice.client']);
+        $query->with(['depot', 'client', 'compartment']);
 
         // Filters
         if ($request->filled('client_id')) {

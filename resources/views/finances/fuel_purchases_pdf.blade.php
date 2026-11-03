@@ -10,6 +10,7 @@
         .title { font-size: 16px; font-weight: bold; margin-top: 5px; color: #666; }
         .info { margin-bottom: 20px; }
         table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+        table.detail { margin-bottom: 0; }
         th { background-color: #f2f2f2; padding: 8px; border: 1px solid #ddd; text-align: left; text-transform: uppercase; font-size: 9px; }
         td { padding: 8px; border: 1px solid #ddd; }
         .text-right { text-align: right; }
@@ -33,7 +34,9 @@
             Imprimé le: {{ date('d/m/Y') }}
         </div>
 
-        <table>
+        {{-- Découpé en tableaux de 50 lignes : un tableau unique de plusieurs milliers de lignes épuise la mémoire de dompdf. --}}
+        @foreach($purchases->chunk(50) as $chunk)
+        <table class="detail">
             <thead>
                 <tr>
                     <th style="width: 25px;">N°</th>
@@ -47,9 +50,9 @@
                 </tr>
             </thead>
             <tbody>
-                @foreach($purchases as $purchase)
+                @foreach($chunk as $index => $purchase)
                 <tr>
-                    <td>{{ $loop->iteration }}</td>
+                    <td>{{ $index + 1 }}</td>
                     <td>{{ \Carbon\Carbon::parse($purchase->purchase_date)->format('d/m/Y') }}</td>
                     <td>{{ $purchase->product }}</td>
                     <td>{{ $purchase->depot->name }}</td>
@@ -61,6 +64,7 @@
                 @endforeach
             </tbody>
         </table>
+        @endforeach
 
         <div class="total-section">
             <table class="total-table">

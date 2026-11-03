@@ -32,6 +32,9 @@
         .bg-green { background: #e8f5e9; color: #2e7d32; }
         .bg-gray { background: #f5f5f5; color: #616161; }
         .page-break { page-break-after: always; }
+        .text-remaining { color: #e65100; }
+        .table.detail { margin-bottom: 0; }
+        .table.detail td { padding: 5px 8px; font-size: 8pt; }
     </style>
 </head>
 <body>
@@ -128,7 +131,10 @@
         </table>
     </div>
 
-    <table class="table">
+    {{-- Le détail est découpé en plusieurs tableaux : dompdf construit une Cellmap par tableau,
+         et un tableau unique de plusieurs milliers de lignes épuise la mémoire. --}}
+    @foreach($loads->chunk(50) as $chunk)
+    <table class="table detail">
         <thead>
             <tr>
                 <th style="width: 40px;">N°</th>
@@ -142,44 +148,29 @@
             </tr>
         </thead>
         <tbody>
-            @foreach($loads as $load)
+            @foreach($chunk as $index => $load)
+            @php
+                $statusClass = match ($load->status) {
+                    \App\Enums\LoadStatus::EN_COURS, \App\Enums\LoadStatus::FACTURER => 'bg-blue',
+                    \App\Enums\LoadStatus::LIVRE_PARTIELLEMENT => 'bg-orange',
+                    \App\Enums\LoadStatus::PAYE, \App\Enums\LoadStatus::TOTALEMENT_LIVRE => 'bg-green',
+                    default => 'bg-gray',
+                };
+            @endphp
             <tr>
-                <td class="text-center">{{ $loop->iteration }}</td>
+                <td class="text-center">{{ $index + 1 }}</td>
                 <td>{{ \Carbon\Carbon::parse($load->load_date)->format('d/m/Y') }}</td>
                 <td class="font-bold">{{ $load->vehicle_registration }}</td>
                 <td>{{ $load->depot->name ?? 'N/A' }}</td>
-                <td>
-                    <span class="badge {{ $load->product === 'GASOIL' ? 'bg-blue' : ($load->product === 'SUPER' ? 'bg-orange' : 'bg-purple') }}">
-                        {{ $load->product }}
-                    </span>
-                </td>
+                <td class="font-bold {{ $load->product === 'GASOIL' ? 'bg-blue' : ($load->product === 'SUPER' ? 'bg-orange' : 'bg-purple') }}">{{ $load->product }}</td>
                 <td class="text-right font-bold">{{ number_format($load->volume, 0, '.', ' ') }} L</td>
-                <td class="text-right font-bold" style="color: #e65100;">{{ number_format($load->remaining_quantity, 0, '.', ' ') }} L</td>
-                <td class="text-center">
-                    @php
-                        $statusClass = 'bg-gray';
-                        $statusLabel = $load->status->value;
-
-                        if ($load->status->value === \App\Enums\LoadStatus::EN_COURS->value) {
-                            $statusClass = 'bg-blue';
-                        } elseif ($load->status->value === \App\Enums\LoadStatus::LIVRE_PARTIELLEMENT->value) {
-                            $statusClass = 'bg-orange';
-                        } elseif ($load->status->value === \App\Enums\LoadStatus::FACTURER->value) {
-                            $statusClass = 'bg-blue';
-                        } elseif ($load->status->value === \App\Enums\LoadStatus::PAYE->value) {
-                            $statusClass = 'bg-green';
-                        } elseif ($load->status->value === \App\Enums\LoadStatus::TOTALEMENT_LIVRE->value) {
-                            $statusClass = 'bg-green';
-                        }
-                    @endphp
-                    <span class="badge {{ $statusClass }}">
-                        {{ $statusLabel }}
-                    </span>
-                </td>
+                <td class="text-right font-bold text-remaining">{{ number_format($load->remaining_quantity, 0, '.', ' ') }} L</td>
+                <td class="text-center font-bold {{ $statusClass }}">{{ $load->status->value }}</td>
             </tr>
             @endforeach
         </tbody>
     </table>
+    @endforeach
 
     <div style="margin-top: 30px; border-top: 3px double #333; padding-top: 10px; text-align: right;">
         <span style="font-size: 14pt; font-weight: bold; text-transform: uppercase;">Volume Initial : {{ number_format($totalVolume, 0, '.', ' ') }} L</span><br>

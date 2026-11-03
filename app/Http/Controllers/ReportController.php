@@ -28,7 +28,7 @@ class ReportController extends Controller
      */
     private function chargementsQuery(Request $request): Builder
     {
-        $query = Load::query()->with(['client', 'depot', 'invoiceItems']);
+        $query = Load::query()->withRemainingQuantity()->with(['client', 'depot', 'invoiceItems']);
         $query = $this->applyDateRange($query, $request, 'load_date');
 
         return $query
@@ -39,6 +39,8 @@ class ReportController extends Controller
 
     private function livraisonsQuery(Request $request): Builder
     {
+        $this->applyDefaultDateRange($request);
+
         $query = Load::query()->whereNotNull('unload_date')->with(['client', 'depot', 'invoiceItems']);
         $query = $this->applyDateRange($query, $request, 'unload_date');
 
@@ -80,6 +82,8 @@ class ReportController extends Controller
 
     private function ventesChargementQuery(Request $request): Builder
     {
+        $this->applyDefaultDateRange($request);
+
         $query = Invoice::query()->with(['client', 'items.loadDetails.invoiceItems']);
         $query = $this->applyDateRange($query, $request, 'date');
 
@@ -88,6 +92,8 @@ class ReportController extends Controller
 
     private function ventesDepotQuery(Request $request): Builder
     {
+        $this->applyDefaultDateRange($request);
+
         $query = DepotInvoice::query()->with(['client', 'depot', 'items.compartment']);
         $query = $this->applyDateRange($query, $request, 'date');
 

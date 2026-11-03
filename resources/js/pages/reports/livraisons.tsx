@@ -109,13 +109,10 @@ export default function ReportLivraisons({ loads = [], stats = { total_trucks: 0
     const handleDownload = () => {
         const url = new URL(toUrl(reportsActions.default.livraisons.download()), window.location.origin);
 
-        if (dateFrom) {
-            url.searchParams.append('date_from', dateFrom);
-        }
-
-        if (dateTo) {
-            url.searchParams.append('date_to', dateTo);
-        }
+        // Toujours envoyées, même vides : une période vide signifie « toutes les dates »,
+        // alors qu'une absence de période applique le mois en cours côté serveur.
+        url.searchParams.append('date_from', dateFrom);
+        url.searchParams.append('date_to', dateTo);
 
         if (product && product !== 'all') {
             url.searchParams.append('product', product);

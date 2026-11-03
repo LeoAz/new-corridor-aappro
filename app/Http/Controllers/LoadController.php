@@ -194,7 +194,7 @@ class LoadController extends Controller
     public function downloadPdf(Request $request)
     {
         $query = Load::whereIn('status', LoadStatus::activeLoads())
-            ->with(['depot', 'city', 'client', 'compartment']);
+            ->with(['depot', 'client', 'compartment']);
 
         if ($request->filled('product')) {
             $query->where('product', $request->product);
