@@ -9,6 +9,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Validator;
 use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -35,11 +36,14 @@ class ExportController extends Controller
      */
     public function store(StoreExportRequest $request): JsonResponse
     {
-        $type = $request->exportType();
+        $exporter = $request->exportType()->exporter();
+        $filters = $request->exportFilters();
+
+        Validator::make($filters, $exporter->rules())->validate();
 
         $export = $request->user()->exports()->create([
-            'type' => $type,
-            'filters' => $type->exporter()->resolveFilters($request->exportFilters()),
+            'type' => $request->exportType(),
+            'filters' => $exporter->resolveFilters($filters),
         ]);
 
         GeneratePdfExport::dispatch($export);

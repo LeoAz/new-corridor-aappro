@@ -19,6 +19,7 @@ import {
 import { DataTable } from '@/components/ui/data-table';
 import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { usePdfExport } from '@/hooks/use-pdf-export';
 import AppLayout from '@/layouts/app-layout';
 import { cn, formatNumber, toUrl } from '@/lib/utils';
 import * as stocksActions from '@/routes/stocks';
@@ -58,6 +59,8 @@ interface Props {
 }
 
 export default function SuiviStock({ depots, selectedDepot, purchases, chargements, livraisons, depotSales, filters }: Props) {
+    const { requestExport, isRequesting } = usePdfExport();
+
     const [activeTab, setActiveTab] = useState('situation');
     const [dateFrom, setDateFrom] = useState<string>(filters?.date_from || '');
     const [dateTo, setDateTo] = useState<string>(filters?.date_to || '');
@@ -531,25 +534,26 @@ export default function SuiviStock({ depots, selectedDepot, purchases, chargemen
                                     <div className="px-6 py-4 flex items-center justify-between border-b border-gray-100">
                                         <h3 className="font-bold text-gray-800 uppercase tracking-tight">Récapitulatif Dépôt</h3>
                                         <Button
+                                            disabled={isRequesting}
                                             variant="outline"
                                             size="sm"
                                             onClick={() => {
-                                                const url = new URL(toUrl(stocksActions.default.suiviStock.download()), window.location.origin);
-                                                url.searchParams.append('depot_id', selectedDepot.id.toString());
+                                                const params = new URLSearchParams();
+                                                params.append('depot_id', selectedDepot.id.toString());
 
                                                 if (dateFrom) {
-                                                    url.searchParams.append('date_from', dateFrom);
+                                                    params.append('date_from', dateFrom);
                                                 }
 
                                                 if (dateTo) {
-                                                    url.searchParams.append('date_to', dateTo);
+                                                    params.append('date_to', dateTo);
                                                 }
 
                                                 if (compartmentId !== 'all') {
-                                                    url.searchParams.append('compartment_id', compartmentId);
+                                                    params.append('compartment_id', compartmentId);
                                                 }
 
-                                                window.location.href = url.toString();
+                                                requestExport('suivi-stock', Object.fromEntries(params));
                                             }}
                                             className="h-8 text-xs font-medium border-gray-200 hover:bg-gray-50"
                                         >

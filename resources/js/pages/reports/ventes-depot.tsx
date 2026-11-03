@@ -12,6 +12,7 @@ import { DataTable } from '@/components/ui/data-table';
 import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { usePdfExport } from '@/hooks/use-pdf-export';
 import { cn, formatNumber, toUrl } from '@/lib/utils';
 import * as reportsActions from '@/routes/rapports';
 import type { Client, Depot } from '@/types';
@@ -44,6 +45,8 @@ interface Props {
 }
 
 export default function ReportVentesDepot({ invoices, stats, filters, clients, depots }: Props) {
+    const { requestExport, isRequesting } = usePdfExport();
+
     const [dateFrom, setDateFrom] = useState<string>(filters?.date_from || '');
     const [dateTo, setDateTo] = useState<string>(filters?.date_to || '');
     const [clientId, setClientId] = useState<number | string>(filters?.client_id || 'all');
@@ -88,22 +91,22 @@ export default function ReportVentesDepot({ invoices, stats, filters, clients, d
     };
 
     const handleDownload = () => {
-        const url = new URL(toUrl(reportsActions.default.venteDepot.download()), window.location.origin);
+        const params = new URLSearchParams();
 
         // Toujours envoyées, même vides : une période vide signifie « toutes les dates »,
         // alors qu'une absence de période applique le mois en cours côté serveur.
-        url.searchParams.append('date_from', dateFrom);
-        url.searchParams.append('date_to', dateTo);
+        params.append('date_from', dateFrom);
+        params.append('date_to', dateTo);
 
         if (clientId && clientId !== 'all') {
-            url.searchParams.append('client_id', clientId.toString());
+            params.append('client_id', clientId.toString());
         }
 
         if (depotId && depotId !== 'all') {
-            url.searchParams.append('depot_id', depotId.toString());
+            params.append('depot_id', depotId.toString());
         }
 
-        window.location.href = url.toString();
+        requestExport('rapport-ventes-depot', Object.fromEntries(params));
     };
 
     const selectedClient = clients.find((c) => c.id === clientId);
@@ -115,7 +118,7 @@ export default function ReportVentesDepot({ invoices, stats, filters, clients, d
             <div className="flex h-full flex-1 flex-col gap-4 p-4">
                 <div className="flex items-center justify-between">
                     <h1 className="text-2xl font-bold text-foreground font-mono uppercase tracking-tight">Rapport des ventes sur dépôt</h1>
-                    <Button onClick={handleDownload} variant="outline" className="gap-2">
+                    <Button disabled={isRequesting} onClick={handleDownload} variant="outline" className="gap-2">
                         <Download className="h-4 w-4" />
                         Exporter PDF
                     </Button>

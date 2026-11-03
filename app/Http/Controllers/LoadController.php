@@ -11,6 +11,7 @@ use App\Models\Compartment;
 use App\Models\Depot;
 use App\Models\InvoiceItem;
 use App\Models\Load;
+use App\Services\Exports\ChargementsEnCoursExport;
 use App\Services\StockAdjustmentService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -193,31 +194,6 @@ class LoadController extends Controller
 
     public function downloadPdf(Request $request)
     {
-        $query = Load::whereIn('status', LoadStatus::activeLoads())
-            ->with(['depot', 'client', 'compartment']);
-
-        if ($request->filled('product')) {
-            $query->where('product', $request->product);
-        }
-
-        if ($request->filled('date_from')) {
-            $query->whereDate('load_date', '>=', $request->date_from);
-        }
-
-        if ($request->filled('date_to')) {
-            $query->whereDate('load_date', '<=', $request->date_to);
-        }
-
-        if ($request->filled('load_locations')) {
-            $locations = is_array($request->load_locations) ? $request->load_locations : explode(',', $request->load_locations);
-            $query->whereIn('load_location', $locations);
-        }
-
-        $loads = $query->latest()->get();
-
-        return $this->downloadPdfView('operations.loads_pdf', [
-            'loads' => $loads,
-            'filters' => $request->only(['product', 'date_from', 'date_to', 'load_locations']),
-        ], 'chargements_en_cours_'.date('Ymd_His').'.pdf');
+        return $this->downloadPdfExport(app(ChargementsEnCoursExport::class), $request->all());
     }
 }
