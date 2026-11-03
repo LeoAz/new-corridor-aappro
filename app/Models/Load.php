@@ -3,6 +3,8 @@
 namespace App\Models;
 
 use App\Enums\LoadStatus;
+use Illuminate\Database\Eloquent\Attributes\Scope;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -114,6 +116,17 @@ class Load extends Model
         }
 
         return round(max((float) $this->volume - $invoiced, 0), 2);
+    }
+
+    /**
+     * Restreint aux chargements ayant encore un volume à livrer, calculé en SQL
+     * (même règle que remainingQuantity()) pour ne pas charger tout l'historique en mémoire.
+     */
+    #[Scope]
+    protected function withRemainingQuantity(Builder $query): void
+    {
+        $query->where('status', '!=', LoadStatus::TOTALEMENT_LIVRE)
+            ->whereRaw('loads.volume - (select coalesce(sum(invoice_items.quantity_delivered), 0) from invoice_items where invoice_items.load_id = loads.id) >= 0.005');
     }
 
     public function refreshInvoiceStatus(): void
