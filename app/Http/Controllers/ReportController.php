@@ -9,6 +9,7 @@ use App\Models\Depot;
 use App\Models\DepotInvoice;
 use App\Models\Invoice;
 use App\Models\Load;
+use App\Services\Exports\ChargementsReportExport;
 use App\Services\QrCodeGenerator;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
@@ -21,21 +22,7 @@ class ReportController extends Controller
     use FiltersByDateRange;
     use GeneratesPdf;
 
-    /**
-     * `invoiceItems` est eager-chargée pour que l'accesseur `remaining_quantity`
-     * du modèle Load (appelé à la sérialisation et dans les agrégats ci-dessous)
-     * utilise la relation déjà chargée au lieu de relancer une requête par ligne.
-     */
-    private function chargementsQuery(Request $request): Builder
-    {
-        $query = Load::query()->withRemainingQuantity()->with(['client', 'depot', 'invoiceItems']);
-        $query = $this->applyDateRange($query, $request, 'load_date');
-
-        return $query
-            ->when($request->filled('product'), fn ($q) => $q->where('product', $request->product))
-            ->when($request->filled('load_location'), fn ($q) => $q->where('load_location', 'like', '%'.$request->load_location.'%'))
-            ->when($request->filled('client_id'), fn ($q) => $q->where('client_id', $request->client_id));
-    }
+    public function __construct(private readonly ChargementsReportExport $chargementsReport) {}
 
     private function livraisonsQuery(Request $request): Builder
     {
@@ -104,9 +91,7 @@ class ReportController extends Controller
 
     public function chargements(Request $request)
     {
-        $loads = $this->chargementsQuery($request)->orderBy('load_date', 'desc')->get()
-            ->filter(fn ($load) => $load->remaining_quantity > 0)
-            ->values();
+        $loads = $this->chargementsReport->loads($request->all());
 
         $stats = [
             'total_trucks' => $loads->count(),
@@ -131,50 +116,7 @@ class ReportController extends Controller
 
     public function downloadChargements(Request $request)
     {
-        $client = $request->filled('client_id') ? Client::find($request->client_id) : null;
-
-        $loads = $this->chargementsQuery($request)->orderBy('load_date', 'desc')->get()
-            ->filter(fn ($load) => $load->remaining_quantity > 0)
-            ->values();
-        $totalVolume = $loads->sum('volume');
-        $totalRemaining = (float) $loads->sum(fn ($l) => $l->remaining_quantity);
-
-        $stats = $loads->groupBy('product')->map(fn ($group, $product) => [
-            'product' => $product ?: 'INCONNU',
-            'count' => $group->count(),
-            'volume' => $group->sum('volume'),
-            'remaining' => (float) $group->sum(fn ($l) => $l->remaining_quantity),
-        ])->values()->toArray();
-
-        $depotStats = $loads->groupBy(fn ($load) => $load->depot->name ?? 'N/A')
-            ->map(fn ($depotGroup) => $depotGroup->groupBy('product')
-                ->map(fn ($productGroup, $product) => [
-                    'product' => $product ?: 'INCONNU',
-                    'count' => $productGroup->count(),
-                    'volume' => $productGroup->sum('volume'),
-                    'remaining' => (float) $productGroup->sum(fn ($l) => $l->remaining_quantity),
-                ])
-            )->toArray();
-
-        $qrData = "Rapport Chargements\n";
-        $qrData .= 'Date: '.now()->format('d/m/Y')."\n";
-        $qrData .= 'Camions: '.$loads->count()."\n";
-        $qrData .= 'Volume Init: '.number_format($totalVolume, 0, '.', ' ').' L'."\n";
-        $qrData .= 'Reste: '.number_format($totalRemaining, 0, '.', ' ').' L';
-
-        $qrcode = QrCodeGenerator::base64($qrData);
-
-        return $this->downloadPdfView('reports.chargements_pdf', [
-            'loads' => $loads,
-            'stats' => $stats,
-            'depotStats' => $depotStats,
-            'totalVolume' => $totalVolume,
-            'totalRemaining' => $totalRemaining,
-            'filters' => $request->all(),
-            'client' => $client,
-            'qrcode' => $qrcode,
-            'date' => now()->format('d/m/Y H:i'),
-        ], 'rapport-chargements-'.now()->format('Y-m-d').'.pdf', 'a4', 'landscape');
+        return $this->downloadPdfExport($this->chargementsReport, $request->all());
     }
 
     public function livraisons(Request $request)
