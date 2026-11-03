@@ -15,6 +15,8 @@ use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 
 beforeEach(function () {
+    config(['queue.pdf_exports' => true]);
+
     $this->user = User::factory()->create();
 });
 
@@ -238,4 +240,31 @@ test('report exports freeze the default period when the request is made', functi
         'date_from' => now()->startOfMonth()->toDateString(),
         'date_to' => now()->endOfMonth()->toDateString(),
     ]);
+});
+
+test('pdf exports are downloaded directly by default', function () {
+    config(['queue.pdf_exports' => false]);
+    Queue::fake();
+
+    $this->actingAs($this->user)->postJson(route('exports.store'), ['type' => ExportType::RAPPORT_CHARGEMENTS->value])
+        ->assertNotFound();
+
+    Queue::assertNothingPushed();
+    expect(Export::count())->toBe(0);
+
+    $props = $this->actingAs($this->user)->get(route('rapports.chargements'))->viewData('page')['props'];
+
+    expect($props['queuedPdfExports'])->toBeFalse()
+        ->and($props['notifications'])->toBeNull();
+
+    $this->actingAs($this->user)->get(route('rapports.chargements.download'))
+        ->assertOk()
+        ->assertHeader('Content-Type', 'application/pdf');
+});
+
+test('queued pdf exports are shared with the frontend when enabled', function () {
+    $props = $this->actingAs($this->user)->get(route('rapports.chargements'))->viewData('page')['props'];
+
+    expect($props['queuedPdfExports'])->toBeTrue()
+        ->and($props['notifications'])->not->toBeNull();
 });

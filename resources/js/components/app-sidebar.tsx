@@ -1,4 +1,4 @@
-import { Link } from '@inertiajs/react';
+import { Link, usePage } from '@inertiajs/react';
 import {
     Package,
     Settings,
@@ -16,6 +16,7 @@ import {
     MapPin,
     Download,
 } from 'lucide-react';
+import { useMemo } from 'react';
 
 import AppLogo from '@/components/app-logo';
 import { NavFooter } from '@/components/nav-footer';
@@ -147,7 +148,25 @@ const mainNavGroups: NavGroup[] = [
 
 const footerNavItems: NavItem[] = [];
 
+/** « Mes exports » n'a de sens que lorsque les exports PDF passent par la queue. */
+const exportsHref = exportsRoutes.index().url;
+
 export function AppSidebar() {
+    const { queuedPdfExports } = usePage().props;
+
+    const navGroups = useMemo(
+        () =>
+            queuedPdfExports
+                ? mainNavGroups
+                : mainNavGroups.map((group) => ({
+                      ...group,
+                      items: group.items.filter(
+                          (item) => item.href !== exportsHref,
+                      ),
+                  })),
+        [queuedPdfExports],
+    );
+
     return (
         <Sidebar collapsible="icon" variant="inset">
             <SidebarHeader>
@@ -168,7 +187,7 @@ export function AppSidebar() {
             </SidebarHeader>
 
             <SidebarContent>
-                <NavMain groups={mainNavGroups} />
+                <NavMain groups={navGroups} />
             </SidebarContent>
 
             <SidebarFooter>

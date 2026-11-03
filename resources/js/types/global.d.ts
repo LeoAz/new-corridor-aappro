@@ -13,6 +13,7 @@ declare module '@inertiajs/core' {
         sharedPageProps: {
             name: string;
             auth: Auth;
+            queuedPdfExports: boolean;
             notifications: SharedNotifications | null;
             sidebarOpen: boolean;
             [key: string]: unknown;

@@ -41,13 +41,14 @@ class HandleInertiaRequests extends Middleware
             'auth' => [
                 'user' => $request->user(),
             ],
+            'queuedPdfExports' => config('queue.pdf_exports'),
             'notifications' => fn () => $this->notifications($request),
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
         ];
     }
 
     /**
-     * Notifications in-app de l'utilisateur et nombre d'exports encore en cours de génération.
+     * Notifications in-app de l'utilisateur (uniquement quand les exports passent par la queue) et nombre d'exports encore en cours de génération.
      *
      * @return array{unread_count: int, pending_exports: int, items: array<int, array<string, mixed>>}|null
      */
@@ -55,7 +56,7 @@ class HandleInertiaRequests extends Middleware
     {
         $user = $request->user();
 
-        if (! $user) {
+        if (! $user || ! config('queue.pdf_exports')) {
             return null;
         }
 

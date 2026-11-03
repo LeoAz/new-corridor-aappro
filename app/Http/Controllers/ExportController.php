@@ -36,6 +36,8 @@ class ExportController extends Controller
      */
     public function store(StoreExportRequest $request): JsonResponse
     {
+        abort_unless(config('queue.pdf_exports'), 404);
+
         $exporter = $request->exportType()->exporter();
         $filters = $request->exportFilters();
 

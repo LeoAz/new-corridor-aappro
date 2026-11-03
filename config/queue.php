@@ -29,6 +29,19 @@ return [
     |
     */
 
+    /*
+    |--------------------------------------------------------------------------
+    | PDF Exports
+    |--------------------------------------------------------------------------
+    |
+    | Quand cette option est activée, les exports PDF des rapports sont générés
+    | par le queue worker et l'utilisateur est notifié quand ils sont prêts.
+    | Désactivée, les PDF sont générés et téléchargés directement.
+    |
+    */
+
+    'pdf_exports' => (bool) env('QUEUE_PDF_EXPORTS', false),
+
     'connections' => [
 
         'sync' => [
