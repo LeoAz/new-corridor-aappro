@@ -203,6 +203,7 @@ export default function Depots({ depots }: Props) {
                     data={depots}
                     searchKey="name"
                     showNumbering={true}
+                    hidePagination
                 />
             </div>
 
