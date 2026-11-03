@@ -8,9 +8,11 @@ use App\Http\Controllers\ClientTrackingController;
 use App\Http\Controllers\DeliveryController;
 use App\Http\Controllers\DepotController;
 use App\Http\Controllers\DepotInvoiceController;
+use App\Http\Controllers\ExportController;
 use App\Http\Controllers\FuelPurchaseController;
 use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\LoadController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\StockTrackingController;
 use Illuminate\Support\Facades\Route;
@@ -79,6 +81,17 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('vente-depot', [ReportController::class, 'ventesDepot'])->name('vente-depot');
         Route::get('vente-depot/download', [ReportController::class, 'downloadVentesDepot'])->name('vente-depot.download');
     });
+
+    // Exports PDF générés en arrière-plan
+    Route::get('exports', [ExportController::class, 'index'])->name('exports.index');
+    Route::post('exports', [ExportController::class, 'store'])->name('exports.store');
+    Route::get('exports/{export}', [ExportController::class, 'show'])->name('exports.show');
+    Route::get('exports/{export}/download', [ExportController::class, 'download'])->name('exports.download');
+
+    // Notifications
+    Route::post('notifications/read-all', [NotificationController::class, 'markAllAsRead'])->name('notifications.read-all');
+    Route::post('notifications/{notification}/read', [NotificationController::class, 'markAsRead'])->name('notifications.read');
+
     // Stock Tracking
     Route::get('stocks/suivi-stock', [StockTrackingController::class, 'index'])->name('stocks.suivi-stock');
     Route::get('stocks/suivi-stock/download', [StockTrackingController::class, 'downloadPdf'])->name('stocks.suivi-stock.download');

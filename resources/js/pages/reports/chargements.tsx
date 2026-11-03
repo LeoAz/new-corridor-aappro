@@ -2,7 +2,7 @@ import { Head, router } from '@inertiajs/react';
 import type { ColumnDef } from '@tanstack/react-table';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { CalendarIcon, Download, Filter, Package, Search, Truck } from 'lucide-react';
+import { CalendarIcon, Download, Filter, Loader2, Package, Search, Truck } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { usePdfExport } from '@/hooks/use-pdf-export';
 import { LOAD_STATUS } from '@/lib/load-status';
 import { cn, formatNumber, toUrl } from '@/lib/utils';
 import * as reportsActions from '@/routes/rapports';
@@ -112,29 +113,15 @@ export default function ReportChargements({ loads, stats, filters }: Props) {
         );
     };
 
+    const { requestExport, isRequesting } = usePdfExport();
+
     const handleDownload = () => {
-        const url = new URL(
-            toUrl(reportsActions.default.chargements.download()),
-            window.location.origin,
-        );
-
-        if (dateFrom) {
-            url.searchParams.append('date_from', dateFrom);
-        }
-
-        if (dateTo) {
-            url.searchParams.append('date_to', dateTo);
-        }
-
-        if (product && product !== 'all') {
-            url.searchParams.append('product', product);
-        }
-
-        if (loadLocation) {
-            url.searchParams.append('load_location', loadLocation);
-        }
-
-        window.location.href = url.toString();
+        requestExport('rapport-chargements', {
+            date_from: dateFrom,
+            date_to: dateTo,
+            product: product === 'all' ? '' : product,
+            load_location: loadLocation,
+        });
     };
 
     return (
@@ -144,8 +131,8 @@ export default function ReportChargements({ loads, stats, filters }: Props) {
             <div className="flex h-full flex-1 flex-col gap-4 p-4">
                 <div className="flex items-center justify-between">
                     <h1 className="text-2xl font-bold text-foreground font-mono uppercase tracking-tight">Rapport des chargements</h1>
-                    <Button onClick={handleDownload} variant="outline" className="gap-2">
-                        <Download className="h-4 w-4" />
+                    <Button onClick={handleDownload} variant="outline" className="gap-2" disabled={isRequesting}>
+                        {isRequesting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
                         Exporter PDF
                     </Button>
                 </div>

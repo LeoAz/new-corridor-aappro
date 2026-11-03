@@ -14,6 +14,7 @@ import {
     BarChartHorizontal,
     Contact,
     MapPin,
+    Download,
 } from 'lucide-react';
 
 import AppLogo from '@/components/app-logo';
@@ -30,6 +31,7 @@ import {
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
 import * as configuration from '@/routes/configuration';
+import * as exportsRoutes from '@/routes/exports';
 import * as finances from '@/routes/finances';
 import * as operations from '@/routes/operations';
 import * as rapports from '@/routes/rapports';
@@ -98,6 +100,11 @@ const mainNavGroups: NavGroup[] = [
                 title: 'Vente dépôt',
                 href: rapports.default.venteDepot().url,
                 icon: BarChart3,
+            },
+            {
+                title: 'Mes exports',
+                href: exportsRoutes.index().url,
+                icon: Download,
             },
         ],
     },
