@@ -46,17 +46,16 @@ class GeneratePdfExport implements ShouldQueue
             'started_at' => now(),
         ]);
 
-        $exporter = $this->export->type->exporter();
-        $pdf = $this->buildPdfExport($exporter, $this->export->filters, self::MEMORY_LIMIT);
+        $document = $this->buildPdfExport($this->export->type->exporter(), $this->export->filters, self::MEMORY_LIMIT);
 
         $path = 'exports/'.$this->export->id.'.pdf';
-        Storage::disk(self::DISK)->put($path, $pdf->output());
+        Storage::disk(self::DISK)->put($path, $document->toPdf()->output());
 
         $this->export->update([
             'status' => ExportStatus::COMPLETED,
             'disk' => self::DISK,
             'path' => $path,
-            'filename' => $exporter->filename(),
+            'filename' => $document->filename,
             'completed_at' => now(),
         ]);
 

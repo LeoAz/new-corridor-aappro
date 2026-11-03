@@ -17,6 +17,13 @@ interface PdfExport
     public function filterKeys(): array;
 
     /**
+     * Règles de validation des filtres, vérifiées au moment de la demande d'export.
+     *
+     * @return array<string, mixed>
+     */
+    public function rules(): array;
+
+    /**
      * Normalise les filtres au moment de la demande (ex: période par défaut),
      * pour que le PDF généré plus tard corresponde à ce que l'utilisateur voyait.
      *
@@ -25,17 +32,8 @@ interface PdfExport
      */
     public function resolveFilters(array $filters): array;
 
-    public function view(): string;
-
     /**
      * @param  array<string, mixed>  $filters
-     * @return array<string, mixed>
      */
-    public function viewData(array $filters): array;
-
-    public function filename(): string;
-
-    public function paper(): string;
-
-    public function orientation(): string;
+    public function document(array $filters): PdfDocument;
 }

@@ -1,6 +1,16 @@
 export type ExportStatus = 'pending' | 'processing' | 'completed' | 'failed';
 
-export type ExportType = 'rapport-chargements';
+export type ExportType =
+    | 'rapport-chargements'
+    | 'rapport-livraisons'
+    | 'rapport-ventes-chargement'
+    | 'rapport-ventes-depot'
+    | 'chargements-en-cours'
+    | 'livraisons'
+    | 'achats-carburant'
+    | 'suivi-stock'
+    | 'suivi-client'
+    | 'releve-client';
 
 export interface ExportItem {
     id: string;

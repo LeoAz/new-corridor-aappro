@@ -24,6 +24,7 @@ import {
     PopoverContent,
     PopoverTrigger,
 } from '@/components/ui/popover';
+import { usePdfExport } from '@/hooks/use-pdf-export';
 import { formatCurrency } from '@/lib/format';
 import { LOAD_STATUS } from '@/lib/load-status';
 import { cn } from '@/lib/utils';
@@ -73,6 +74,8 @@ export default function SuiviClient({
     depots = [],
     delivered_loads = [],
 }: Props) {
+    const { requestExport, isRequesting } = usePdfExport();
+
     const { props } = usePage<PageProps>();
     const openInvoicesParam = props.open_invoices;
 
@@ -134,13 +137,11 @@ export default function SuiviClient({
             return;
         }
 
-        window.location.href = tracking.exportPdf({
-            query: {
-                client_id: selectedClient.id,
-                start_date: startDate,
-                end_date: endDate,
-            },
-        }).url;
+        requestExport('suivi-client', {
+            client_id: selectedClient.id.toString(),
+            start_date: startDate,
+            end_date: endDate,
+        });
     };
 
     async function fetchInvoices() {
@@ -295,7 +296,7 @@ export default function SuiviClient({
                             <Button
                                 variant="outline"
                                 onClick={handleExportPdf}
-                                disabled={!selectedClient}
+                                disabled={isRequesting || !selectedClient}
                             >
                                 <Download className="mr-2 h-4 w-4" />
                                 Exporter PDF

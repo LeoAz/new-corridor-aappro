@@ -7,6 +7,7 @@ use App\Concerns\GeneratesPdf;
 use App\Http\Requests\FuelPurchaseRequest;
 use App\Models\Depot;
 use App\Models\FuelPurchase;
+use App\Services\Exports\AchatsCarburantExport;
 use App\Services\StockAdjustmentService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -89,15 +90,6 @@ class FuelPurchaseController extends Controller
 
     public function downloadPdf(Request $request)
     {
-        $query = FuelPurchase::with(['depot', 'compartment'])
-            ->when($request->filled('product'), fn ($q) => $q->where('product', $request->product));
-        $query = $this->applyDateRange($query, $request, 'purchase_date');
-
-        $purchases = $query->latest()->get();
-
-        return $this->downloadPdfView('finances.fuel_purchases_pdf', [
-            'purchases' => $purchases,
-            'filters' => $request->only(['product', 'date_from', 'date_to']),
-        ], 'achats_carburant_'.date('Ymd_His').'.pdf');
+        return $this->downloadPdfExport(app(AchatsCarburantExport::class), $request->all());
     }
 }

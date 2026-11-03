@@ -54,6 +54,7 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { SimpleAutocomplete } from '@/components/ui/simple-autocomplete';
+import { usePdfExport } from '@/hooks/use-pdf-export';
 import { LOAD_STATUS } from '@/lib/load-status';
 import { cn, formatNumber } from '@/lib/utils';
 import * as operations from '@/routes/operations';
@@ -90,6 +91,8 @@ export default function Livraisons({
     distinct_locations = [],
     stats = { by_product: [], total_loads: 0, total_volume: 0 },
 }: Props) {
+    const { requestExport, isRequesting } = usePdfExport();
+
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [selectedDelivery, setSelectedDelivery] = useState<Load | null>(null);
@@ -393,6 +396,7 @@ export default function Livraisons({
                     </h1>
                     <div className="flex items-center gap-2">
                         <Button
+                            disabled={isRequesting}
                             variant="outline"
                             onClick={() => {
                                 const params = new URLSearchParams();
@@ -431,13 +435,7 @@ export default function Livraisons({
                                     );
                                 }
 
-                                window.open(
-                                    operations.default.livraisons.download()
-                                        .url +
-                                        '?' +
-                                        params.toString(),
-                                    '_blank',
-                                );
+                                requestExport('livraisons', Object.fromEntries(params));
                             }}
                         >
                             <Download className="mr-2 h-4 w-4" /> Export PDF

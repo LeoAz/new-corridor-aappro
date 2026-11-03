@@ -11,6 +11,7 @@ use App\Models\Depot;
 use App\Models\Invoice;
 use App\Models\InvoiceItem;
 use App\Models\Load;
+use App\Services\Exports\SuiviClientExport;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -135,95 +136,11 @@ class ClientTrackingController extends Controller
 
     public function exportPdf(Request $request)
     {
-        $clientId = $request->input('client_id');
-        $startDate = $request->input('start_date');
-        $endDate = $request->input('end_date');
-
-        if (! $clientId) {
+        if (! $request->filled('client_id')) {
             return back()->with('error', 'Veuillez sélectionner un client.');
         }
 
-        $client = Client::findOrFail($clientId);
-
-        // Indicateurs financiers
-        $initialBalance = (float) $client->initial_balance;
-
-        $totalInvoiced = InvoiceItem::whereHas('loadDetails', function ($q) use ($clientId) {
-            $q->where('client_id', $clientId);
-        })->sum('total');
-
-        $totalPaid = ClientPayment::where('client_id', $clientId)->sum('amount');
-
-        $currentBalance = $initialBalance + (float) $totalInvoiced - (float) $totalPaid;
-
-        // Total non facturé (Livraisons au statut LIVRER)
-        // Note: Le montant n'est pas encore défini par une facture, mais on peut l'estimer ou juste compter.
-        // On va aussi calculer le montant théorique si possible
-        $notInvoicedLoads = Load::where('client_id', $clientId)
-            ->where('status', LoadStatus::LIVRER)
-            ->get();
-
-        $totalNotInvoiced = $notInvoicedLoads->sum(function ($load) {
-            return $load->volume * ($load->unit_price ?? 0); // Si unit_price existe sur Load
-        });
-
-        // Listes des livraisons
-        $loadsQuery = Load::where(function ($query) use ($clientId) {
-            $query->where('client_id', $clientId)
-                ->orWhereHas('invoiceItems.invoice', fn ($query) => $query->where('client_id', $clientId));
-        })->with('invoiceItems');
-        $loadsQuery = $this->applyDateRange($loadsQuery, $request, 'unload_date', 'start_date', 'end_date');
-
-        if ($request->filled('search')) {
-            $search = $request->search;
-            $loadsQuery->where(function ($q) use ($search) {
-                $q->where('id', 'like', "%{$search}%")
-                    ->orWhere('vehicle_registration', 'like', "%{$search}%")
-                    ->orWhere('client_name', 'like', "%{$search}%")
-                    ->orWhere('unload_location', 'like', "%{$search}%");
-            });
-        }
-
-        if ($request->filled('product_filter') && $request->product_filter !== 'all') {
-            $loadsQuery->where('product', $request->product_filter);
-        }
-
-        if ($request->filled('status_filter') && $request->status_filter !== 'all') {
-            if ($request->status_filter === LoadStatus::PAYE->value) {
-                $loadsQuery->where('status', LoadStatus::PAYE);
-            } elseif ($request->status_filter === LoadStatus::LIVRE_PARTIELLEMENT->value) {
-                $loadsQuery->where('status', LoadStatus::LIVRE_PARTIELLEMENT);
-            } elseif ($request->status_filter === LoadStatus::FACTURER->value) {
-                $loadsQuery->where('status', LoadStatus::FACTURER);
-            }
-        }
-
-        $allLoads = $loadsQuery->orderBy('unload_date', 'desc')->get();
-
-        $loadsFacturer = $allLoads->filter(fn ($l) => $l->status === LoadStatus::FACTURER || $l->status === LoadStatus::LIVRE_PARTIELLEMENT);
-        $loadsFacturerPayer = $allLoads->where('status', LoadStatus::PAYE);
-        $loadsLivrer = $allLoads->where('status', LoadStatus::LIVRER);
-
-        // Liste des règlements
-        $paymentsQuery = $this->applyDateRange(ClientPayment::where('client_id', $clientId), $request, 'date', 'start_date', 'end_date');
-        $payments = $paymentsQuery->orderBy('date', 'desc')->get();
-
-        return $this->downloadPdfView('reports.suivi-client-pdf', [
-            'client' => $client,
-            'startDate' => $startDate,
-            'endDate' => $endDate,
-            'stats' => [
-                'initial_balance' => $initialBalance,
-                'total_invoiced' => $totalInvoiced,
-                'total_paid' => $totalPaid,
-                'current_balance' => $currentBalance,
-                'total_not_invoiced' => $totalNotInvoiced,
-            ],
-            'loadsFacturer' => $loadsFacturer,
-            'loadsFacturerPayer' => $loadsFacturerPayer,
-            'loadsLivrer' => $loadsLivrer,
-            'payments' => $payments,
-        ], "suivi-client-{$client->nom}.pdf");
+        return $this->downloadPdfExport(app(SuiviClientExport::class), $request->all());
     }
 
     public function processPayment(Request $request)

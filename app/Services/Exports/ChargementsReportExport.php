@@ -2,21 +2,17 @@
 
 namespace App\Services\Exports;
 
-use App\Concerns\FiltersByDateRange;
 use App\Models\Client;
 use App\Models\Load;
 use App\Services\QrCodeGenerator;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 
 /**
  * Rapport des chargements ayant encore un volume à livrer.
  */
-class ChargementsReportExport implements PdfExport
+class ChargementsReportExport extends BasePdfExport
 {
-    use FiltersByDateRange;
-
     public function label(): string
     {
         return 'Rapport des chargements';
@@ -28,14 +24,6 @@ class ChargementsReportExport implements PdfExport
     }
 
     /**
-     * Pas de période par défaut : le rapport liste tout ce qui reste à livrer.
-     */
-    public function resolveFilters(array $filters): array
-    {
-        return collect($filters)->only($this->filterKeys())->all();
-    }
-
-    /**
      * `invoiceItems` est eager-chargée pour que l'accesseur `remaining_quantity`
      * du modèle Load utilise la relation déjà chargée au lieu d'une requête par ligne.
      *
@@ -43,7 +31,7 @@ class ChargementsReportExport implements PdfExport
      */
     public function query(array $filters): Builder
     {
-        $request = new Request($filters);
+        $request = $this->request($filters);
 
         $query = Load::query()->withRemainingQuantity()->with(['client', 'depot', 'invoiceItems']);
         $query = $this->applyDateRange($query, $request, 'load_date');
@@ -65,12 +53,7 @@ class ChargementsReportExport implements PdfExport
             ->values();
     }
 
-    public function view(): string
-    {
-        return 'reports.chargements_pdf';
-    }
-
-    public function viewData(array $filters): array
+    public function document(array $filters): PdfDocument
     {
         $client = filled($filters['client_id'] ?? null) ? Client::find($filters['client_id']) : null;
 
@@ -101,7 +84,7 @@ class ChargementsReportExport implements PdfExport
         $qrData .= 'Volume Init: '.number_format($totalVolume, 0, '.', ' ').' L'."\n";
         $qrData .= 'Reste: '.number_format($totalRemaining, 0, '.', ' ').' L';
 
-        return [
+        return new PdfDocument('reports.chargements_pdf', [
             'loads' => $loads,
             'stats' => $stats,
             'depotStats' => $depotStats,
@@ -111,21 +94,6 @@ class ChargementsReportExport implements PdfExport
             'client' => $client,
             'qrcode' => QrCodeGenerator::base64($qrData),
             'date' => now()->format('d/m/Y H:i'),
-        ];
-    }
-
-    public function filename(): string
-    {
-        return 'rapport-chargements-'.now()->format('Y-m-d').'.pdf';
-    }
-
-    public function paper(): string
-    {
-        return 'a4';
-    }
-
-    public function orientation(): string
-    {
-        return 'landscape';
+        ], 'rapport-chargements-'.now()->format('Y-m-d').'.pdf', 'a4', 'landscape');
     }
 }

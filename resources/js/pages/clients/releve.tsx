@@ -19,6 +19,7 @@ import {
 import { DataTable } from '@/components/ui/data-table';
 import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { usePdfExport } from '@/hooks/use-pdf-export';
 import AppLayout from '@/layouts/app-layout';
 import { cn, formatNumber } from '@/lib/utils';
 import * as clientsActions from '@/routes/clients';
@@ -48,6 +49,8 @@ interface Props {
 }
 
 export default function Releve({ client, clients, statement, filters }: Props) {
+    const { requestExport, isRequesting } = usePdfExport();
+
     const [dateFrom, setDateFrom] = useState<string>(filters?.date_from || '');
     const [dateTo, setDateTo] = useState<string>(filters?.date_to || '');
     const [isClientComboboxOpen, setIsClientComboboxOpen] = useState(false);
@@ -260,20 +263,21 @@ export default function Releve({ client, clients, statement, filters }: Props) {
                             <div className="px-6 py-4 flex items-center justify-between border-b border-gray-100">
                                 <h3 className="font-bold text-gray-800 uppercase tracking-tight">Relevé de compte détaillé</h3>
                                 <Button
+                                    disabled={isRequesting}
                                     variant="outline"
                                     size="sm"
                                     onClick={() => {
-                                        const url = new URL(clientsActions.default.releve.download(client.id).url, window.location.origin);
+                                        const params = new URLSearchParams({ client_id: client.id.toString() });
 
                                         if (dateFrom) {
-                                            url.searchParams.append('date_from', dateFrom);
+                                            params.append('date_from', dateFrom);
                                         }
 
                                         if (dateTo) {
-                                            url.searchParams.append('date_to', dateTo);
+                                            params.append('date_to', dateTo);
                                         }
 
-                                        window.location.href = url.toString();
+                                        requestExport('releve-client', Object.fromEntries(params));
                                     }}
                                     className="print:hidden h-8 text-xs font-medium border-gray-200 hover:bg-gray-50"
                                 >

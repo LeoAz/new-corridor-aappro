@@ -32,6 +32,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { usePdfExport } from '@/hooks/use-pdf-export';
 import { cn, formatNumber } from '@/lib/utils';
 import * as achatCarburant from '@/routes/finances/achat-carburant';
 import type { Compartment, Depot } from '@/types';
@@ -60,6 +61,8 @@ interface Props {
 }
 
 export default function AchatCarburant({ purchases, depots, filters }: Props) {
+    const { requestExport, isRequesting } = usePdfExport();
+
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -296,6 +299,7 @@ export default function AchatCarburant({ purchases, depots, filters }: Props) {
                     <h1 className="text-2xl font-bold text-foreground">Achat de carburant</h1>
                     <div className="flex items-center gap-2">
                         <Button
+                            disabled={isRequesting}
                             variant="outline"
                             onClick={() => {
                                 const params = new URLSearchParams();
@@ -312,7 +316,7 @@ export default function AchatCarburant({ purchases, depots, filters }: Props) {
                                     params.append('date_to', format(localFilters.dateRange.to, 'yyyy-MM-dd'));
                                 }
 
-                                window.open(achatCarburant.default.download().url + '?' + params.toString(), '_blank');
+                                requestExport('achats-carburant', Object.fromEntries(params));
                             }}
                         >
                             <Download className="mr-2 h-4 w-4" /> Export PDF

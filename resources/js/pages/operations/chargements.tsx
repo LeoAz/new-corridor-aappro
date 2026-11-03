@@ -45,6 +45,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { usePdfExport } from '@/hooks/use-pdf-export';
 import { LOAD_STATUS } from '@/lib/load-status';
 import { cn, formatNumber } from '@/lib/utils';
 import * as operations from '@/routes/operations';
@@ -92,6 +93,8 @@ export default function Chargements({
     distinct_locations,
     stats,
 }: Props) {
+    const { requestExport, isRequesting } = usePdfExport();
+
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -522,6 +525,7 @@ export default function Chargements({
                     </h1>
                     <div className="flex items-center gap-2">
                         <Button
+                            disabled={isRequesting}
                             variant="outline"
                             onClick={() => {
                                 const params = new URLSearchParams();
@@ -560,13 +564,7 @@ export default function Chargements({
                                     );
                                 }
 
-                                window.open(
-                                    operations.default.chargements.download()
-                                        .url +
-                                        '?' +
-                                        params.toString(),
-                                    '_blank',
-                                );
+                                requestExport('chargements-en-cours', Object.fromEntries(params));
                             }}
                         >
                             <Download className="mr-2 h-4 w-4" /> Export PDF

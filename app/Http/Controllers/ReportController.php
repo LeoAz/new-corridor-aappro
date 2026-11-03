@@ -6,15 +6,11 @@ use App\Concerns\FiltersByDateRange;
 use App\Concerns\GeneratesPdf;
 use App\Models\Client;
 use App\Models\Depot;
-use App\Models\DepotInvoice;
-use App\Models\Invoice;
-use App\Models\Load;
 use App\Services\Exports\ChargementsReportExport;
-use App\Services\QrCodeGenerator;
-use Carbon\Carbon;
-use Illuminate\Database\Eloquent\Builder;
+use App\Services\Exports\LivraisonsReportExport;
+use App\Services\Exports\VentesChargementReportExport;
+use App\Services\Exports\VentesDepotReportExport;
 use Illuminate\Http\Request;
-use Illuminate\Support\Collection;
 use Inertia\Inertia;
 
 class ReportController extends Controller
@@ -22,72 +18,12 @@ class ReportController extends Controller
     use FiltersByDateRange;
     use GeneratesPdf;
 
-    public function __construct(private readonly ChargementsReportExport $chargementsReport) {}
-
-    private function livraisonsQuery(Request $request): Builder
-    {
-        $this->applyDefaultDateRange($request);
-
-        $query = Load::query()->whereNotNull('unload_date')->with(['client', 'depot', 'invoiceItems']);
-        $query = $this->applyDateRange($query, $request, 'unload_date');
-
-        return $query
-            ->when($request->filled('product'), fn ($q) => $q->where('product', $request->product))
-            ->when($request->filled('unload_location'), fn ($q) => $q->where('unload_location', 'like', '%'.$request->unload_location.'%'))
-            ->when($request->filled('client_id'), fn ($q) => $q->where('client_id', $request->client_id));
-    }
-
-    /**
-     * Nombre de camions par client et par produit, sous forme de tableau croisé.
-     *
-     * @return array{products: array<int, string>, rows: array<int, array{client: string, counts: array<string, int>, total: int}>}
-     */
-    private function truckCountsByClientAndProduct(Collection $loads): array
-    {
-        $products = $loads->pluck('product')->map(fn ($product) => $product ?: 'INCONNU')->unique()->sort()->values();
-
-        $rows = $loads
-            ->groupBy(fn ($load) => $load->client->nom ?? 'Sans Client')
-            ->map(function ($clientLoads, $clientName) use ($products) {
-                $byProduct = $clientLoads->groupBy(fn ($load) => $load->product ?: 'INCONNU');
-
-                return [
-                    'client' => $clientName,
-                    'counts' => $products->mapWithKeys(fn ($product) => [$product => $byProduct->get($product, collect())->count()])->toArray(),
-                    'total' => $clientLoads->count(),
-                ];
-            })
-            ->sortByDesc('total')
-            ->values()
-            ->toArray();
-
-        return [
-            'products' => $products->toArray(),
-            'rows' => $rows,
-        ];
-    }
-
-    private function ventesChargementQuery(Request $request): Builder
-    {
-        $this->applyDefaultDateRange($request);
-
-        $query = Invoice::query()->with(['client', 'items.loadDetails.invoiceItems']);
-        $query = $this->applyDateRange($query, $request, 'date');
-
-        return $query->when($request->filled('client_id'), fn ($q) => $q->where('client_id', $request->client_id));
-    }
-
-    private function ventesDepotQuery(Request $request): Builder
-    {
-        $this->applyDefaultDateRange($request);
-
-        $query = DepotInvoice::query()->with(['client', 'depot', 'items.compartment']);
-        $query = $this->applyDateRange($query, $request, 'date');
-
-        return $query
-            ->when($request->filled('client_id'), fn ($q) => $q->where('client_id', $request->client_id))
-            ->when($request->filled('depot_id'), fn ($q) => $q->where('depot_id', $request->depot_id));
-    }
+    public function __construct(
+        private readonly ChargementsReportExport $chargementsReport,
+        private readonly LivraisonsReportExport $livraisonsReport,
+        private readonly VentesChargementReportExport $ventesChargementReport,
+        private readonly VentesDepotReportExport $ventesDepotReport,
+    ) {}
 
     public function chargements(Request $request)
     {
@@ -121,7 +57,7 @@ class ReportController extends Controller
 
     public function livraisons(Request $request)
     {
-        $loads = $this->livraisonsQuery($request)->orderBy('unload_date', 'desc')->get();
+        $loads = $this->livraisonsReport->query($request)->orderBy('unload_date', 'desc')->get();
 
         $stats = [
             'total_trucks' => $loads->count(),
@@ -131,7 +67,7 @@ class ReportController extends Controller
                 'count' => $group->count(),
                 'volume' => $group->sum('volume'),
             ])->values()->toArray(),
-            'by_client_product' => $this->truckCountsByClientAndProduct($loads),
+            'by_client_product' => $this->livraisonsReport->truckCountsByClientAndProduct($loads),
         ];
 
         return Inertia::render('reports/livraisons', [
@@ -144,59 +80,12 @@ class ReportController extends Controller
 
     public function downloadLivraisons(Request $request)
     {
-        $client = $request->filled('client_id') ? Client::find($request->client_id) : null;
-
-        $loads = $this->livraisonsQuery($request)->orderBy('unload_date', 'desc')->get();
-        $totalVolume = $loads->sum('volume');
-
-        $stats = $loads->groupBy('product')->map(fn ($group, $product) => [
-            'product' => $product ?: 'INCONNU',
-            'count' => $group->count(),
-            'volume' => $group->sum('volume'),
-        ])->values()->toArray();
-
-        $clientStats = $loads->groupBy(function ($item) {
-            return $item->client->nom ?? 'Sans Client';
-        })->map(fn ($group, $clientName) => [
-            'client' => $clientName,
-            'count' => $group->count(),
-            'volume' => $group->sum('volume'),
-        ])->values()->toArray();
-
-        $groupedLoads = $loads->groupBy(function ($item) {
-            return Carbon::parse($item->unload_date)->format('Y-m-d');
-        })->map(function ($dateGroup) {
-            return $dateGroup->groupBy(function ($item) {
-                return $item->client->nom ?? 'Sans Client';
-            });
-        });
-
-        $clientProductStats = $this->truckCountsByClientAndProduct($loads);
-
-        $qrData = "Rapport Livraisons\n";
-        $qrData .= 'Date: '.now()->format('d/m/Y')."\n";
-        $qrData .= 'Camions: '.$loads->count()."\n";
-        $qrData .= 'Volume: '.number_format($totalVolume, 0, '.', ' ').' L';
-
-        $qrcode = QrCodeGenerator::base64($qrData);
-
-        return $this->downloadPdfView('reports.livraisons_pdf', [
-            'loads' => $loads,
-            'groupedLoads' => $groupedLoads,
-            'stats' => $stats,
-            'clientStats' => $clientStats,
-            'clientProductStats' => $clientProductStats,
-            'totalVolume' => $totalVolume,
-            'filters' => $request->all(),
-            'client' => $client,
-            'qrcode' => $qrcode,
-            'date' => now()->format('d/m/Y H:i'),
-        ], 'rapport-livraisons-'.now()->format('Y-m-d').'.pdf', 'a4', 'landscape');
+        return $this->downloadPdfExport($this->livraisonsReport, $request->all());
     }
 
     public function ventesChargement(Request $request)
     {
-        $invoices = $this->ventesChargementQuery($request)->orderBy('date', 'desc')->get();
+        $invoices = $this->ventesChargementReport->query($request)->orderBy('date', 'desc')->get();
 
         $stats = [
             'total_amount' => $invoices->sum('total_amount'),
@@ -213,28 +102,12 @@ class ReportController extends Controller
 
     public function downloadVentesChargement(Request $request)
     {
-        $invoices = $this->ventesChargementQuery($request)->orderBy('date', 'asc')->get();
-        $totalAmount = $invoices->sum('total_amount');
-
-        $qrData = "Rapport Ventes Chargement\n";
-        $qrData .= 'Date: '.now()->format('d/m/Y')."\n";
-        $qrData .= 'Factures: '.$invoices->count()."\n";
-        $qrData .= 'Montant: '.number_format($totalAmount, 0, '.', ' ').' CFA';
-
-        $qrcode = QrCodeGenerator::base64($qrData);
-
-        return $this->downloadPdfView('reports.ventes_chargement_pdf', [
-            'invoices' => $invoices,
-            'totalAmount' => $totalAmount,
-            'filters' => $request->all(),
-            'qrcode' => $qrcode,
-            'date' => now()->format('d/m/Y H:i'),
-        ], 'rapport-ventes-chargement-'.now()->format('Y-m-d').'.pdf');
+        return $this->downloadPdfExport($this->ventesChargementReport, $request->all());
     }
 
     public function ventesDepot(Request $request)
     {
-        $invoices = $this->ventesDepotQuery($request)->orderBy('date', 'desc')->get();
+        $invoices = $this->ventesDepotReport->query($request)->orderBy('date', 'desc')->get();
 
         $stats = [
             'total_amount' => $invoices->sum('total_amount'),
@@ -252,22 +125,6 @@ class ReportController extends Controller
 
     public function downloadVentesDepot(Request $request)
     {
-        $invoices = $this->ventesDepotQuery($request)->orderBy('date', 'asc')->get();
-        $totalAmount = $invoices->sum('total_amount');
-
-        $qrData = "Rapport Ventes Dépôt\n";
-        $qrData .= 'Date: '.now()->format('d/m/Y')."\n";
-        $qrData .= 'Factures: '.$invoices->count()."\n";
-        $qrData .= 'Montant: '.number_format($totalAmount, 0, '.', ' ').' CFA';
-
-        $qrcode = QrCodeGenerator::base64($qrData);
-
-        return $this->downloadPdfView('reports.ventes_depot_pdf', [
-            'invoices' => $invoices,
-            'totalAmount' => $totalAmount,
-            'filters' => $request->all(),
-            'qrcode' => $qrcode,
-            'date' => now()->format('d/m/Y H:i'),
-        ], 'rapport-ventes-depot-'.now()->format('Y-m-d').'.pdf');
+        return $this->downloadPdfExport($this->ventesDepotReport, $request->all());
     }
 }
